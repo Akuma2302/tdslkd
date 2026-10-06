@@ -46,19 +46,30 @@
   <div class="intro-curtain" aria-hidden="true"></div>
 </div>
 
-<header class="nav">
-  <a class="brand" href="#" id="brand" aria-label="Yosh Junior — Sistem Pasukan">
-    <img class="brand-logo" src="logo.png" alt="" width="1200" height="462">
-    <span class="brand-sub">Sistem Pasukan</span>
-  </a>
-  <div class="tabs" id="tabs" role="tablist" aria-label="Unit"></div>
-</header>
+<div class="app">
+  <aside class="side">
+    <a class="brand" href="#" id="brand" aria-label="Yosh Junior — Sistem Pasukan">
+      <img class="brand-logo" src="logo.png" alt="" width="1200" height="462">
+      <span class="brand-sub">Sistem Pasukan</span>
+    </a>
+    <div class="tabs" id="tabs" role="tablist" aria-label="Menu"></div>
+    <p class="side-foot">Yosh Junior<br>Sistem Pasukan</p>
+  </aside>
 
-<main class="wrap" id="panels"></main>
+  <div class="main">
+    <div class="topbar">
+      <div class="search" id="search">
+        <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="search" id="searchInput" placeholder="Cari unit" aria-label="Cari unit" autocomplete="off" spellcheck="false">
+        <kbd aria-hidden="true">/</kbd>
+        <div class="search-results" id="searchResults" hidden></div>
+      </div>
+      <p class="top-date" id="topDate"></p>
+    </div>
 
-<footer class="footer">
-  <span>Yosh Junior</span>
-</footer>
+    <main class="content" id="panels"></main>
+  </div>
+</div>
 
 <script src="units.js"></script>
 <script src="app.js"></script>
