@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "yosh-system",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "4317"],
+      "port": 4317
+    }
+  ]
+}

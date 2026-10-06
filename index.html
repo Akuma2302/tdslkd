@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ms">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yosh Junior — Sistem Pasukan</title>
+  <meta name="description" content="Sistem pasukan Yosh Junior: Unit Murabbi, Mutarabbi, Legality, Virality dan TLS.">
+  <meta name="theme-color" content="#0b0b0b">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Inter:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="locked">
+
+<div id="intro" class="intro" role="dialog" aria-modal="true" aria-label="Pengenalan">
+  <div class="intro-bg" aria-hidden="true">
+    <div class="hero-grid-bg"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <span class="ring"></span><span class="ring"></span><span class="ring"></span>
+  </div>
+
+  <div class="intro-corners" aria-hidden="true">
+    <span class="c-tl">Yosh Junior</span>
+    <span class="c-tr">5 Unit</span>
+    <span class="c-bl">Sistem Pasukan</span>
+    <span class="c-br">Sedunia ✦</span>
+  </div>
+
+  <div class="intro-stage">
+    <div class="intro-glow"></div>
+    <div class="intro-logo-wrap" id="introLogoWrap">
+      <img class="intro-logo" id="introLogo" src="logo.png" alt="Yosh Junior" width="1200" height="462">
+      <!-- Shown only if logo.png is missing -->
+      <div class="intro-wordmark" aria-hidden="true">yosh<small>Junior</small></div>
+    </div>
+    <p class="intro-sub"><span class="sub-line"></span>Program Sekolah Sedunia<span class="sub-line"></span></p>
+    <div class="intro-action">
+      <div class="intro-loader" aria-hidden="true"><span></span></div>
+      <button type="button" class="intro-enter" id="introEnter">Masuk <span aria-hidden="true">→</span></button>
+    </div>
+    <p class="intro-hint">atau tekan Enter</p>
+  </div>
+
+  <div class="intro-curtain" aria-hidden="true"></div>
+</div>
+
+<header class="nav">
+  <a class="brand" href="#" id="brand" aria-label="Yosh Junior — Sistem Pasukan">
+    <img class="brand-logo" src="logo.png" alt="" width="1200" height="462">
+    <span class="brand-sub">Sistem Pasukan</span>
+  </a>
+  <div class="tabs" id="tabs" role="tablist" aria-label="Unit"></div>
+</header>
+
+<main class="wrap" id="panels"></main>
+
+<footer class="footer">
+  <span>Yosh Junior</span>
+  <span>Program Sekolah Sedunia</span>
+</footer>
+
+<script src="units.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
