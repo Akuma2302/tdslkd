@@ -374,7 +374,7 @@
     if (!searchBox.contains(e.target)) closeSearch();
   });
   document.addEventListener("keydown", function (e) {
-    if (e.key !== "/" || intro || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
+    if (e.key !== "/" || document.getElementById("intro") || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
     e.preventDefault();
     searchInput.focus();
   });

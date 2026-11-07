@@ -116,7 +116,7 @@
   function links(branch) {
     var box = el("div", "lgd-links");
     var a = el("a", "link-btn", "Buka portal user ↗");
-    a.href = new URL("./" + (branch && branch !== ALL ? "#/" + encodeURIComponent(branch) : ""), location.href).href;
+    a.href = new URL("legality.html" + (branch && branch !== ALL ? "#/" + encodeURIComponent(branch) : ""), location.href).href;
     a.target = "_blank"; a.rel = "noopener";
     box.appendChild(a);
     (state.data ? state.data.cawangan : []).forEach(function (c) {

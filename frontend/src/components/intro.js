@@ -1,7 +1,7 @@
 // Intro screen (logo, "Program Sekolah Sedunia", MASUK button), shared by admin and the user portal.
 // Needs the #intro markup in the page and <body class="locked">.
-// <body data-intro="once-per-visit"> skips the intro when arriving from another page of this site
-// (e.g. switching portal tabs), so it only plays when someone opens the site.
+// <body data-intro="once-per-visit"> plays the intro once per browser session: switching tabs,
+// logging out or being sent between portal and admin skips it; reopening the app plays it again.
 // Fires "yosh:introclosed" on window once the intro is gone.
 (function () {
   "use strict";
@@ -12,12 +12,14 @@
   var logo = document.getElementById("introLogo");
   var logoWrap = document.getElementById("introLogoWrap");
   var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var SEEN = "yosh:introSeen";
 
-  function fromThisSite() {
-    try { return !!document.referrer && new URL(document.referrer).origin === location.origin; } catch (e) { return false; }
+  function seenThisSession() { try { return sessionStorage.getItem(SEEN) === "1"; } catch (e) { return false; } }
+
+  function done() {
+    try { sessionStorage.setItem(SEEN, "1"); } catch (e) {}
+    window.dispatchEvent(new Event("yosh:introclosed"));
   }
-
-  function done() { window.dispatchEvent(new Event("yosh:introclosed")); }
 
   function closeIntro(instant) {
     if (!intro || intro.classList.contains("out")) return;
@@ -38,7 +40,7 @@
     }
   }
 
-  if (document.body.getAttribute("data-intro") === "once-per-visit" && fromThisSite()) {
+  if (document.body.getAttribute("data-intro") === "once-per-visit" && seenThisSession()) {
     closeIntro(true);
     return;
   }

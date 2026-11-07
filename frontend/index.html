@@ -4,14 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Yosh Junior — Portal Ahli</title>
-  <meta name="description" content="Portal ahli Yosh Junior: Database Legality sekolah mengikut cawangan.">
+  <meta name="description" content="Portal ahli Yosh Junior: Legality, Alumni, Pentajmikan dan Pembinaan.">
+  <!-- Old links like /#/TENGAH/SAS go to the Legality tab -->
+  <script>if (/^#\//.test(location.hash)) location.replace("legality.html" + location.hash);</script>
   <meta name="theme-color" content="#0b0b0b">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Inter:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
-<body class="borang-page lg-page locked" data-tab="legality" data-intro="once-per-visit" data-gate="user">
+<body class="borang-page lg-page locked" data-tab="utama" data-intro="once-per-visit" data-gate="user">
 
 <div id="intro" class="intro" role="dialog" aria-modal="true" aria-label="Pengenalan">
   <div class="intro-bg" aria-hidden="true">
@@ -48,28 +50,24 @@
 
   <div class="borang-bg" aria-hidden="true"><div class="orb orb-1"></div><div class="orb orb-2"></div></div>
 
-  <main class="borang lg">
-    <button type="button" class="logout-btn" data-logout>Log keluar</button>
+  <!-- Navbar comes from src/components/portalNav.js -->
+  <header class="site-nav" id="siteNav"></header>
+
+  <main class="borang lg home">
     <header class="borang-head">
-      <img class="borang-logo" src="assets/images/logo.png" alt="Yosh Junior" width="1200" height="462">
-      <!-- Portal tabs come from src/components/portalNav.js -->
-      <nav class="up-tabs" id="portalTabs" aria-label="Menu"></nav>
-      <h1 class="borang-title">Database Legality</h1>
-      <nav class="lg-crumbs" id="crumbs" aria-label="Lokasi"></nav>
+      <h1 class="borang-title">Selamat datang</h1>
+      <p class="home-lead">Pilih modul di bawah untuk mula mengemas kini data cawangan anda.</p>
     </header>
 
-    <div id="root" aria-live="polite">
-      <p class="borang-status">Memuatkan…</p>
-    </div>
+    <!-- One card per portal tab, from window.PORTAL_TABS (src/components/portalNav.js) -->
+    <div class="home-grid" id="homeGrid"></div>
   </main>
-
-  <div class="lg-toast" id="toast" role="status" hidden></div>
 
   <script src="src/config/config.js"></script>
   <script src="src/services/legalityApi.js"></script>
   <script src="src/components/gate.js"></script>
   <script src="src/components/intro.js"></script>
   <script src="src/components/portalNav.js"></script>
-  <script src="src/pages/portal/legality.js"></script>
+  <script src="src/pages/home/home.js"></script>
 </body>
 </html>

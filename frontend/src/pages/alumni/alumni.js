@@ -9,6 +9,7 @@
   var crumbs = document.getElementById("crumbs");
   var toastEl = document.getElementById("toast");
   var state = { cawangan: null, data: null, rows: [], dirty: false };
+  var newUid = 0;
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -130,7 +131,11 @@
     search.placeholder = "Cari nama, sekolah atau program";
     search.setAttribute("aria-label", "Cari alumni");
     var count = el("span", "al-count");
-    tools.appendChild(search);
+    var addBtn = button("lg-add-btn", "+ Tambah alumni");
+    var searchRow = el("div", "lg-search-row");
+    searchRow.appendChild(search);
+    searchRow.appendChild(addBtn);
+    tools.appendChild(searchRow);
     tools.appendChild(count);
     card.appendChild(tools);
 
@@ -179,7 +184,7 @@
           return;
         }
         var box = el("div", "lg-field" + (j === 0 ? " is-wide" : "") + (col.kind === "list" ? " borang-field" : ""));
-        var id = "al-" + (row.r || "n" + n) + "-" + j;
+        var id = "al-" + (row.r || "n" + (row.uid || (row.uid = ++newUid))) + "-" + j;
         var label = el("label", "lg-label", col.label);
         label.htmlFor = id;
         var input;
@@ -218,22 +223,26 @@
       var shown = state.rows.filter(function (row) {
         return !q || row.r == null || row.w.some(function (v) { return typeof v === "string" && v.toLowerCase().indexOf(q) > -1; });
       });
-      shown.forEach(function (row) { list.appendChild(rowCard(row, state.rows.indexOf(row) + 1)); });
+      // New (unsaved) alumni first, so the one just added is right under the search bar.
+      var fresh = shown.filter(function (row) { return row.r == null; }).reverse();
+      fresh.forEach(function (row) { list.appendChild(rowCard(row, "Baru")); });
+      var saved = state.rows.filter(function (row) { return row.r != null; });
+      shown.filter(function (row) { return row.r != null; })
+        .forEach(function (row) { list.appendChild(rowCard(row, saved.indexOf(row) + 1)); });
       if (!shown.length) list.appendChild(el("p", "lg-empty", state.rows.length ? "Tiada alumni sepadan." : "Belum ada alumni untuk cawangan ini."));
       count.textContent = state.rows.filter(function (r) { return r.r != null; }).length + " alumni";
     }
     search.addEventListener("input", drawList);
     drawList();
 
-    card.appendChild(button("lg-add", "+ Tambah alumni", function () {
+    addBtn.addEventListener("click", function () {
       var blank = cols.map(function (c) { return c.kind === "check" ? false : ""; });
       state.rows.push({ r: null, v: blank.slice(), w: blank, open: true });
       search.value = "";
       drawList();
-      list.lastChild.scrollIntoView({ behavior: "smooth", block: "center" });
-      var first = list.lastChild.querySelector("input, select");
+      var first = list.firstChild && list.firstChild.querySelector("input, select");
       if (first) first.focus();
-    }));
+    });
 
     var status = el("p", "borang-error-summary");
     status.hidden = true;

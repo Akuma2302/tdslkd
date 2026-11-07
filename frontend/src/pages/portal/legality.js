@@ -197,8 +197,21 @@
       search.type = "search";
       search.placeholder = "Cari sekolah";
       search.setAttribute("aria-label", "Cari sekolah");
-      tools.appendChild(search);
+      var addBtn = button("lg-add-btn", "+ Tambah sekolah");
+      var searchRow = el("div", "lg-search-row");
+      searchRow.appendChild(search);
+      searchRow.appendChild(addBtn);
+      tools.appendChild(searchRow);
       card.appendChild(tools);
+      // The add-school form opens right under the search bar.
+      var addCard = addSchoolCard(d.cawangan, d.schools);
+      addCard.hidden = true;
+      card.appendChild(addCard);
+      addBtn.addEventListener("click", function () {
+        addCard.hidden = !addCard.hidden;
+        addBtn.classList.toggle("is-open", !addCard.hidden);
+        if (!addCard.hidden) addCard.querySelector("input").focus();
+      });
 
       var grid = el("div", "lg-grid");
       function draw() {
@@ -218,13 +231,11 @@
       draw();
       card.appendChild(grid);
       root.appendChild(card);
-      root.appendChild(addSchoolCard(d.cawangan, d.schools));
     }).catch(fail);
   }
 
   function addSchoolCard(cawangan, schools) {
-    var card = el("section", "borang-card");
-    card.appendChild(el("h2", "borang-section", "Tambah sekolah baru"));
+    var card = el("div", "lg-addbox");
     var f = el("div", "borang-field");
     var lab = el("label", "borang-label", "Nama ringkas sekolah (contoh: SMKA JB)");
     var input = el("input", "borang-input");
@@ -249,6 +260,7 @@
         add.disabled = false; add.textContent = "Tambah sekolah";
       });
     });
+    input.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); add.click(); } });
     var actions = el("div", "lg-actions");
     actions.appendChild(add);
     card.appendChild(actions);
@@ -292,10 +304,14 @@
     var card = el("section", "borang-card lg-section");
     card.id = "sec-" + info.key;
     var head = el("div", "lg-section-head");
-    head.appendChild(el("h2", "borang-section", info.title));
+    var titleWrap = el("div", "lg-section-title");
+    titleWrap.appendChild(el("h2", "borang-section", info.title));
     var badge = el("span", "lg-unsaved", "Belum disimpan");
     badge.hidden = true;
-    head.appendChild(badge);
+    titleWrap.appendChild(badge);
+    head.appendChild(titleWrap);
+    var headTools = el("div", "lg-section-tools");   // "+ Tambah …" sits here, top right of the section
+    head.appendChild(headTools);
     card.appendChild(head);
 
     var body = el("div", "lg-section-body");
@@ -315,7 +331,26 @@
       state.dirty[info.key] = d;
       badge.hidden = !d;
     }
-    function draw() { body.textContent = ""; RENDER[info.key](body, model, markDirty, draw); markDirty(); }
+    function draw() {
+      body.textContent = "";
+      headTools.textContent = "";
+      RENDER[info.key](body, model, markDirty, draw);
+      // Move the section's "+ Tambah …" button up beside the title, and show the new entry once added.
+      var add = body.querySelector(":scope > .lg-add");
+      if (add) {
+        add.className = "lg-add-btn";
+        headTools.appendChild(add);
+        add.addEventListener("click", function () {
+          var items = body.querySelectorAll(".lg-person[open], .lg-row");
+          var last = items[items.length - 1];
+          if (!last) return;
+          last.scrollIntoView({ behavior: "smooth", block: "center" });
+          var first = last.querySelector("input:not([type=checkbox]), textarea, select");
+          if (first) first.focus({ preventScroll: true });
+        });
+      }
+      markDirty();
+    }
     draw();
 
     save.addEventListener("click", function () {
