@@ -5,10 +5,15 @@ Laman web statik (HTML/CSS/JavaScript biasa, tiada build) di **https://tdslkd.ne
 | Link | Untuk | Fail |
 |---|---|---|
 | `/` | Portal user, tab **Database Legality** | `frontend/index.html` |
+| `/alumni` | Portal user, tab **Alumni** (sheet Alumni Back to School) | `frontend/alumni.html` |
 | `/pentajmikan` | Portal user, tab **Pentajmikan** (akan datang) | `frontend/pentajmikan.html` |
 | `/pembinaan` | Portal user, tab **Pembinaan** (akan datang) | `frontend/pembinaan.html` |
 | `/admin` | Dashboard admin (Overall, Murabbi, Legality…) | `frontend/admin.html` |
 | `/borang.html` | Borang laporan Unit Murabbi | `frontend/borang.html` |
+
+## Log masuk
+
+Selepas intro, semua halaman minta kod. Kod user → portal (`/`), kod admin → `/admin`. Kod hanya disimpan untuk sesi browser semasa: tutup tab atau browser, dan kod perlu dimasukkan semula. Butang **Log keluar** ada di portal dan admin. Butiran kod: `backend/legality/README.md`.
 
 ## Struktur folder
 
@@ -16,6 +21,7 @@ Laman web statik (HTML/CSS/JavaScript biasa, tiada build) di **https://tdslkd.ne
 tdslkd/
 ├── frontend/                    ← folder yang Netlify publish (lihat netlify.toml)
 │   ├── index.html               portal user: Database Legality
+│   ├── alumni.html              portal user: Alumni Back to School
 │   ├── pentajmikan.html         portal user: Pentajmikan (akan datang)
 │   ├── pembinaan.html           portal user: Pembinaan (akan datang)
 │   ├── admin.html               dashboard admin
@@ -27,9 +33,9 @@ tdslkd/
 │   └── src/
 │       ├── config/config.js     pautan API Apps Script
 │       ├── services/            panggilan API (legalityApi.js: kod akses, get/post)
-│       ├── components/          UI boleh guna semula (portalNav.js: tab portal user, slides.js: eksport slaid)
+│       ├── components/          UI boleh guna semula (intro.js, gate.js: log masuk/keluar, portalNav.js: tab portal user, slides.js)
 │       ├── features/            modul ikut unit (legality/, murabbi/) untuk dashboard admin
-│       ├── pages/               skrip utama setiap halaman (portal/, admin/, borang/)
+│       ├── pages/               skrip utama setiap halaman (portal/, alumni/, admin/, borang/)
 │       └── data/                kandungan statik (units.js, murabbi-reports.js)
 ├── backend/                     Google Apps Script (tidak dipublish ke Netlify)
 │   ├── legality/                Legality.gs + README (setup, kod akses, sheet cawangan)

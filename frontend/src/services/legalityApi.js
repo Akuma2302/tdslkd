@@ -10,12 +10,17 @@
   var KEYS = { admin: "admin:kod", user: "legality:kod" };
   var KEY = document.body && document.body.getAttribute("data-gate") === "admin" ? KEYS.admin : KEYS.user;
 
-  function getKod() { try { return localStorage.getItem(KEY) || ""; } catch (e) { return ""; } }
+  // Codes live only for this browser session: closing the tab or browser logs everyone out,
+  // so the login screen comes back each time the app is opened. (Older versions kept them in
+  // localStorage — clear those.)
+  try { localStorage.removeItem(KEYS.admin); localStorage.removeItem(KEYS.user); } catch (e) {}
+
+  function getKod() { try { return sessionStorage.getItem(KEY) || ""; } catch (e) { return ""; } }
   function setKod(k) { setKodFor(KEY === KEYS.admin ? "admin" : "user", k); }
   // Saves the code for the given interface ("user" or "admin"), used when the login sends someone across.
   function setKodFor(role, k) {
     var key = KEYS[role] || KEYS.user;
-    try { if (k) localStorage.setItem(key, k); else localStorage.removeItem(key); } catch (e) {}
+    try { if (k) sessionStorage.setItem(key, k); else sessionStorage.removeItem(key); } catch (e) {}
   }
 
   // A wrong code clears the saved one and throws an error marked .kod = true.
@@ -57,11 +62,15 @@
       });
   }
 
+  // Forget both codes (log out of portal and admin).
+  function clearAll() { setKodFor("admin", ""); setKodFor("user", ""); }
+
   window.LegalityApi = {
     configured: !!URL_,
     getKod: getKod,
     setKod: setKod,
     setKodFor: setKodFor,
+    clearAll: clearAll,
     get: get,
     post: post,
     ping: ping

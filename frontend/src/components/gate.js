@@ -2,7 +2,8 @@
 // One login for everyone — the code decides where they go:
 //   user code  → user portal (/)        admin code → admin dashboard (/admin)
 // <body data-gate="user"> on portal pages, <body data-gate="admin"> on the admin page.
-// A code that worked is remembered in this browser (via LegalityApi), so the gate shows once per device.
+// A code that worked is kept for this browser session only (via LegalityApi): reopening the app asks again.
+// Any element with [data-logout] logs out and returns to the login screen.
 // Page scripts start their work with YoshGate.ready(fn); YoshGate.show() asks for the code again
 // (e.g. after the code was changed by the admin).
 // Load this BEFORE components/intro.js so it hears the intro closing.
@@ -51,7 +52,7 @@
     title.id = "gateTitle";
     card.appendChild(title);
     card.appendChild(el("p", "gate-text",
-      "Masukkan kod akses yang diberi oleh pentadbir. Anda hanya perlu memasukkannya sekali pada peranti ini."));
+      "Masukkan kod akses yang diberi oleh pentadbir."));
 
     var input = el("input", "gate-input");
     input.type = "password";
@@ -109,10 +110,21 @@
     input.focus();
   }
 
+  // Log out of both interfaces and go back to the login screen (on the portal page, without the intro).
+  function logout() {
+    Api.clearAll();
+    location.href = "./";
+  }
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest("[data-logout]");
+    if (b) { e.preventDefault(); logout(); }
+  });
+
   window.YoshGate = {
     role: role,
     ready: function (fn) { if (unlocked) fn(); else waiting.push(fn); },
-    show: show
+    show: show,
+    logout: logout
   };
 
   if (!Api || !Api.configured) { unlock(); return; }

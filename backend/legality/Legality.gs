@@ -65,6 +65,7 @@ function doGet(e) {
   try {
     var role = checkKod(p.kod);
     if (p.action === "ping") return json({ ok: true, role: role });
+    if (p.action === "alumni") return json(readAlumni(p.cawangan));
     if (p.action === "cawangan") return json(listCawangan());
     if (p.action === "schools") return json(listSchools(p.cawangan));
     if (p.action === "school") return json(readSchool(p.cawangan, p.sekolah));
@@ -87,6 +88,7 @@ function doPost(e) {
     if (body.action === "save") return json(saveSection(body));
     if (body.action === "addSchool") return json(addSchool(body.cawangan, body.sekolah));
     if (body.action === "saveProgress") return json(saveProgress(body));
+    if (body.action === "saveAlumni") return json(saveAlumni(body));
     return json({ error: "Tindakan tidak dikenali: " + body.action });
   } catch (err) {
     return json({ error: String(err && err.message || err) });
@@ -356,6 +358,118 @@ function saveProgress(body) {
     CacheService.getScriptCache().remove("summary");
   }
   return { ok: true, values: out };
+}
+
+// ---------- Alumni Back to School ----------
+// Sheet "Alumni Back to School": one tab per cawangan (TENGAH, PT, UTARA, BORNEO, INDONESIA, MEA).
+// Header row has BIL in B and NAMA in C; columns B..K are
+// Bil | Nama | Sekolah | Jenis Sekolah | PIC Sekolah | Cawangan (Sekolah) | Negeri | Program | Progress | Reporting.
+
+var ALUMNI_SHEET_ID = "1eeMqCQzTM1Ski-h14bgG42sZZrA4eD67gO9_ARiwyKE";
+var ALUMNI_FIRST = 3, ALUMNI_LAST = 11;   // editable columns C..K (Bil in B is numbered automatically)
+
+function alumniSheet(cawangan) {
+  var c = text(cawangan).toUpperCase();
+  if (CAWANGAN.indexOf(c) < 0) throw new Error("Cawangan tidak dikenali: " + cawangan);
+  var sh = SpreadsheetApp.openById(ALUMNI_SHEET_ID).getSheetByName(c);
+  if (!sh) throw new Error("Tab " + c + " tiada dalam sheet Alumni Back to School.");
+  return sh;
+}
+
+// Header row (NAMA in column C) and the data rows below it (up to the last row with a name or any value).
+function alumniLayout(sh) {
+  var n = Math.min(sh.getMaxRows(), 1000);
+  var c = sh.getRange(1, ALUMNI_FIRST, Math.min(n, 30), 1).getDisplayValues();
+  var head = 0;
+  for (var i = 0; i < c.length; i++) if (text(c[i][0]).toUpperCase() === "NAMA") { head = i + 1; break; }
+  if (!head) throw new Error("Tab " + sh.getName() + " tiada baris tajuk NAMA di lajur C.");
+  var vals = sh.getRange(head + 1, ALUMNI_FIRST, n - head, ALUMNI_LAST - ALUMNI_FIRST + 1).getDisplayValues();
+  var last = head;
+  vals.forEach(function (r, k) { if (r.some(function (v) { return text(v) !== ""; })) last = head + 1 + k; });
+  return { head: head, first: head + 1, last: last };
+}
+
+// Column kinds from the first data row's validation: checkbox, list (with options) or text.
+function alumniColumns(sh, L) {
+  var cols = [];
+  var heads = sh.getRange(L.head, ALUMNI_FIRST, 1, ALUMNI_LAST - ALUMNI_FIRST + 1).getDisplayValues()[0];
+  for (var c = ALUMNI_FIRST; c <= ALUMNI_LAST; c++) {
+    var cell = sh.getRange(L.first, c);
+    var dv = cell.getDataValidation();
+    var kind = "text", options = [];
+    if (dv) {
+      var t = dv.getCriteriaType();
+      if (t === SpreadsheetApp.DataValidationCriteria.CHECKBOX) kind = "check";
+      else if (t === SpreadsheetApp.DataValidationCriteria.VALUE_IN_LIST || t === SpreadsheetApp.DataValidationCriteria.VALUE_IN_RANGE) {
+        kind = "list"; options = listOptions(cell);
+      }
+    }
+    cols.push({ c: c, label: text(heads[c - ALUMNI_FIRST]).replace(/\s+/g, " "), kind: kind, options: options });
+  }
+  return cols;
+}
+
+function alumniRows(sh, L, cols) {
+  if (L.last < L.first) return [];
+  var n = L.last - L.first + 1, w = ALUMNI_LAST - ALUMNI_FIRST + 1;
+  var raw = sh.getRange(L.first, ALUMNI_FIRST, n, w).getValues();
+  var shown = sh.getRange(L.first, ALUMNI_FIRST, n, w).getDisplayValues();
+  var out = [];
+  for (var i = 0; i < n; i++) {
+    out.push({ r: L.first + i, v: cols.map(function (col, j) { return col.kind === "check" ? raw[i][j] === true : text(shown[i][j]); }) });
+  }
+  return out;
+}
+
+function readAlumni(cawangan) {
+  var sh = alumniSheet(cawangan);
+  var L = alumniLayout(sh);
+  var cols = alumniColumns(sh, L);
+  return { cawangan: text(cawangan).toUpperCase(), columns: cols, rows: alumniRows(sh, L, cols) };
+}
+
+// body: { cawangan, edits: [{ r, c, old, val }], adds: [[...values for C..K]] }
+function saveAlumni(body) {
+  var sh = alumniSheet(body.cawangan);
+  var L = alumniLayout(sh);
+  var cols = alumniColumns(sh, L);
+  var rows = alumniRows(sh, L, cols);
+  var byRow = {};
+  rows.forEach(function (row) { byRow[row.r] = row; });
+  var writes = [];
+  (body.edits || []).forEach(function (ed) {
+    var row = byRow[ed.r], j = ed.c - ALUMNI_FIRST;
+    if (!row || j < 0 || j >= cols.length) throw new Error("Data sudah berubah. Muat semula halaman.");
+    var now = row.v[j];
+    if (same(now, ed.val)) return;
+    if (!same(now, ed.old)) throw new Error("Ada orang lain telah mengemas kini senarai ini. Muat semula halaman dan cuba lagi.");
+    writes.push([ed.r, ed.c, cols[j].kind === "check" ? ed.val === true : safe(ed.val)]);
+  });
+  writes.forEach(function (w) { sh.getRange(w[0], w[1]).setValue(w[2]); });
+
+  var adds = (body.adds || []).filter(function (vals) { return vals.some(function (v) { return v !== "" && v !== false && v != null; }); });
+  if (adds.length) {
+    var next = L.last + 1;
+    var bil = rows.filter(function (row) { return text(row.v[0]) !== ""; }).length;
+    adds.forEach(function (vals) {
+      var r = next++;
+      if (r > sh.getMaxRows()) sh.insertRowsAfter(sh.getMaxRows(), 1);
+      if (r > L.first) {
+        sh.getRange(r - 1, 2, 1, ALUMNI_LAST - 1).copyTo(sh.getRange(r, 2, 1, ALUMNI_LAST - 1), SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+        sh.getRange(r - 1, 2, 1, ALUMNI_LAST - 1).copyTo(sh.getRange(r, 2, 1, ALUMNI_LAST - 1), SpreadsheetApp.CopyPasteType.PASTE_DATA_VALIDATION, false);
+      }
+      sh.getRange(r, 2).setValue(++bil);
+      var line = cols.map(function (col, j) {
+        var v = vals[j];
+        if (col.kind === "check") return v === true;
+        return v == null ? "" : safe(v);
+      });
+      sh.getRange(r, ALUMNI_FIRST, 1, line.length).setValues([line]);
+    });
+  }
+  SpreadsheetApp.flush();
+  var L2 = alumniLayout(sh);
+  return { ok: true, rows: alumniRows(sh, L2, cols) };
 }
 
 // ---------- Admin summary (all cawangan) ----------

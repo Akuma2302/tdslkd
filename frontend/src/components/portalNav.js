@@ -1,10 +1,11 @@
-// Portal tabs for members, shared by every user page (index.html, pentajmikan.html, pembinaan.html…).
+// Portal tabs for members, shared by every user page (index.html, alumni.html, pentajmikan.html, pembinaan.html…).
 // To add a tab: add an entry here and create its page with <body data-tab="id"> and <nav id="portalTabs">.
 (function () {
   "use strict";
 
   var TABS = [
-    { id: "legality",    label: "Database Legality", href: "./" },
+    { id: "legality",    label: "Legality",          href: "./" },
+    { id: "alumni",      label: "Alumni",            href: "alumni.html" },
     { id: "pentajmikan", label: "Pentajmikan",       href: "pentajmikan.html" },
     { id: "pembinaan",   label: "Pembinaan",         href: "pembinaan.html" }
   ];

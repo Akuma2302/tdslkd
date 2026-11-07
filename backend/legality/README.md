@@ -39,7 +39,7 @@ Selepas intro, setiap halaman (portal user dan admin) memaparkan skrin **Log mas
 | Kod user | `KOD_AKSES` | Portal user `/` | Baca & kemas kini data sekolah |
 | Kod admin | `KOD_ADMIN` | Dashboard `/admin` | Semua, termasuk ringkasan semua cawangan (`summary`) |
 
-- Kod disimpan dalam browser selepas berjaya, jadi skrin log masuk keluar sekali sahaja pada setiap peranti.
+- Kod disimpan untuk **sesi browser semasa sahaja**: bila tab atau browser ditutup dan dibuka semula, pengguna perlu log masuk lagi. Butang **Log keluar** membawa terus ke skrin log masuk.
 - Tukar kod: Apps Script → **Project Settings → Script properties** → ubah `KOD_AKSES` atau `KOD_ADMIN` (atau jalankan `setKodAkses()` / `setKodAdmin()` untuk kod rawak). Pengguna akan diminta log masuk semula secara automatik.
 - Kongsi kod admin hanya dengan pentadbir.
 
@@ -48,6 +48,10 @@ Selepas intro, setiap halaman (portal user dan admin) memaparkan skrin **Log mas
 - Tab sekolah mesti dibuat daripada template **"Nama Sekolah \*Duplicate"** (borang "Tambah sekolah baru" buat ini secara automatik) dan namanya ada dalam tab **Senarai Sekolah**.
 - Jangan tukar teks tajuk bahagian dalam lajur A: *Alumni Sekolah*, *Program Yang Telah Berjalan…*, *Analisa Situasi…*, *Planning Legality*, *Modul Program…*, *Peluang Lain…*. Borang mencari bahagian melalui teks ini.
 - KPI CRM berada dalam lajur H:AD (Kategori Cikgu, Phase, Level, Plan Tarikh, Nota, Collect Video Feedback, 17 checklist).
+
+## Alumni Back to School
+
+Tab **Alumni** dalam portal membaca dan menulis sheet *Alumni Back to School* (`ALUMNI_SHEET_ID` dalam `Legality.gs`), satu tab bagi setiap cawangan. Baris tajuk dikenal pasti dengan **NAMA** di lajur C; lajur B (Bil) dinombor secara automatik bila alumni baru ditambah. Pilihan dropdown (Jenis Sekolah, Cawangan, Negeri, Progress, Reporting) dibaca terus dari data validation dalam sheet.
 
 ## Bila kod `Legality.gs` diubah
 
