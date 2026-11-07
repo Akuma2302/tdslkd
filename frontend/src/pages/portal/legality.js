@@ -99,7 +99,9 @@
     actions.appendChild(go);
     card.appendChild(actions);
     root.appendChild(card);
-    input.focus();
+    // Wait for the intro to close before taking keyboard focus.
+    if (document.body.classList.contains("locked")) window.addEventListener("yosh:introclosed", function () { input.focus(); }, { once: true });
+    else input.focus();
   }
 
   // ---------- Routing: #/ · #/CAWANGAN · #/CAWANGAN/SEKOLAH ----------

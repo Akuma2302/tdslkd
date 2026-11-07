@@ -4,47 +4,12 @@
   var units = window.UNITS || [];
   var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  /* ---------- Intro ---------- */
-  var intro = document.getElementById("intro");
-  var enterBtn = document.getElementById("introEnter");
-  var logo = document.getElementById("introLogo");
-  var logoWrap = document.getElementById("introLogoWrap");
-
-  function logoMissing() { logoWrap.classList.add("no-logo"); }
-  if (logo.complete && logo.naturalWidth === 0) logoMissing();
-  logo.addEventListener("error", logoMissing);
-
-  function closeIntro(instant) {
-    if (!intro || intro.classList.contains("out")) return;
-    document.removeEventListener("keydown", onIntroKey);
-    document.body.classList.remove("locked");
-    if (instant) { intro.remove(); intro = null; return; }
-    intro.classList.add("out");
-    setTimeout(function () {
-      if (intro) { intro.remove(); intro = null; }
-      var active = document.querySelector('.tab[aria-selected="true"]');
-      if (active) active.focus({ preventScroll: true });
-    }, 1150);
-  }
-
-  function onIntroKey(e) {
-    if (e.key === "Enter" && intro.classList.contains("ready")) {
-      e.preventDefault();
-      closeIntro(reduced);
-    }
-  }
-
-  // The intro plays on every page load, including refresh.
-  // Timers may fire after the intro is gone (e.g. a hidden tab delays animation frames).
-  requestAnimationFrame(function () { if (intro) intro.classList.add("on"); });
-  setTimeout(function () { if (intro) intro.classList.add("sub"); }, reduced ? 0 : 900);
-  setTimeout(function () {
-    if (!intro) return;
-    intro.classList.add("ready");
-    enterBtn.focus({ preventScroll: true });
-  }, reduced ? 0 : 2200);
-  enterBtn.addEventListener("click", function () { closeIntro(reduced); });
-  document.addEventListener("keydown", onIntroKey);
+  /* ---------- Intro (src/components/intro.js) ---------- */
+  // When the intro closes, put keyboard focus on the open tab.
+  window.addEventListener("yosh:introclosed", function () {
+    var active = document.querySelector('.tab[aria-selected="true"]');
+    if (active) active.focus({ preventScroll: true });
+  });
 
   /* ---------- Tabs ---------- */
   var tablist = document.getElementById("tabs");
