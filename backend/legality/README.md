@@ -30,12 +30,18 @@ Sheet selain TENGAH dibuat oleh `setupCawanganSheets()` sebagai salinan TENGAH t
 - Tab **Unit Legality** dalam admin (`frontend/src/features/legality/legality-admin.js`) mengumpul semua cawangan: bilangan sekolah, orang CRM, setiap langkah progress, Phase CRM, jadual mengikut cawangan, dan jadual Progress Legality Sekolah. Data disimpan sementara 10 minit; butang **Muat semula** ambil data terkini.
 - `setupProgress()` mencipta tab Progress dan mengisi TENGAH daripada jadual progress 7 Nov 2026 (sekolah "KPI" dalam jadual itu tiada tab sekolah, jadi tidak dimasukkan).
 
-## Kod akses
+## Kod akses & log masuk
 
-Setiap permintaan perlu kod akses (Script Properties → `KOD_AKSES`). Pengguna memasukkannya sekali dalam borang; ia disimpan dalam browser mereka.
+Selepas intro, setiap halaman (portal user dan admin) memaparkan skrin **Log masuk** (`frontend/src/components/gate.js`). Kod yang dimasukkan menentukan ke mana orang itu dibawa:
 
-- Tukar kod: jalankan `setKodAkses()` dalam editor Apps Script, kod baru keluar dalam Execution log. Semua pengguna perlu masukkan kod baru.
-- Kongsi kod hanya dengan ahli yang mengisi borang.
+| Kod | Script property | Dibawa ke | Boleh |
+|---|---|---|---|
+| Kod user | `KOD_AKSES` | Portal user `/` | Baca & kemas kini data sekolah |
+| Kod admin | `KOD_ADMIN` | Dashboard `/admin` | Semua, termasuk ringkasan semua cawangan (`summary`) |
+
+- Kod disimpan dalam browser selepas berjaya, jadi skrin log masuk keluar sekali sahaja pada setiap peranti.
+- Tukar kod: Apps Script → **Project Settings → Script properties** → ubah `KOD_AKSES` atau `KOD_ADMIN` (atau jalankan `setKodAkses()` / `setKodAdmin()` untuk kod rawak). Pengguna akan diminta log masuk semula secara automatik.
+- Kongsi kod admin hanya dengan pentadbir.
 
 ## Peraturan tab sekolah (supaya borang dapat membacanya)
 

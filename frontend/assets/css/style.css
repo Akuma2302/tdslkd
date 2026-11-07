@@ -828,3 +828,41 @@ input[type="date"].borang-input { color-scheme: dark; }
 .up-tab.is-active { background: var(--accent); color: var(--on-accent); }
 .up-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .borang-message a { color: var(--accent); }
+
+/* ---------- Access-code gate (components/gate.js) ---------- */
+body.gated { overflow: hidden; }
+.gate {
+  position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 16px;
+  background: radial-gradient(circle at 70% 15%, rgba(255, 195, 0, 0.16), transparent 45%),
+              radial-gradient(circle at 15% 85%, rgba(255, 195, 0, 0.08), transparent 40%), var(--bg);
+  animation: gateIn 0.4s ease;
+}
+@keyframes gateIn { from { opacity: 0; } to { opacity: 1; } }
+.gate-card {
+  width: min(420px, 100%); padding: clamp(1.5rem, 5vw, 2.2rem); text-align: center;
+  background: var(--card); border: 1px solid var(--line-2); border-radius: var(--radius);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+}
+.gate-logo { display: block; width: 130px; height: auto; margin: 0 auto 1rem; }
+.gate-tag { color: var(--accent); font-family: var(--display); font-weight: 800; font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase; }
+.gate-title { margin-top: 0.2rem; font-family: var(--display); font-weight: 900; font-size: clamp(1.4rem, 5vw, 1.8rem); letter-spacing: -0.02em; }
+.gate-text { margin: 0.6rem 0 1.3rem; color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
+.gate-row { position: relative; }
+.gate-input {
+  width: 100%; padding: 0.85rem 5rem 0.85rem 1rem; border: 1px solid var(--line-2); border-radius: 12px;
+  background: var(--bg-2); color: var(--text); font: inherit; font-size: 1.05rem; letter-spacing: 0.06em; text-align: center;
+}
+.gate-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+.gate-peek {
+  position: absolute; right: 0.4rem; top: 50%; transform: translateY(-50%); padding: 0.35rem 0.7rem;
+  border: 0; border-radius: 8px; background: transparent; color: var(--muted); font: inherit; font-size: 0.78rem; cursor: pointer;
+}
+.gate-peek:hover { color: var(--accent); }
+.gate-error { min-height: 1.2rem; margin: 0.6rem 0 0.4rem; color: #ff8c8c; font-size: 0.85rem; }
+.gate-go {
+  width: 100%; padding: 0.9rem; border: 0; border-radius: 999px; background: var(--accent); color: var(--on-accent);
+  font-family: var(--display); font-weight: 800; font-size: 0.95rem; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer;
+}
+.gate-go:hover { background: var(--accent-deep); }
+.gate-go:disabled { opacity: 0.7; cursor: progress; }
+.gate-go:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }

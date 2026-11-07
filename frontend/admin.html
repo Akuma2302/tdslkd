@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Inter:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
-<body class="locked">
+<body class="locked" data-gate="admin" data-intro="once-per-visit">
 
 <div id="intro" class="intro" role="dialog" aria-modal="true" aria-label="Pengenalan">
   <div class="intro-bg" aria-hidden="true">
@@ -71,12 +71,13 @@
   </div>
 </div>
 
-<script src="src/components/intro.js"></script>
 <script src="src/config/config.js"></script>
+<script src="src/services/legalityApi.js"></script>
+<script src="src/components/gate.js"></script>
+<script src="src/components/intro.js"></script>
 <script src="src/components/slides.js"></script>
 <script src="src/data/murabbi-reports.js"></script>
 <script src="src/features/murabbi/murabbi.js"></script>
-<script src="src/services/legalityApi.js"></script>
 <script src="src/features/legality/legality-admin.js"></script>
 <script src="src/data/units.js"></script>
 <script src="src/pages/admin/app.js"></script>

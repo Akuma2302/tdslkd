@@ -46,22 +46,32 @@ function range_(a, b) { var r = []; for (var i = a; i <= b; i++) r.push(i); retu
 
 // ---------- Web app entry points ----------
 
-// Every request must carry the access code kept in Script Properties (key KOD_AKSES).
-// Set or change it with setKodAkses() or in Project Settings → Script properties.
+// Every request must carry an access code kept in Script Properties:
+//   KOD_AKSES – user portal code (cawangan members)
+//   KOD_ADMIN – admin code; works everywhere, and is the only code allowed to read the admin summary
+// Change them in Project Settings → Script properties (or setKodAkses() / setKodAdmin()).
 function checkKod(kod) {
-  var real = PropertiesService.getScriptProperties().getProperty("KOD_AKSES");
-  if (!real) throw new Error("Kod akses belum ditetapkan oleh pentadbir.");
-  if (text(kod) !== real) throw new Error("KOD_SALAH");
+  var props = PropertiesService.getScriptProperties();
+  var user = props.getProperty("KOD_AKSES"), admin = props.getProperty("KOD_ADMIN");
+  if (!user && !admin) throw new Error("Kod akses belum ditetapkan oleh pentadbir.");
+  var k = text(kod);
+  if (admin && k === admin) return "admin";
+  if (user && k === user) return "user";
+  throw new Error("KOD_SALAH");
 }
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
   try {
-    checkKod(p.kod);
+    var role = checkKod(p.kod);
+    if (p.action === "ping") return json({ ok: true, role: role });
     if (p.action === "cawangan") return json(listCawangan());
     if (p.action === "schools") return json(listSchools(p.cawangan));
     if (p.action === "school") return json(readSchool(p.cawangan, p.sekolah));
-    if (p.action === "summary") return json(summary(p.fresh === "1"));
+    if (p.action === "summary") {
+      if (role !== "admin") throw new Error("KOD_SALAH");
+      return json(summary(p.fresh === "1"));
+    }
     return json({ error: "Tindakan tidak dikenali: " + p.action });
   } catch (err) {
     return json({ error: String(err && err.message || err) });
@@ -589,6 +599,15 @@ function refreshProgressHeaders() {
   });
   CacheService.getScriptCache().remove("summary");
   Logger.log("Tajuk Progress dikemas kini.");
+}
+
+/** Sets a new random ADMIN code and prints it. Share it only with admins. */
+function setKodAdmin() {
+  var chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  var kod = "ADM-";
+  for (var i = 0; i < 6; i++) kod += chars.charAt(Math.floor(Math.random() * chars.length));
+  PropertiesService.getScriptProperties().setProperty("KOD_ADMIN", kod);
+  Logger.log("Kod admin baru: " + kod);
 }
 
 /** Sets a new random access code and prints it. Share it only with the team that fills the form. */

@@ -92,6 +92,8 @@
   // ---------- Rendering ----------
 
   function kodBox(host) {
+    // The login screen (components/gate.js) asks for the code again.
+    if (window.YoshGate) { state.needKod = false; window.YoshGate.show(state.error ? "Kod akses telah ditukar. Masukkan kod baru." : ""); window.YoshGate.ready(function () { load(true); }); return; }
     var box = el("div", "empty");
     box.appendChild(el("p", "empty-title", "Masukkan kod akses Unit Legality"));
     box.appendChild(el("p", "empty-text", state.error || "Data legality dilindungi kod akses. Kod yang sama digunakan dalam borang Checklist Legality."));
@@ -320,5 +322,6 @@
     describe: function () { var t = totals(); return t.schools + " sekolah · " + t.people + " CRM"; }
   };
 
-  load(false);
+  // Load once the admin has logged in (components/gate.js).
+  if (window.YoshGate) window.YoshGate.ready(function () { load(false); }); else load(false);
 })();

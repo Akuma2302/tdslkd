@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Inter:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
-<body class="borang-page lg-page locked" data-tab="legality" data-intro="once-per-visit">
+<body class="borang-page lg-page locked" data-tab="legality" data-intro="once-per-visit" data-gate="user">
 
 <div id="intro" class="intro" role="dialog" aria-modal="true" aria-label="Pengenalan">
   <div class="intro-bg" aria-hidden="true">
@@ -64,10 +64,11 @@
 
   <div class="lg-toast" id="toast" role="status" hidden></div>
 
-  <script src="src/components/intro.js"></script>
-  <script src="src/components/portalNav.js"></script>
   <script src="src/config/config.js"></script>
   <script src="src/services/legalityApi.js"></script>
+  <script src="src/components/gate.js"></script>
+  <script src="src/components/intro.js"></script>
+  <script src="src/components/portalNav.js"></script>
   <script src="src/pages/portal/legality.js"></script>
 </body>
 </html>

@@ -72,6 +72,8 @@
   var getKod = Api.getKod, setKod = Api.setKod, get = Api.get, post = Api.post;
 
   function askKod(wrong) {
+    // The login screen (components/gate.js) handles the code; fall back to an inline box without it.
+    if (window.YoshGate) { root.textContent = ""; window.YoshGate.show(wrong ? "Kod akses telah ditukar. Masukkan kod baru." : ""); window.YoshGate.ready(route); return; }
     root.textContent = "";
     var card = el("section", "borang-card");
     card.appendChild(el("h2", "borang-section", "Kod akses"));
@@ -673,5 +675,6 @@
     };
   }
 
-  route();
+  // Start once the visitor has logged in (components/gate.js).
+  if (window.YoshGate) window.YoshGate.ready(route); else route();
 })();
