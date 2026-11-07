@@ -3,44 +3,7 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
 (function () {
   const $ = (id) => document.getElementById(id);
 
-  // ── Intro overlay ─────────────────────────────
-  const intro = $('intro');
-  const hero = document.querySelector('.hero');
-  let introReady = false;
-
-  // Same rule as the rest of the portal (components/intro.js): the intro plays once per browser
-  // session, and the login gate (components/gate.js) appears once it is gone.
-  const SEEN = 'yosh:introSeen';
-  const seen = (() => { try { return sessionStorage.getItem(SEEN) === '1'; } catch { return false; } })();
-  function introGone() {
-    try { sessionStorage.setItem(SEEN, '1'); } catch {}
-    window.dispatchEvent(new Event('yosh:introclosed'));
-  }
-  const introEnter = $('introEnter');
-  if (!seen) {
-    setTimeout(() => intro.classList.add('on'), 300);
-    setTimeout(() => intro.classList.add('sub'), 1600);
-    setTimeout(() => {
-      intro.classList.add('ready');
-      introReady = true;
-      // Focus the button so keyboard users can press Enter — only the button continues
-      introEnter.tabIndex = 0;
-      introEnter.focus({ preventScroll: true });
-    }, 2400);
-  }
-
-  function dismissIntro() {
-    if (!introReady) return;
-    introReady = false;
-    intro.classList.add('out');
-    // The yellow curtain fully covers the screen at ~48% of its 1.15s sweep:
-    // start the hero reveal then, so the title is animating as the curtain lifts.
-    setTimeout(revealHero, 550);
-    setTimeout(() => { intro.remove(); introGone(); }, 1200);
-  }
-  // Only the "Masuk" button continues; taps elsewhere on the intro do nothing.
-  // (A native <button> also handles Enter/Space when focused.)
-  introEnter.addEventListener('click', dismissIntro);
+  // Intro, login and navbar come from the portal (components/intro.js, gate.js, portalNav.js).
 
   // ── Cawangan branding ─────────────────────────
   // Picked from ?cawangan=..., else the last branch used on this device, else Tengah.
@@ -54,35 +17,7 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
   const initialBrand = fromUrl || matchCawangan(saved);
   let brand = initialBrand || 'Tengah';
 
-  // ── Hero title ────────────────────────────────
-  // Splits text into per-character spans (kept together per word) so each
-  // letter can animate in. Returns the index after the last character.
-  function buildLine(line, text, start) {
-    line.textContent = '';
-    let i = start;
-    text.split(' ').forEach((word, w) => {
-      if (w > 0) line.appendChild(document.createTextNode(' '));
-      const wordEl = document.createElement('span');
-      wordEl.className = 'word';
-      for (const ch of word) {
-        const span = document.createElement('span');
-        span.className = 'char';
-        span.textContent = ch;
-        span.style.animationDelay = (i++ * 35) + 'ms';
-        wordEl.appendChild(span);
-      }
-      line.appendChild(wordEl);
-    });
-    return i;
-  }
-
-  let charCount = 0;
-  document.querySelectorAll('.hero-title .line').forEach((line) => {
-    charCount = buildLine(line, line.dataset.text, charCount);
-  });
-
-  // The hero title and page title stay "Program Sekolah Sedunia";
-  // only the smaller [data-brand] labels follow the selected cawangan.
+  // Any [data-brand] label follows the selected cawangan.
   function applyBrand(name) {
     brand = name;
     document.querySelectorAll('[data-brand]').forEach((el) => { el.textContent = name; });
@@ -93,65 +28,6 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
   }
   if (fromUrl) rememberBrand(fromUrl);
   applyBrand(brand);
-
-  function revealHero() {
-    hero.classList.add('go');
-    const total = charCount * 35 + 700;
-    setTimeout(() => hero.classList.add('done'), total - 200);
-    setTimeout(() => document.body.classList.remove('locked'), total);
-  }
-  if (seen) { intro.remove(); revealHero(); introGone(); }
-
-  // ── Cursor glow (whole page) + hero card tilt — mouse devices only ──
-  const canHover = matchMedia('(hover: hover) and (pointer: fine)').matches;
-  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (canHover && !reduceMotion) {
-    const glow = document.querySelector('.cursor-glow');
-    const card = hero.querySelector('.hero-card');
-    let frame = 0;
-    let last = null;
-
-    document.addEventListener('pointermove', (e) => {
-      if (e.pointerType !== 'mouse') return;
-      last = e;
-      if (frame) return;
-      frame = requestAnimationFrame(() => {
-        frame = 0;
-        glow.style.setProperty('--cx', `${last.clientX}px`);
-        glow.style.setProperty('--cy', `${last.clientY}px`);
-        glow.classList.add('on');
-
-        // Tilt the preview card only while the mouse is over the hero
-        if (!card) return;
-        const r = hero.getBoundingClientRect();
-        const inHero = last.clientY >= r.top && last.clientY <= r.bottom;
-        if (inHero) {
-          const c = card.getBoundingClientRect();
-          card.style.setProperty('--ry', `${(((last.clientX - (c.left + c.width / 2)) / r.width) * 14).toFixed(2)}deg`);
-          card.style.setProperty('--rx', `${((-(last.clientY - (c.top + c.height / 2)) / r.height) * 10).toFixed(2)}deg`);
-        } else {
-          card.style.setProperty('--rx', '0deg');
-          card.style.setProperty('--ry', '0deg');
-        }
-      });
-    });
-    // Hide the glow when the mouse leaves the window
-    document.documentElement.addEventListener('mouseleave', () => glow.classList.remove('on'));
-  }
-
-  // ── Floating particles ────────────────────────
-  const particles = $('particles');
-  for (let i = 0; i < 24; i++) {
-    const p = document.createElement('i');
-    p.style.left = Math.random() * 100 + '%';
-    p.style.animationDuration = 8 + Math.random() * 10 + 's';
-    p.style.animationDelay = -Math.random() * 15 + 's';
-    const size = 1 + Math.random() * 3;
-    p.style.width = p.style.height = size + 'px';
-    particles.appendChild(p);
-  }
-
-  $('footerYear').textContent = new Date().getFullYear();
 
   // ── PIC: copy @username ───────────────────────
   const copyToast = $('copyToast');
@@ -810,58 +686,4 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
     copyBtn.textContent = '✓ Copied!';
     copyBtn.classList.add('copied');
   });
-
-  // ── Scroll animations ─────────────────────────
-  // Elements are only hidden once JS marks them, so content stays visible if this fails.
-  // Items that share a container get a staggered delay (--d), counted per container
-  // so something far down the page never waits on items above it.
-  const REVEAL = [
-    '.section-title', '.section-lead', '.amanah-bar',
-    '.units > .unit',
-    '.phase-label', '.amanah-card', '.phase-divider',
-    '.cta-band', '.form-step',
-    '.footer-brand', '.footer-col', '.footer-mark', '.footer-bottom',
-  ].join(',');
-  const STAGGER_BY = '.units, .timeline, .footer-grid, .footer-inner, form, section, main';
-  const revealTargets = [];
-  const staggerCount = new Map();
-  document.querySelectorAll(REVEAL).forEach((el) => {
-    if (el.closest('.hero')) return;
-    const group = el.parentElement.closest(STAGGER_BY) || document.body;
-    const i = staggerCount.get(group) || 0;
-    staggerCount.set(group, i + 1);
-    el.dataset.reveal = '';
-    el.style.setProperty('--d', `${Math.min(i, 5) * 90}ms`);
-    revealTargets.push(el);
-  });
-
-  if ('IntersectionObserver' in window) {
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (!entry.isIntersecting) return;
-        entry.target.classList.add('in-view');
-        io.unobserve(entry.target); // animate once
-      });
-    }, { rootMargin: '0px 0px -10% 0px', threshold: 0.12 });
-    revealTargets.forEach((el) => io.observe(el));
-  } else {
-    revealTargets.forEach((el) => el.classList.add('in-view'));
-  }
-
-  // Thin progress line at the top showing how far down the page you are
-  const scrollBar = document.querySelector('.scroll-progress');
-  let scrollTick = 0;
-  function updateScrollBar() {
-    scrollTick = 0;
-    const max = document.documentElement.scrollHeight - innerHeight;
-    scrollBar.style.transform = `scaleX(${max > 0 ? Math.min(1, scrollY / max) : 0})`;
-    // Items in the page's last strip (e.g. the footer's bottom bar) can never reach the
-    // observer's trigger line, so reveal whatever is still waiting once we hit the bottom.
-    if (max > 0 && scrollY >= max - 2) {
-      revealTargets.forEach((el) => { if (!el.closest('[hidden]')) el.classList.add('in-view'); });
-    }
-  }
-  addEventListener('scroll', () => { if (!scrollTick) scrollTick = requestAnimationFrame(updateScrollBar); }, { passive: true });
-  addEventListener('resize', updateScrollBar);
-  updateScrollBar();
 })();
