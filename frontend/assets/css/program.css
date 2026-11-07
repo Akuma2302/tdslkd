@@ -641,3 +641,11 @@
 .pg .form-progress { top: 68px; }
 @media (max-width: 860px) { .pg .form-progress { top: 60px; } }
 .pg .copy-toast { z-index: 60; }
+
+/* Space between the form card and the next card, like the other portal cards. */
+.pg #borang { margin-bottom: 16px; }
+/* Section chips: plain row under the title (no dark sticky band cutting through the page background). */
+.pg .lg-sectnav {
+  position: static; justify-content: center; flex-wrap: wrap; overflow: visible;
+  margin: -0.4rem 0 1.4rem; padding: 0; background: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+}
