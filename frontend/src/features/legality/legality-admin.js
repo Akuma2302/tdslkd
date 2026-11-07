@@ -313,7 +313,7 @@
       tb.textContent = "";
       var q = search.value.trim().toLowerCase();
       all.filter(function (p) {
-        return !q || [p.sekolah, p.nama, p.jenis, p.mainPic, p.legality, p.virality, p.cawangan].join(" ").toLowerCase().indexOf(q) > -1;
+        return !q || [p.sekolah, p.negeri, p.nama, p.jenis, p.mainPic, p.legality, p.virality, p.cawangan].join(" ").toLowerCase().indexOf(q) > -1;
       }).forEach(function (p) {
         var r = el("tr", (p.tamat || p.mula) >= now ? "is-upcoming" : "");
         var d = el("td", "lgd-prog-date");
@@ -321,7 +321,7 @@
         if (p.masa) d.appendChild(el("small", null, p.masa));
         r.appendChild(d);
         var sc = el("td"); sc.appendChild(document.createTextNode(p.sekolah));
-        sc.appendChild(el("small", null, p.cawangan)); r.appendChild(sc);
+        sc.appendChild(el("small", null, [p.cawangan, p.negeri].filter(Boolean).join(" · "))); r.appendChild(sc);
         var pr = el("td");
         if (p.sheet && /^https?:/i.test(p.sheet)) {
           var a = el("a", null, p.nama); a.href = p.sheet; a.target = "_blank"; a.rel = "noopener"; pr.appendChild(a);

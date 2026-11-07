@@ -158,6 +158,31 @@
         </div>
 
         <div class="field">
+          <label for="negeri">Negeri Sekolah</label>
+          <select id="negeri" required>
+            <option value="">Pilih negeri</option>
+              <option value="Johor">Johor</option>
+              <option value="Kedah">Kedah</option>
+              <option value="Kelantan">Kelantan</option>
+              <option value="Melaka">Melaka</option>
+              <option value="Negeri Sembilan">Negeri Sembilan</option>
+              <option value="Pahang">Pahang</option>
+              <option value="Perak">Perak</option>
+              <option value="Perlis">Perlis</option>
+              <option value="Pulau Pinang">Pulau Pinang</option>
+              <option value="Sabah">Sabah</option>
+              <option value="Sarawak">Sarawak</option>
+              <option value="Selangor">Selangor</option>
+              <option value="Terengganu">Terengganu</option>
+              <option value="WP Kuala Lumpur">WP Kuala Lumpur</option>
+              <option value="WP Labuan">WP Labuan</option>
+              <option value="WP Putrajaya">WP Putrajaya</option>
+              <option value="__lain">Lain-lain (luar Malaysia)</option>
+          </select>
+          <input id="negeriLain" type="text" placeholder="Taip negeri / wilayah / negara" autocomplete="off" hidden>
+        </div>
+
+        <div class="field">
           <label for="namaProgram">Nama Program</label>
           <input id="namaProgram" type="text" placeholder="cth. Kem Kepimpinan Pelajar 2026" autocomplete="off" required>
         </div>
@@ -311,13 +336,14 @@
       <section class="form-step" data-step="5">
         <header class="step-head">
           <span class="step-num">05</span>
-          <span class="step-title"><strong>PIC Program</strong><span>Username Telegram tanpa @</span></span>
+          <span class="step-title"><strong>PIC Program</strong><span>Username Telegram (tanpa @), kader cawangan dan status alumni</span></span>
           <span class="step-done" aria-hidden="true"></span>
         </header>
         <div class="field">
           <label for="mainPic">Main PIC Program</label>
           <div class="pic-row">
             <div class="at"><span>@</span><input id="mainPic" type="text" placeholder="username Telegram" autocomplete="off" required></div>
+            <select id="mainPicKader" class="kader" aria-label="Kader cawangan Main PIC" required><option value="">Kader cawangan</option><option value="Tengah">Tengah</option><option value="Utara">Utara</option><option value="Pantai Timur">Pantai Timur</option><option value="Borneo">Borneo</option><option value="Indonesia">Indonesia</option><option value="MEA">MEA</option></select>
             <div class="seg" id="mainPicAlumniGroup" role="radiogroup" aria-label="Status alumni Main PIC">
               <label><input type="radio" name="mainPicAlumni" value="Alumni"><span>Alumni</span></label>
               <label><input type="radio" name="mainPicAlumni" value="Bukan Alumni"><span>Bukan Alumni</span></label>
@@ -328,6 +354,7 @@
           <label for="legality">PIC Legality</label>
           <div class="pic-row">
             <div class="at"><span>@</span><input id="legality" type="text" placeholder="username Telegram" autocomplete="off" required></div>
+            <select id="legalityKader" class="kader" aria-label="Kader cawangan PIC Legality" required><option value="">Kader cawangan</option><option value="Tengah">Tengah</option><option value="Utara">Utara</option><option value="Pantai Timur">Pantai Timur</option><option value="Borneo">Borneo</option><option value="Indonesia">Indonesia</option><option value="MEA">MEA</option></select>
             <div class="seg" id="legalityAlumniGroup" role="radiogroup" aria-label="Status alumni PIC Legality">
               <label><input type="radio" name="legalityAlumni" value="Alumni"><span>Alumni</span></label>
               <label><input type="radio" name="legalityAlumni" value="Bukan Alumni"><span>Bukan Alumni</span></label>
@@ -338,6 +365,7 @@
           <label for="virality">PIC Virality</label>
           <div class="pic-row">
             <div class="at"><span>@</span><input id="virality" type="text" placeholder="username Telegram" autocomplete="off" required></div>
+            <select id="viralityKader" class="kader" aria-label="Kader cawangan PIC Virality" required><option value="">Kader cawangan</option><option value="Tengah">Tengah</option><option value="Utara">Utara</option><option value="Pantai Timur">Pantai Timur</option><option value="Borneo">Borneo</option><option value="Indonesia">Indonesia</option><option value="MEA">MEA</option></select>
             <div class="seg" id="viralityAlumniGroup" role="radiogroup" aria-label="Status alumni PIC Virality">
               <label><input type="radio" name="viralityAlumni" value="Alumni"><span>Alumni</span></label>
               <label><input type="radio" name="viralityAlumni" value="Bukan Alumni"><span>Bukan Alumni</span></label>

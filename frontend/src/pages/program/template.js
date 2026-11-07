@@ -38,14 +38,19 @@ function pelajarLines(d) {
 
 /**
  * data: {
- *   cawangan, sekolah, namaProgram, jenis, tarikhMula, tarikhTamat, masaMula, masaTamat,
+ *   cawangan, sekolah, negeri, namaProgram, jenis, tarikhMula, tarikhTamat, masaMula, masaTamat,
  *   guru: [{ nama, jawatan }], pelajar: ['T1', ...], pelajarBilangan: { T1: '30', ... }, manpower,
  *   tambahan: 'Ya' | 'Tidak', tambahanJumlah, sheet, mainPic, legality, virality,
- *   mainPicAlumni, legalityAlumni, viralityAlumni: 'Alumni' | 'Bukan Alumni'
+ *   mainPicAlumni, legalityAlumni, viralityAlumni: 'Alumni' | 'Bukan Alumni',
+ *   mainPicKader, legalityKader, viralityKader: cawangan name (Tengah, Utara, …)
  * }
  */
 export function buildTemplate(d) {
-  const alumni = (v) => (v ? ` (${v})` : '');
+  // "@ali (Alumni · Kader Tengah)"
+  const about = (status, kader) => {
+    const bits = [status, kader ? `Kader ${kader}` : ''].filter(Boolean);
+    return bits.length ? ` (${bits.join(' · ')})` : '';
+  };
   const or = (v) => (v === undefined || v === null || String(v).trim() === '' ? '—' : String(v).trim());
 
   const lines = [
@@ -53,6 +58,7 @@ export function buildTemplate(d) {
     '',
     `🔻 Cawangan: ${or(d.cawangan)}`,
     `🔻 Sekolah: ${or(d.sekolah)}`,
+    `🔻 Negeri: ${or(d.negeri)}`,
     `🔻 Nama Program: ${or(d.namaProgram)}`,
     `🔻 Jenis Program: ${or(d.jenis)}`,
     `🔻 Tarikh Program: ${formatDateRange(d.tarikhMula, d.tarikhTamat)}`,
@@ -69,9 +75,9 @@ export function buildTemplate(d) {
     `🔻 Sheet Program: ${or(d.sheet)}`,
     '',
     '📌 PIC PROGRAM',
-    `🔻 Main PIC: @${or(d.mainPic)}${alumni(d.mainPicAlumni)}`,
-    `🔻 PIC Legality: @${or(d.legality)}${alumni(d.legalityAlumni)}`,
-    `🔻 PIC Virality: @${or(d.virality)}${alumni(d.viralityAlumni)}`,
+    `🔻 Main PIC: @${or(d.mainPic)}${about(d.mainPicAlumni, d.mainPicKader)}`,
+    `🔻 PIC Legality: @${or(d.legality)}${about(d.legalityAlumni, d.legalityKader)}`,
+    `🔻 PIC Virality: @${or(d.virality)}${about(d.viralityAlumni, d.viralityKader)}`,
     '',
     '🔻 Ketetapan Virality: Telah dibaca & diakui'
   );

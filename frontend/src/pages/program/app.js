@@ -397,10 +397,19 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
   }
   ['tarikhMula', 'tarikhTamat', 'masaMula', 'masaTamat'].forEach((id) => $(id).addEventListener('change', updateDuration));
 
+  // ── Negeri Sekolah: Malaysian states, or typed in for schools outside Malaysia ──
+  const negeriSel = $('negeri');
+  const negeriLain = $('negeriLain');
+  const negeriValue = () => (negeriSel.value === '__lain' ? negeriLain.value.trim() : negeriSel.value);
+  negeriSel.addEventListener('change', () => {
+    negeriLain.hidden = negeriSel.value !== '__lain';
+    if (!negeriLain.hidden) negeriLain.focus();
+  });
+
   // ── Progress: which of the 5 steps are filled in ──
   const filled = (id) => $(id).value.trim() !== '';
   const STEP_CHECKS = {
-    1: () => filled('cawangan') && hasText($('sekolah').value) && hasText($('namaProgram').value) && filled('jenis'),
+    1: () => filled('cawangan') && hasText($('sekolah').value) && hasText(negeriValue()) && hasText($('namaProgram').value) && filled('jenis'),
     2: () => isValidDate(tarikhMula.value) && isValidDate(tarikhTamat.value) && filled('masaMula') && filled('masaTamat'),
     3: () => getGuru().every((g) => hasText(g.nama) && hasText(g.jawatan)) &&
       !!form.querySelector('input[name="pelajar"]:checked') &&
@@ -409,7 +418,7 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
       const t = form.querySelector('input[name="tambahan"]:checked');
       return filled('manpower') && !!t && (t.value !== 'Ya' || filled('tambahanJumlah'));
     },
-    5: () => ['mainPic', 'legality', 'virality'].every((id) => hasText($(id).value)) &&
+    5: () => ['mainPic', 'legality', 'virality'].every((id) => hasText($(id).value) && filled(id + 'Kader')) &&
       ['mainPicAlumni', 'legalityAlumni', 'viralityAlumni'].every((n) => !!form.querySelector(`input[name="${n}"]:checked`)),
   };
   function updateProgress() {
@@ -456,7 +465,7 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
 
   // Server field keys → labels shown to the user
   const FIELD_LABEL = {
-    cawangan: 'Cawangan', sekolah: 'Nama Sekolah', namaProgram: 'Nama Program', jenis: 'Jenis Program', tarikh: 'Tarikh Program',
+    cawangan: 'Cawangan', sekolah: 'Nama Sekolah', negeri: 'Negeri Sekolah', kader: 'Kader Cawangan PIC', namaProgram: 'Nama Program', jenis: 'Jenis Program', tarikh: 'Tarikh Program',
     masa: 'Masa', guru: 'Guru Bertugas', pelajar: 'Pelajar Terlibat', manpower: 'Jumlah Manpower',
     tambahan: 'Manpower Tambahan', tambahanJumlah: 'Jumlah Manpower Tambahan', sheet: 'Sheet Program',
     pic: 'PIC Program', mainPicAlumni: 'Status Alumni Main PIC', legalityAlumni: 'Status Alumni PIC Legality', viralityAlumni: 'Status Alumni PIC Virality', amanah: 'Ketetapan Virality',
@@ -473,6 +482,10 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
         if (el.type === 'hidden') flag(document.querySelector(`.tiles[data-for="${id}"]`));
         else flag(id === 'mainPic' || id === 'legality' || id === 'virality' ? el.parentElement : el);
       });
+
+    if (!negeriSel.value) flag(negeriSel);
+    else if (negeriSel.value === '__lain' && !hasText(negeriLain.value)) flag(negeriLain);
+    ['mainPic', 'legality', 'virality'].forEach((id) => { if (!$(id + 'Kader').value) flag($(id + 'Kader')); });
 
     // Text must contain a letter or digit — "-" or "." alone isn't an answer
     ['sekolah', 'namaProgram', 'mainPic', 'legality', 'virality'].forEach((id) => {
@@ -533,6 +546,7 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
     return {
       cawangan: $('cawangan').value,
       sekolah: $('sekolah').value.trim(),
+      negeri: negeriValue(),
       namaProgram: $('namaProgram').value.trim(),
       jenis: $('jenis').value,
       tarikhMula: $('tarikhMula').value,
@@ -547,6 +561,9 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
       tambahanJumlah: $('tambahanJumlah').value,
       sheet: $('sheet').value.trim(),
       mainPic: $('mainPic').value.trim(),
+      mainPicKader: $('mainPicKader').value,
+      legalityKader: $('legalityKader').value,
+      viralityKader: $('viralityKader').value,
       mainPicAlumni: checked('mainPicAlumni')[0] || '',
       legalityAlumni: checked('legalityAlumni')[0] || '',
       viralityAlumni: checked('viralityAlumni')[0] || '',

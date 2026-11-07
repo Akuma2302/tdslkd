@@ -56,11 +56,13 @@ const hasText = (v) => /[\p{L}\p{N}]/u.test(v);
 const isTime = (v) => /^\d{2}:\d{2}$/.test(v);
 const handle = (v) => str(v, 40).replace(/^@+/, '');
 const alumni = (v) => (['Alumni', 'Bukan Alumni'].includes(v) ? v : '');
+const kader = (v) => (typeof v === 'string' && CAWANGAN[v] ? v : '');
 
 function clean(raw) {
   const d = {
     cawangan: str(raw.cawangan, 30),
     sekolah: str(raw.sekolah, 150),
+    negeri: str(raw.negeri, 60),
     namaProgram: str(raw.namaProgram, 150),
     jenis: str(raw.jenis, 30),
     tarikhMula: str(raw.tarikhMula, 10),
@@ -80,6 +82,9 @@ function clean(raw) {
     legalityAlumni: alumni(raw.legalityAlumni),
     viralityAlumni: alumni(raw.viralityAlumni),
     legality: handle(raw.legality),
+    mainPicKader: kader(raw.mainPicKader),
+    legalityKader: kader(raw.legalityKader),
+    viralityKader: kader(raw.viralityKader),
     virality: handle(raw.virality),
   };
 
@@ -90,6 +95,8 @@ function clean(raw) {
   const errors = [];
   if (!CAWANGAN[d.cawangan]) errors.push('cawangan');
   if (!hasText(d.sekolah)) errors.push('sekolah');
+  if (!hasText(d.negeri)) errors.push('negeri');
+  if (![d.mainPicKader, d.legalityKader, d.viralityKader].every(Boolean)) errors.push('kader');
   if (!hasText(d.namaProgram)) errors.push('namaProgram');
   if (!JENIS_PROGRAM.includes(d.jenis)) errors.push('jenis');
   if (!isDate(d.tarikhMula) || !isDate(d.tarikhTamat) || d.tarikhTamat < d.tarikhMula) errors.push('tarikh');

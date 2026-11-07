@@ -641,7 +641,7 @@ function setupGambar() {
 // in Script Properties (PROGRAM_SHEET). One row per programme; sending again with the same ID updates that row.
 var PROGRAM_TITLE = "Program Sekolah – Yosh Junior";
 var PROGRAM_TAB = "Program";
-var PROGRAM_HEAD = ["ID", "Dihantar", "Cawangan", "Sekolah", "Nama program", "Jenis", "Tarikh mula", "Tarikh tamat",
+var PROGRAM_HEAD = ["ID", "Dihantar", "Cawangan", "Sekolah", "Negeri", "Nama program", "Jenis", "Tarikh mula", "Tarikh tamat",
   "Masa", "Guru bertugas", "Bil. guru", "Pelajar", "Jumlah pelajar", "Manpower", "Manpower tambahan",
   "Sheet program", "Main PIC", "PIC Legality", "PIC Virality", "Telegram"];
 // Program page names → cawangan codes used everywhere else.
@@ -657,6 +657,10 @@ function programSheet() {
     ss.getSheets()[0].setName(PROGRAM_TAB);
   }
   var sh = ss.getSheetByName(PROGRAM_TAB) || ss.insertSheet(PROGRAM_TAB);
+  // Columns changed while the sheet is still empty: start it again with the new heading.
+  if (sh.getLastRow() === 1 && sh.getRange(1, 1, 1, PROGRAM_HEAD.length).getValues()[0].join("|") !== PROGRAM_HEAD.join("|")) {
+    sh.clear(); sh.showColumns(1, sh.getMaxColumns());
+  }
   if (sh.getLastRow() === 0) {
     sh.getRange(1, 1, 1, PROGRAM_HEAD.length).setValues([PROGRAM_HEAD])
       .setFontWeight("bold").setBackground("#1f1f1f").setFontColor("#ffc300").setVerticalAlignment("middle");
@@ -664,9 +668,9 @@ function programSheet() {
     sh.setRowHeight(1, 32);
     sh.hideColumns(1);
     sh.setColumnWidths(2, PROGRAM_HEAD.length - 1, 140);
-    sh.setColumnWidth(4, 220); sh.setColumnWidth(5, 240); sh.setColumnWidth(10, 260);
+    sh.setColumnWidth(4, 220); sh.setColumnWidth(6, 240); sh.setColumnWidth(11, 260);
     sh.getRange("B:B").setNumberFormat("d/m/yyyy h:mm");
-    sh.getRange("G:H").setNumberFormat("d/m/yyyy");
+    sh.getRange("H:I").setNumberFormat("d/m/yyyy");
   }
   return sh;
 }
@@ -676,7 +680,12 @@ function ymd(v) {
   return m ? new Date(+m[1], +m[2] - 1, +m[3]) : "";
 }
 function at(v) { var h = text(v).replace(/^@+/, ""); return h ? "@" + h : ""; }
-function withAlumni(handle, status) { return handle ? handle + (text(status) ? " (" + text(status) + ")" : "") : ""; }
+// "@ali (Alumni · Kader Tengah)"
+function withAlumni(handle, status, kader) {
+  if (!handle) return "";
+  var bits = [text(status), text(kader) ? "Kader " + text(kader) : ""].filter(String);
+  return handle + (bits.length ? " (" + bits.join(" · ") + ")" : "");
+}
 
 /** body: { id, program: {...the Program form...}, telegram: "Berjaya" | "Gagal: ..." | "Ujian" } */
 function saveProgram(body) {
@@ -690,7 +699,7 @@ function saveProgram(body) {
   var bil = d.pelajarBilangan || {};
   var jumlah = pelajar.reduce(function (t, k) { return t + (parseInt(bil[k], 10) || 0); }, 0);
   var row = [
-    id, new Date(), PROGRAM_CAWANGAN[text(d.cawangan)], safe(d.sekolah), safe(d.namaProgram), safe(d.jenis),
+    id, new Date(), PROGRAM_CAWANGAN[text(d.cawangan)], safe(d.sekolah), safe(text(d.negeri).slice(0, 60)), safe(d.namaProgram), safe(d.jenis),
     ymd(d.tarikhMula), ymd(d.tarikhTamat),
     text(d.masaMula) && text(d.masaTamat) ? "'" + text(d.masaMula) + " – " + text(d.masaTamat) : "",
     safe(guru.map(function (g, i) { return (i + 1) + ". " + text(g.nama) + (text(g.jawatan) ? " (" + text(g.jawatan) + ")" : ""); }).join("\n")),
@@ -700,9 +709,9 @@ function saveProgram(body) {
     parseInt(d.manpower, 10) || 0,
     d.tambahan === "Ya" ? (parseInt(d.tambahanJumlah, 10) || 0) : 0,
     safe(d.sheet),
-    safe(withAlumni(at(d.mainPic), d.mainPicAlumni)),
-    safe(withAlumni(at(d.legality), d.legalityAlumni)),
-    safe(withAlumni(at(d.virality), d.viralityAlumni)),
+    safe(withAlumni(at(d.mainPic), d.mainPicAlumni, d.mainPicKader)),
+    safe(withAlumni(at(d.legality), d.legalityAlumni, d.legalityKader)),
+    safe(withAlumni(at(d.virality), d.viralityAlumni, d.viralityKader)),
     safe(text(body.telegram).slice(0, 300))
   ];
   var sh = programSheet();
@@ -734,11 +743,11 @@ function listPrograms() {
       if (!text(r[0]) && !text(r[3])) return;
       out.push({
         id: text(r[0]), dihantar: r[1] instanceof Date ? r[1].toISOString() : text(r[1]),
-        cawangan: text(r[2]), sekolah: text(r[3]), nama: text(r[4]), jenis: text(r[5]),
-        mula: iso2(r[6]), tamat: iso2(r[7]), masa: text(r[8]),
-        guru: text(r[9]), bilGuru: Number(r[10]) || 0, pelajar: text(r[11]), jumlahPelajar: Number(r[12]) || 0,
-        manpower: Number(r[13]) || 0, tambahan: Number(r[14]) || 0, sheet: text(r[15]),
-        mainPic: text(r[16]), legality: text(r[17]), virality: text(r[18]), telegram: text(r[19])
+        cawangan: text(r[2]), sekolah: text(r[3]), negeri: text(r[4]), nama: text(r[5]), jenis: text(r[6]),
+        mula: iso2(r[7]), tamat: iso2(r[8]), masa: text(r[9]),
+        guru: text(r[10]), bilGuru: Number(r[11]) || 0, pelajar: text(r[12]), jumlahPelajar: Number(r[13]) || 0,
+        manpower: Number(r[14]) || 0, tambahan: Number(r[15]) || 0, sheet: text(r[16]),
+        mainPic: text(r[17]), legality: text(r[18]), virality: text(r[19]), telegram: text(r[20])
       });
     });
   }

@@ -649,3 +649,11 @@
   position: static; justify-content: center; flex-wrap: wrap; overflow: visible;
   margin: -0.4rem 0 1.4rem; padding: 0; background: none; backdrop-filter: none; -webkit-backdrop-filter: none;
 }
+
+/* PIC rows: @username · Kader cawangan · Alumni status */
+.pg .pic-row { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1.25fr); }
+@media (max-width: 760px) { .pg .pic-row { grid-template-columns: 1fr 1fr; } .pg .pic-row .at { grid-column: 1 / -1; } }
+@media (max-width: 420px) { .pg .pic-row { grid-template-columns: 1fr; } }
+.pg #negeriLain { margin-top: .5rem; }
+.pg select.kader:invalid, .pg #negeri:invalid { color: #8a8a8a; }
+.pg select option { color: var(--text); background: #161616; }
