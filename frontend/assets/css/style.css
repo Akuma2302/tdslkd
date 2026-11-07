@@ -41,6 +41,8 @@ h1, h2, p { margin: 0; }
   display: grid; place-items: center;
   background: var(--bg);
 }
+/* Every layer shares the one grid cell, so the stage sits in the true centre of the screen. */
+.intro > * { grid-area: 1 / 1; }
 .intro.out { pointer-events: none; animation: introBg 1.15s ease forwards; }
 @keyframes introBg {
   0%, 48% { background-color: var(--bg); }
@@ -125,13 +127,20 @@ h1, h2, p { margin: 0; }
   animation: logoIn 1.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 @keyframes logoIn {
-  100% { opacity: 1; transform: none; filter: blur(0) drop-shadow(0 0 30px rgba(255, 195, 0, 0.25)); }
+  99% { filter: blur(0); }
+  100% { opacity: 1; transform: none; filter: none; }
 }
+/* Once the intro is ready, drop the animation so no filter layer stays on the logo. */
+.intro.ready .intro-logo, .intro.ready .intro-wordmark { animation: none; opacity: 1; transform: none; filter: none; }
+/* Shine across the logo. Only where CSS masks work, otherwise some phone browsers paint it as a white box. */
+.intro-logo-wrap::after { content: none; }
+@supports ((mask-image: url("")) or (-webkit-mask-image: url(""))) {
 .intro-logo-wrap::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.85) 50%, transparent 65%) 150% 0 / 250% 100% no-repeat;
   -webkit-mask: url("../images/logo.png") center / contain no-repeat;
   mask: url("../images/logo.png") center / contain no-repeat;
+}
 }
 .intro.on .intro-logo-wrap::after { animation: logoShine 3.2s ease-in-out 1.3s infinite; }
 @keyframes logoShine {
@@ -210,7 +219,7 @@ h1, h2, p { margin: 0; }
   opacity: 0; transition: opacity 0.6s 0.3s;
 }
 .intro.ready .intro-hint { opacity: 1; }
-@media (hover: none) { .intro-hint { visibility: hidden; } }
+@media (hover: none) { .intro-hint { display: none; } }
 
 .intro-curtain {
   position: absolute; inset: 0; background: var(--accent);
@@ -614,6 +623,7 @@ th[aria-sort="descending"] .sort::after { content: " ↓"; color: var(--accent);
   .c-tl, .c-bl { left: 16px; }
   .c-tr, .c-br { right: 16px; }
   .intro-corners span { font-size: 0.58rem; letter-spacing: 0.22em; }
+  .intro-logo-wrap::after { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .ring, .intro-logo-wrap::after { display: none; }
