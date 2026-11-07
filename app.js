@@ -14,13 +14,8 @@
   if (logo.complete && logo.naturalWidth === 0) logoMissing();
   logo.addEventListener("error", logoMissing);
 
-  function seen() {
-    try { return sessionStorage.getItem("introSeen") === "1"; } catch (e) { return false; }
-  }
-
   function closeIntro(instant) {
     if (!intro || intro.classList.contains("out")) return;
-    try { sessionStorage.setItem("introSeen", "1"); } catch (e) {}
     document.removeEventListener("keydown", onIntroKey);
     document.body.classList.remove("locked");
     if (instant) { intro.remove(); intro = null; return; }
@@ -39,18 +34,17 @@
     }
   }
 
-  if (seen()) {
-    closeIntro(true);
-  } else {
-    requestAnimationFrame(function () { intro.classList.add("on"); });
-    setTimeout(function () { intro.classList.add("sub"); }, reduced ? 0 : 900);
-    setTimeout(function () {
-      intro.classList.add("ready");
-      enterBtn.focus({ preventScroll: true });
-    }, reduced ? 0 : 2200);
-    enterBtn.addEventListener("click", function () { closeIntro(reduced); });
-    document.addEventListener("keydown", onIntroKey);
-  }
+  // The intro plays on every page load, including refresh.
+  // Timers may fire after the intro is gone (e.g. a hidden tab delays animation frames).
+  requestAnimationFrame(function () { if (intro) intro.classList.add("on"); });
+  setTimeout(function () { if (intro) intro.classList.add("sub"); }, reduced ? 0 : 900);
+  setTimeout(function () {
+    if (!intro) return;
+    intro.classList.add("ready");
+    enterBtn.focus({ preventScroll: true });
+  }, reduced ? 0 : 2200);
+  enterBtn.addEventListener("click", function () { closeIntro(reduced); });
+  document.addEventListener("keydown", onIntroKey);
 
   /* ---------- Tabs ---------- */
   var tablist = document.getElementById("tabs");
@@ -65,7 +59,16 @@
   }
 
   function pad(n) { return n < 10 ? "0" + n : "" + n; }
-  function count(u) { return (u.sections || []).length; }
+  var views = window.UNIT_VIEWS || {};
+  function count(u) {
+    var v = views[u.id];
+    return (u.sections || []).length + (v && v.count ? v.count() : 0);
+  }
+  function describe(u) {
+    var v = views[u.id];
+    if (v && v.describe && v.count()) return v.describe();
+    return count(u) ? count(u) + " bahagian" : "Belum diisi";
+  }
   function shortName(u) { return u.name.replace(/^Unit\s+/i, ""); }
   function longDate(d) {
     return d.toLocaleDateString("ms-MY", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
@@ -110,16 +113,16 @@
     grid.appendChild(stat("Jumlah Unit", String(n), "Dalam sistem pasukan", true));
     grid.appendChild(stat("Unit Berisi", String(filled), "Daripada " + n + " unit"));
     grid.appendChild(stat("Belum Diisi", String(n - filled), "Menunggu butiran"));
-    grid.appendChild(stat("Jumlah Bahagian", String(total), "Merentas semua unit"));
+    grid.appendChild(stat("Jumlah Kandungan", String(total), "Merentas semua unit"));
     (u.stats || []).forEach(function (s) { grid.appendChild(stat(s.label, s.value, s.note || "")); });
 
     // Sections per unit; hatched bars are units with nothing in them yet.
-    var chart = widget("w-2", "Bahagian Mengikut Unit", total + " bahagian");
+    var chart = widget("w-2", "Kandungan Mengikut Unit", total + " kandungan");
     var bars = el("div", "bars");
     realUnits.forEach(function (r) {
       var c = count(r);
       var bar = el("div", "bar");
-      bar.title = r.name + ": " + (c ? c + " bahagian" : "belum diisi");
+      bar.title = r.name + ": " + (c ? describe(r) : "belum diisi");
       if (c) bar.appendChild(el("span", "bar-count", String(c)));
       var pill = el("span", "bar-pill" + (c ? "" : " is-empty"));
       pill.style.height = (c ? 30 + 50 * (c / most) : 58) + "%";
@@ -148,7 +151,7 @@
       var row = el("a", "row");
       row.href = "#" + r.id;
       row.appendChild(el("span", "badge", pad(i + 1)));
-      textRow(row, r.name, count(r) ? count(r) + " bahagian" : "Belum diisi");
+      textRow(row, r.name, describe(r));
       rows.appendChild(row);
     });
     list.appendChild(rows);
@@ -259,7 +262,9 @@
     if (u.overview) {
       panel.classList.add("dash");
       renderDashboard(panel, u);
-    } else if (count(u)) {
+    } else if (views[u.id]) {
+      views[u.id].render(panel);
+    } else if ((u.sections || []).length) {
       var grid = el("div", "section-grid");
       u.sections.forEach(function (s) {
         var card = el("article", "card");
@@ -277,6 +282,17 @@
       panel.appendChild(empty);
     }
     panels.appendChild(panel);
+  });
+
+  // Unit data that loads later (e.g. live form answers) re-draws the Overall figures.
+  window.addEventListener("yosh:unitdata", function () {
+    units.filter(function (u) { return u.overview; }).forEach(function (u) {
+      var panel = document.getElementById("panel-" + u.id);
+      var old = panel && panel.querySelector(".dash-grid");
+      if (!old) return;
+      old.remove();
+      renderDashboard(panel, u);
+    });
   });
 
   document.getElementById("topDate").textContent = longDate(new Date());
