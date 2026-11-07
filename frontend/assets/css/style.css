@@ -827,3 +827,4 @@ input[type="date"].borang-input { color-scheme: dark; }
 .up-tab:hover { color: var(--text); }
 .up-tab.is-active { background: var(--accent); color: var(--on-accent); }
 .up-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.borang-message a { color: var(--accent); }

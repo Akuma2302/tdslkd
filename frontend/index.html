@@ -11,16 +11,14 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Inter:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
-<body class="borang-page lg-page">
+<body class="borang-page lg-page" data-tab="legality">
   <div class="borang-bg" aria-hidden="true"><div class="orb orb-1"></div><div class="orb orb-2"></div></div>
 
   <main class="borang lg">
     <header class="borang-head">
       <img class="borang-logo" src="assets/images/logo.png" alt="Yosh Junior" width="1200" height="462">
-      <!-- Each tab is one tool for members. Add more <a class="up-tab"> entries here as tools are added. -->
-      <nav class="up-tabs" aria-label="Menu">
-        <a class="up-tab is-active" href="./" aria-current="page">Database Legality</a>
-      </nav>
+      <!-- Portal tabs come from src/components/portalNav.js -->
+      <nav class="up-tabs" id="portalTabs" aria-label="Menu"></nav>
       <p class="eyebrow">Unit Legality</p>
       <h1 class="borang-title">Database Legality</h1>
       <nav class="lg-crumbs" id="crumbs" aria-label="Lokasi"></nav>
@@ -33,6 +31,7 @@
 
   <div class="lg-toast" id="toast" role="status" hidden></div>
 
+  <script src="src/components/portalNav.js"></script>
   <script src="src/config/config.js"></script>
   <script src="src/services/legalityApi.js"></script>
   <script src="src/pages/portal/legality.js"></script>
