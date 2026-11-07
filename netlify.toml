@@ -1,3 +1,9 @@
 # Netlify serves only the frontend/ folder. Backend (Apps Script) and tools are not published.
 [build]
   publish = "frontend"
+
+# App manifests ("Add to Home Screen" / Install app)
+[[headers]]
+  for = "/*.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json"
