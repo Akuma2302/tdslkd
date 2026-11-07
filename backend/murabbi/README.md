@@ -1,19 +1,19 @@
 # Borang Unit Murabbi: setup
 
-The form page (`borang.html`) and the Unit Murabbi dashboard read and write one Google Sheet through the Apps Script in `Code.gs`. You set this up once, about 10 minutes.
+The form page (`frontend/borang.html`) and the Unit Murabbi dashboard read and write one Google Sheet through the Apps Script in `Code.gs`. You set this up once, about 10 minutes.
 
 ## 1. Create the Sheet and the script
 
 1. Create a new Google Sheet, e.g. **"Yosh Junior · Borang Murabbi"**.
 2. In the Sheet: **Extensions → Apps Script**.
-3. Delete everything in `Code.gs` there and paste the whole of `apps-script/Code.gs` from this project. Save.
+3. Delete everything in `Code.gs` there and paste the whole of `backend/murabbi/Code.gs` from this project. Save.
 4. In the function list at the top choose **`setup`** and press **Run**. Allow the permissions it asks for (it only uses this Sheet).
 
 The Sheet now has four tabs: **Tetapan**, **Soalan**, **Murabbi**, **Jawapan**.
 
 ## 2. Fill in the murabbi list
 
-Open `data/senarai-murabbi.csv` (the murabbi list by cawangan), copy all the rows **except the header** and paste them into the **Murabbi** tab starting at cell A2.
+Open `backend/murabbi/senarai-murabbi.csv` (the murabbi list by cawangan), copy all the rows **except the header** and paste them into the **Murabbi** tab starting at cell A2.
 
 - **Cawangan**: as you want it shown (TENGAH, UTARA, PT, INDONESIA, BORNEO…)
 - **Nama**: exactly as it should appear in the form
@@ -26,7 +26,7 @@ Add new murabbi as new rows at any time.
 1. In Apps Script: **Deploy → New deployment → type: Web app**.
 2. **Execute as:** Me. **Who has access:** Anyone.
 3. Press **Deploy** and copy the **Web app URL** (ends in `/exec`).
-4. Paste it into `config.js` in this project:
+4. Paste it into `frontend/src/config/config.js` in this project:
    ```js
    window.YOSH_CONFIG = { murabbiApi: "https://script.google.com/macros/s/…/exec" };
    ```

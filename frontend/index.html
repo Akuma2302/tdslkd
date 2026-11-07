@@ -3,22 +3,26 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Checklist Legality — Yosh Junior</title>
-  <meta name="description" content="Checklist Legality sekolah mengikut cawangan, Unit Legality Yosh Junior.">
+  <title>Yosh Junior — Portal Ahli</title>
+  <meta name="description" content="Portal ahli Yosh Junior: Database Legality sekolah mengikut cawangan.">
   <meta name="theme-color" content="#0b0b0b">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Inter:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body class="borang-page lg-page">
   <div class="borang-bg" aria-hidden="true"><div class="orb orb-1"></div><div class="orb orb-2"></div></div>
 
   <main class="borang lg">
     <header class="borang-head">
-      <img class="borang-logo" src="logo.png" alt="Yosh Junior" width="1200" height="462">
+      <img class="borang-logo" src="assets/images/logo.png" alt="Yosh Junior" width="1200" height="462">
+      <!-- Each tab is one tool for members. Add more <a class="up-tab"> entries here as tools are added. -->
+      <nav class="up-tabs" aria-label="Menu">
+        <a class="up-tab is-active" href="./" aria-current="page">Database Legality</a>
+      </nav>
       <p class="eyebrow">Unit Legality</p>
-      <h1 class="borang-title">Checklist Legality</h1>
+      <h1 class="borang-title">Database Legality</h1>
       <nav class="lg-crumbs" id="crumbs" aria-label="Lokasi"></nav>
     </header>
 
@@ -29,7 +33,8 @@
 
   <div class="lg-toast" id="toast" role="status" hidden></div>
 
-  <script src="config.js"></script>
-  <script src="legality.js"></script>
+  <script src="src/config/config.js"></script>
+  <script src="src/services/legalityApi.js"></script>
+  <script src="src/pages/portal/legality.js"></script>
 </body>
 </html>

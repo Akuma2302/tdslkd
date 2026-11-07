@@ -130,8 +130,8 @@ h1, h2, p { margin: 0; }
 .intro-logo-wrap::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.85) 50%, transparent 65%) 150% 0 / 250% 100% no-repeat;
-  -webkit-mask: url("logo.png") center / contain no-repeat;
-  mask: url("logo.png") center / contain no-repeat;
+  -webkit-mask: url("../images/logo.png") center / contain no-repeat;
+  mask: url("../images/logo.png") center / contain no-repeat;
 }
 .intro.on .intro-logo-wrap::after { animation: logoShine 3.2s ease-in-out 1.3s infinite; }
 @keyframes logoShine {
@@ -820,3 +820,10 @@ input[type="date"].borang-input { color-scheme: dark; }
 .lgd-legend i { display: inline-block; width: 0.8rem; height: 0.8rem; border-radius: 3px; margin-right: 0.35rem; vertical-align: -1px; }
 .lgd-links { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .w-4 { grid-column: 1 / -1; }
+
+/* User portal tabs (index.html) */
+.up-tabs { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem; margin: 0 auto 1.4rem; padding: 0.3rem; width: fit-content; max-width: 100%; border: 1px solid var(--line-2); border-radius: 999px; background: rgba(255, 255, 255, 0.03); }
+.up-tab { padding: 0.55rem 1.2rem; border-radius: 999px; color: var(--muted); text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+.up-tab:hover { color: var(--text); }
+.up-tab.is-active { background: var(--accent); color: var(--on-accent); }
+.up-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

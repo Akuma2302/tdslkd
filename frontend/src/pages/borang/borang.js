@@ -31,7 +31,7 @@
   function clearDraft() { try { localStorage.removeItem(draftKey()); } catch (e) {} }
 
   if (!API) {
-    message("Borang belum disambungkan", "Pentadbir perlu memasukkan pautan Apps Script dalam config.js. Lihat apps-script/README.md.", "warn");
+    message("Borang belum disambungkan", "Pentadbir perlu memasukkan pautan Apps Script dalam config.js. Lihat backend/murabbi/README.md.", "warn");
     return;
   }
 

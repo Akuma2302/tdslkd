@@ -1,8 +1,8 @@
 # Borang Checklist Legality: setup & penggunaan
 
-`legality.html` ialah borang untuk ahli cawangan. Mereka pilih **cawangan → sekolah**, kemudian lihat dan kemas kini CRM (dengan KPI), Alumni, Program, Analisa, Planning, Modul dan Peluang. Data ditulis terus ke tab sekolah dalam Google Sheet cawangan masing-masing, jadi format sheet kekal sama dan tab CRM / Program dalam sheet terus update sendiri.
+Portal user di `https://tdslkd.netlify.app/` (`frontend/index.html`, tab **Database Legality**) ialah borang untuk ahli cawangan. Dashboard admin di `https://tdslkd.netlify.app/admin` (`frontend/admin.html`). Mereka pilih **cawangan → sekolah**, kemudian lihat dan kemas kini CRM (dengan KPI), Alumni, Program, Analisa, Planning, Modul dan Peluang. Data ditulis terus ke tab sekolah dalam Google Sheet cawangan masing-masing, jadi format sheet kekal sama dan tab CRM / Program dalam sheet terus update sendiri.
 
-Backend: `apps-script/Legality.gs`, dipasang sebagai projek Apps Script berasingan (akaun pemilik sheet), dan dipublish sebagai **Web app** (Execute as: Me, Who has access: Anyone). Pautan `/exec` diletak dalam `config.js` → `legalityApi`.
+Backend: `backend/legality/Legality.gs`, dipasang sebagai projek Apps Script berasingan (akaun pemilik sheet), dan dipublish sebagai **Web app** (Execute as: Me, Who has access: Anyone). Pautan `/exec` diletak dalam `frontend/src/config/config.js` → `legalityApi`.
 
 ## Sheet setiap cawangan
 
@@ -27,7 +27,7 @@ Sheet selain TENGAH dibuat oleh `setupCawanganSheets()` sebagai salinan TENGAH t
   5. Pelaksanaan entrance survey
   6. Pelaksanaan exit survey
 - Dalam borang, setiap sekolah ada bahagian **Progress** di atas sekali. Sekolah baru terus dapat baris dalam tab Progress.
-- Tab **Unit Legality** dalam admin (`legality-admin.js`) mengumpul semua cawangan: bilangan sekolah, orang CRM, setiap langkah progress, Phase CRM, jadual mengikut cawangan, dan jadual Progress Legality Sekolah. Data disimpan sementara 10 minit; butang **Muat semula** ambil data terkini.
+- Tab **Unit Legality** dalam admin (`frontend/src/features/legality/legality-admin.js`) mengumpul semua cawangan: bilangan sekolah, orang CRM, setiap langkah progress, Phase CRM, jadual mengikut cawangan, dan jadual Progress Legality Sekolah. Data disimpan sementara 10 minit; butang **Muat semula** ambil data terkini.
 - `setupProgress()` mencipta tab Progress dan mengisi TENGAH daripada jadual progress 7 Nov 2026 (sekolah "KPI" dalam jadual itu tiada tab sekolah, jadi tidak dimasukkan).
 
 ## Kod akses

@@ -1,0 +1,4 @@
+# Admin dashboard
+/admin            /admin.html   200
+# Old link to the legality form now lives at the site root
+/legality.html    /             301

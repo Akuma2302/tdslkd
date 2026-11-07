@@ -1,14 +1,15 @@
 // Checklist Legality (user side): pick a cawangan, pick a school, then view and update each part of
-// that school's tab in the cawangan's Google Sheet, through the Apps Script set in config.js (legalityApi).
+// that school's tab in the cawangan's Google Sheet, through src/services/legalityApi.js.
 (function () {
   "use strict";
 
-  var API = ((window.YOSH_CONFIG || {}).legalityApi || "").trim();
+  var Api = window.LegalityApi;
+  var API = Api.configured;
   var root = document.getElementById("root");
   var crumbs = document.getElementById("crumbs");
   var toastEl = document.getElementById("toast");
 
-  // Column order of each section, matching SECTIONS in apps-script/Legality.gs.
+  // Column order of each section, matching SECTIONS in backend/legality/Legality.gs.
   var COLS = {
     crm: [2, 3, 4, 5, 6, 7].concat(seq(8, 30)),
     alumni: [2],
@@ -66,33 +67,9 @@
     toastTimer = setTimeout(function () { toastEl.hidden = true; }, 3500);
   }
 
-  // ---------- API ----------
+  // ---------- API (src/services/legalityApi.js) ----------
 
-  // The access code is asked once and kept in this browser.
-  function getKod() { try { return localStorage.getItem("legality:kod") || ""; } catch (e) { return ""; } }
-  function setKod(k) { try { if (k) localStorage.setItem("legality:kod", k); else localStorage.removeItem("legality:kod"); } catch (e) {} }
-
-  function checked(d) {
-    if (d.error === "KOD_SALAH") { setKod(""); var e = new Error("Kod akses tidak sah."); e.kod = true; throw e; }
-    if (d.error) throw new Error(d.error);
-    return d;
-  }
-
-  function get(params) {
-    params.kod = getKod();
-    var q = Object.keys(params).map(function (k) { return k + "=" + encodeURIComponent(params[k]); }).join("&");
-    return fetch(API + (API.indexOf("?") < 0 ? "?" : "&") + q)
-      .then(function (r) { return r.json(); })
-      .then(checked);
-  }
-
-  function post(body) {
-    body.kod = getKod();
-    // text/plain keeps this a "simple" request, which Apps Script accepts from another site.
-    return fetch(API, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(body) })
-      .then(function (r) { return r.json(); })
-      .then(checked);
-  }
+  var getKod = Api.getKod, setKod = Api.setKod, get = Api.get, post = Api.post;
 
   function askKod(wrong) {
     root.textContent = "";
@@ -133,7 +110,7 @@
     state.sekolah = parts[1] || null;
     renderCrumbs();
     if (!API) {
-      message("Borang belum disambungkan", "Pentadbir perlu memasukkan pautan Apps Script Legality dalam config.js. Lihat apps-script/README-legality.md.", "warn");
+      message("Borang belum disambungkan", "Pentadbir perlu memasukkan pautan Apps Script Legality dalam src/config/config.js. Lihat backend/legality/README.md.", "warn");
       return;
     }
     if (!getKod()) return askKod(false);

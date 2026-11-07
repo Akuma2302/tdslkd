@@ -1,4 +1,4 @@
-"""Add one month of the Unit Murabbi report to data/murabbi.js.
+"""Add one month of the Unit Murabbi report to frontend/src/data/murabbi-reports.js.
 
 Usage:
     python tools/import_murabbi.py "responses.csv" --month 2026-10
@@ -18,7 +18,7 @@ import sys
 from datetime import datetime
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA = os.path.join(ROOT, "data", "murabbi.js")
+DATA = os.path.join(ROOT, "frontend", "src", "data", "murabbi-reports.js")
 PREFIX = "window.MURABBI_REPORTS = "
 COLUMNS = 24  # including the email column
 MONTHS = ["Januari", "Februari", "Mac", "April", "Mei", "Jun", "Julai",

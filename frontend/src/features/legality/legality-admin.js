@@ -1,16 +1,16 @@
 // Unit Legality dashboard (admin): compiles every cawangan's Checklist Legality sheet —
 // schools, CRM people, CRM phases and the six Progress Legality steps — through the
-// Legality Apps Script (config.js → legalityApi). Uses the same access code as legality.html.
+// Legality API (src/services/legalityApi.js). Uses the same access code as the user portal (index.html).
 (function () {
   "use strict";
 
-  var API = ((window.YOSH_CONFIG || {}).legalityApi || "").trim();
+  var Api = window.LegalityApi;
+  var API = Api.configured;
   var ALL = "*";
   var state = { data: null, loading: false, error: "", needKod: false };
   var listeners = [];
 
-  function getKod() { try { return localStorage.getItem("legality:kod") || ""; } catch (e) { return ""; } }
-  function setKod(k) { try { if (k) localStorage.setItem("legality:kod", k); else localStorage.removeItem("legality:kod"); } catch (e) {} }
+  var getKod = Api.getKod, setKod = Api.setKod;
   function store(key, value) {
     try {
       if (value === undefined) return localStorage.getItem(key);
@@ -29,14 +29,14 @@
     if (!getKod()) { state.needKod = true; changed(); return; }
     state.loading = true; state.error = ""; state.needKod = false;
     changed();
-    fetch(API + (API.indexOf("?") < 0 ? "?" : "&") + "action=summary&kod=" + encodeURIComponent(getKod()) + (fresh ? "&fresh=1" : ""))
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        if (d.error === "KOD_SALAH") { setKod(""); state.needKod = true; state.error = "Kod akses tidak sah."; return; }
-        if (d.error) throw new Error(d.error);
-        state.data = d;
+    var params = { action: "summary" };
+    if (fresh) params.fresh = "1";
+    Api.get(params)
+      .then(function (d) { state.data = d; })
+      .catch(function (e) {
+        if (e.kod) { state.needKod = true; state.error = "Kod akses tidak sah."; return; }
+        state.error = e.message || String(e);
       })
-      .catch(function (e) { state.error = e.message || String(e); })
       .then(function () { state.loading = false; changed(); });
   }
 
@@ -113,8 +113,8 @@
 
   function links(branch) {
     var box = el("div", "lgd-links");
-    var a = el("a", "link-btn", "Buka borang ↗");
-    a.href = new URL("legality.html" + (branch && branch !== ALL ? "#/" + encodeURIComponent(branch) : ""), location.href).href;
+    var a = el("a", "link-btn", "Buka portal user ↗");
+    a.href = new URL("./" + (branch && branch !== ALL ? "#/" + encodeURIComponent(branch) : ""), location.href).href;
     a.target = "_blank"; a.rel = "noopener";
     box.appendChild(a);
     (state.data ? state.data.cawangan : []).forEach(function (c) {

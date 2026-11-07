@@ -1,0 +1,3 @@
+# Netlify serves only the frontend/ folder. Backend (Apps Script) and tools are not published.
+[build]
+  publish = "frontend"

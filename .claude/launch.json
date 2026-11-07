@@ -4,7 +4,7 @@
     {
       "name": "yosh-system",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "4317"],
+      "runtimeArgs": ["-m", "http.server", "4317", "--directory", "frontend"],
       "port": 4317
     }
   ]

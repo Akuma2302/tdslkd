@@ -1,7 +1,7 @@
 // Unit Murabbi tab: monthly report dashboard.
 // Months come from two places, in the same shape:
 //   - live answers from our own form (borang.html), read from the Google Sheet via the Apps Script in config.js
-//   - older months imported from Google Form PDFs (data/murabbi.js)
+//   - older months imported from Google Form PDFs (src/data/murabbi-reports.js)
 // Each month carries its own question list, so the page follows whatever was asked that month.
 (function () {
   "use strict";

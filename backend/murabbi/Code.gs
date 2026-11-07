@@ -7,7 +7,7 @@
  *   Murabbi  – the list of murabbi (cawangan + nama) shown in the form
  *   Jawapan  – every submission; one column per question code (added automatically)
  *
- * Setup steps are in apps-script/README.md.
+ * Setup steps are in backend/murabbi/README.md.
  */
 
 var TAB = { settings: "Tetapan", questions: "Soalan", people: "Murabbi", answers: "Jawapan" };

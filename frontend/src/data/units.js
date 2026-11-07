@@ -15,7 +15,7 @@ window.UNITS = [
     summary: "Checklist Legality sekolah bagi setiap cawangan: CRM cikgu dan KPI, program, analisa dan perancangan.",
     sections: [
       { title: "Borang Checklist Legality",
-        body: "Pautan untuk ahli cawangan mengemas kini data sekolah (perlu kod akses): <a href=\"legality.html\">Buka borang Checklist Legality →</a>" },
+        body: "Pautan untuk ahli cawangan mengemas kini data sekolah (perlu kod akses): <a href=\"/\">Buka portal user (Database Legality) →</a>" },
       { title: "Sheet setiap cawangan",
         body: "<a href=\"https://docs.google.com/spreadsheets/d/1xrAVOswvIrRmmrmPaywzdKPEijJXYUiGkQujr9TfFUs\" target=\"_blank\" rel=\"noopener\">TENGAH</a> · " +
               "<a href=\"https://docs.google.com/spreadsheets/d/1F2AjjajCZuP_WJn7pfnx8Sz_rcEvw2pZDI3jxyzN8pQ\" target=\"_blank\" rel=\"noopener\">UTARA</a> · " +

@@ -7,7 +7,7 @@
  * This script reads and writes the school tabs directly, so the sheets stay exactly as the team knows them.
  *
  * Which sheet belongs to which cawangan is kept in Script Properties (key SHEETS).
- * Setup steps: apps-script/README-legality.md
+ * Setup steps: backend/legality/README.md
  */
 
 var CAWANGAN = ["TENGAH", "UTARA", "PT", "INDONESIA", "BORNEO", "MEA"];
