@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Program Sekolah — Portal Ahli Yosh Junior</title>
+<meta name="description" content="Platform rasmi Yosh Junior untuk menghantar maklumat program sekolah ke group cawangan.">
+<meta name="theme-color" content="#0b0b0b">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-64.png">
+<link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="apple-mobile-web-app-title" content="Yosh Junior">
+<meta name="apple-mobile-web-app-title" content="Yosh Junior">
+<meta name="application-name" content="Yosh Junior">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/program.css">
+<link rel="stylesheet" href="/assets/css/chrome.css">
+</head>
+<body class="locked" data-tab="program" data-gate="user">
+
+<!-- ── Intro overlay ─────────────────────────────── -->
+<div id="intro" class="intro" role="dialog" aria-modal="true" aria-label="Pengenalan">
+  <div class="intro-bg" aria-hidden="true">
+    <div class="hero-grid-bg"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <span class="ring"></span><span class="ring"></span><span class="ring"></span>
+  </div>
+
+  <div class="intro-corners" aria-hidden="true">
+    <span class="c-tl">Yosh Junior</span>
+    <span class="c-tr">5 Cawangan</span>
+    <span class="c-bl">Program Sekolah</span>
+    <span class="c-br">Sedunia ✦</span>
+  </div>
+
+  <div class="intro-stage">
+    <div class="intro-glow"></div>
+    <div class="intro-logo-wrap">
+      <img class="intro-logo" src="/assets/images/logo.png" alt="Yosh Junior" width="1200" height="465">
+    </div>
+    <p class="intro-sub"><span class="sub-line"></span>Program Sekolah Sedunia<span class="sub-line"></span></p>
+    <div class="intro-action">
+      <div class="intro-loader" aria-hidden="true"><span></span></div>
+      <button type="button" class="intro-enter" id="introEnter" tabindex="-1">Masuk <span aria-hidden="true">→</span></button>
+    </div>
+    <p class="intro-hint">atau tekan Enter</p>
+  </div>
+
+  <div class="intro-curtain" aria-hidden="true"></div>
+</div>
+
+<!-- Page-wide cursor glow (mouse devices only, see app.js) -->
+<div class="cursor-glow" aria-hidden="true"></div>
+<div class="scroll-progress" aria-hidden="true"></div>
+
+<!-- Portal navbar comes from src/components/portalNav.js -->
+<header class="site-nav" id="siteNav"></header>
+
+<!-- ── Hero ──────────────────────────────────────── -->
+<header class="hero" id="top">
+  <div class="hero-bg" aria-hidden="true">
+    <div class="hero-grid-bg"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+  </div>
+  <div class="particles" id="particles" aria-hidden="true"></div>
+  <div class="hero-grid">
+    <div class="hero-main">
+      <span class="hero-badge reveal-late"><i class="live-dot" aria-hidden="true"></i>Borang dibuka · 6 cawangan</span>
+      <a href="#borang" class="spin-badge reveal-late" aria-label="Isi borang">
+        <svg class="spin-text" viewBox="0 0 120 120" aria-hidden="true">
+          <defs><path id="spinPath" d="M60,60 m-46,0 a46,46 0 1,1 92,0 a46,46 0 1,1 -92,0"/></defs>
+          <text><textPath href="#spinPath">ISI BORANG ✦ PROGRAM SEKOLAH ✦ YOSH JUNIOR ✦</textPath></text>
+        </svg>
+        <span class="spin-core"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12l7 7 7-7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </a>
+      <h1 class="hero-title" id="heroTitle">
+        <span class="line" data-text="Program Sekolah"></span>
+        <span class="line accent" data-text="Sedunia"></span>
+      </h1>
+      <p class="hero-sub reveal-late">Platform rasmi Yosh Junior untuk menghantar maklumat program sekolah. Isi borang sekali — bot terus hantar ke group cawangan anda.</p>
+      <div class="hero-ctas reveal-late">
+        <a href="#borang" class="pill pill-glow">Isi Borang <span class="pill-arrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+        <a href="#pic" class="ghost-link">Hubungi PIC</a>
+      </div>
+    </div>
+
+    <div class="hero-card reveal-late" aria-hidden="true">
+      <span class="float-chip chip-a">✓ Auto hantar</span>
+      <span class="float-chip chip-b">📍 6 cawangan</span>
+      <span class="float-chip chip-c">🤖 Bot Telegram</span>
+      <svg class="deco deco-star" viewBox="0 0 40 40"><path d="M20 2v36M2 20h36M7 7l26 26M33 7 7 33" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>
+      <div class="chat-head">
+        <span class="chat-avatar">YJ</span>
+        <span class="chat-meta"><strong>Bot Yosh Junior</strong><span>baru sahaja</span></span>
+      </div>
+      <div class="chat-bubble">
+        <p class="chat-title">📋 DETAIL PROGRAM SEKOLAH</p>
+        <p>🔻 Sekolah: SMK Contoh</p>
+        <p>🔻 Jenis Program: Kepimpinan</p>
+        <p>🔻 Tarikh: 10 Oktober 2026</p>
+        <p>🔻 Pelajar (75 orang)</p>
+        <p class="chat-dim">🔻 PIC: @mainpic · @legality · @virality</p>
+      </div>
+      <div class="chat-foot"><span class="chat-tick">✓✓</span> Dihantar ke group cawangan</div>
+    </div>
+  </div>
+
+  <ol class="hero-steps reveal-late">
+    <li><span class="hs-num">01</span><span class="hs-text"><strong>Isi borang</strong><span>Maklumat program dalam 5 bahagian</span></span></li>
+    <li><span class="hs-num">02</span><span class="hs-text"><strong>Bot hantar</strong><span>Terus ke group cawangan &amp; kompilasi</span></span></li>
+    <li><span class="hs-num">03</span><span class="hs-text"><strong>Join group</strong><span>Pantau program dalam Telegram</span></span></li>
+  </ol>
+</header>
+
+<!-- ── Marquee ───────────────────────────────────── -->
+<div class="marquee" aria-hidden="true">
+  <div class="marquee-track">
+    <span>Program Sekolah</span><i>✦</i><span class="outline">Hantar Maklumat</span><i>✦</i><span>Yosh Junior</span><i>✦</i><span>Program Sekolah</span><i>✦</i><span class="outline">Hantar Maklumat</span><i>✦</i><span>Yosh Junior</span><i>✦</i><span>Program Sekolah</span><i>✦</i><span class="outline">Hantar Maklumat</span><i>✦</i><span>Yosh Junior</span><i>✦</i><span>Program Sekolah</span><i>✦</i><span class="outline">Hantar Maklumat</span><i>✦</i><span>Yosh Junior</span><i>✦</i>
+  </div>
+</div>
+
+<main>
+
+  <!-- ── Contacts ─────────────────────────────────── -->
+  <section id="pic" class="section">
+    <h2 class="section-title">Hubungi <em>PIC</em>?</h2>
+    <p class="section-lead">Ada soalan tentang program atau borang? Pilih unit yang berkaitan dan hubungi PIC terus melalui Telegram.</p>
+    <div class="unit-tabs" role="tablist" aria-label="Pilih unit">
+      <button type="button" class="unit-tab" role="tab" id="tab-legality" aria-controls="unit-legality" aria-selected="true" tabindex="0" data-unit="legality"><span class="unit-tab-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6l-8-3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m8.5 12 2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="unit-tab-label">Legality</span><span class="unit-tab-count">5</span></button>
+      <button type="button" class="unit-tab" role="tab" id="tab-virality" aria-controls="unit-virality" aria-selected="false" tabindex="-1" data-unit="virality"><span class="unit-tab-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20 20 4M14 4h6v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5.5 6 3l1 2.5L9.5 6.5 7 7.5 6 10 5 7.5 2.5 6.5Z" fill="currentColor"/></svg></span><span class="unit-tab-label">Virality</span><span class="unit-tab-count">4</span></button>
+      <button type="button" class="unit-tab" role="tab" id="tab-mutarabbi" aria-controls="unit-mutarabbi" aria-selected="false" tabindex="-1" data-unit="mutarabbi"><span class="unit-tab-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15ZM4 20.5A2.5 2.5 0 0 0 6.5 23H20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.5 8h7M8.5 11.5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span><span class="unit-tab-label">Mutarabbi</span><span class="unit-tab-count">3</span></button>
+    </div>
+    <div class="units">
+      <article class="unit unit-legality" id="unit-legality" role="tabpanel" aria-labelledby="tab-legality">
+        <header class="unit-head">
+          <span class="unit-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6l-8-3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m8.5 12 2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="unit-title"><strong>Unit Legality</strong><span>Kebenaran sekolah, surat &amp; dokumen program</span></span>
+          <span class="unit-count">5 PIC</span>
+        </header>
+        <ul class="people">
+          <li class="people-group" aria-hidden="true">Pusat</li>
+          <li class="person">
+            <span class="avatar">A</span>
+            <span class="person-info"><strong>Akmal Asyraaf</strong><span class="handle">@akmalasyraaaaf</span></span>
+            <span class="person-actions">
+              <button type="button" class="icon-action copy-handle" data-handle="@akmalasyraaaaf" aria-label="Salin @akmalasyraaaaf" title="Salin username"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15V5a2 2 0 0 1 2-2h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+              <a class="tg-btn" href="https://t.me/akmalasyraaaaf" target="_blank" rel="noopener" aria-label="Buka Telegram Akmal Asyraaf"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 4.3 18.4 19c-.2 1-.9 1.3-1.7.8l-4.7-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.8 8.8-7.9c.4-.3-.1-.5-.6-.2L6.3 13 1.7 11.6c-1-.3-1-1 .2-1.5L20.2 3c.8-.3 1.6.2 1.3 1.3Z" fill="currentColor"/></svg><span>Telegram</span></a>
+            </span>
+          </li>
+          <li class="person">
+            <span class="avatar">F</span>
+            <span class="person-info"><strong>Fathiah</strong><span class="handle">@fathiahroshdi</span></span>
+            <span class="person-actions">
+              <button type="button" class="icon-action copy-handle" data-handle="@fathiahroshdi" aria-label="Salin @fathiahroshdi" title="Salin username"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15V5a2 2 0 0 1 2-2h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+              <a class="tg-btn" href="https://t.me/fathiahroshdi" target="_blank" rel="noopener" aria-label="Buka Telegram Fathiah"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 4.3 18.4 19c-.2 1-.9 1.3-1.7.8l-4.7-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.8 8.8-7.9c.4-.3-.1-.5-.6-.2L6.3 13 1.7 11.6c-1-.3-1-1 .2-1.5L20.2 3c.8-.3 1.6.2 1.3 1.3Z" fill="currentColor"/></svg><span>Telegram</span></a>
+            </span>
+          </li>
+          <li class="person">
+            <span class="avatar">A</span>
+            <span class="person-info"><strong>Alyna</strong><span class="handle">@nuralyna19</span></span>
+            <span class="person-actions">
+              <button type="button" class="icon-action copy-handle" data-handle="@nuralyna19" aria-label="Salin @nuralyna19" title="Salin username"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15V5a2 2 0 0 1 2-2h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+              <a class="tg-btn" href="https://t.me/nuralyna19" target="_blank" rel="noopener" aria-label="Buka Telegram Alyna"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 4.3 18.4 19c-.2 1-.9 1.3-1.7.8l-4.7-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.8 8.8-7.9c.4-.3-.1-.5-.6-.2L6.3 13 1.7 11.6c-1-.3-1-1 .2-1.5L20.2 3c.8-.3 1.6.2 1.3 1.3Z" fill="currentColor"/></svg><span>Telegram</span></a>
+            </span>
+          </li>
+          <li class="people-group" aria-hidden="true">Cawangan Tengah</li>
+          <li class="person">
+            <span class="avatar">I</span>
+            <span class="person-info"><strong>Izzah Annuar</strong><span class="handle">@IzzahAnnuar</span></span>
+            <span class="person-actions">
+              <button type="button" class="icon-action copy-handle" data-handle="@IzzahAnnuar" aria-label="Salin @IzzahAnnuar" title="Salin username"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15V5a2 2 0 0 1 2-2h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+              <a class="tg-btn" href="https://t.me/IzzahAnnuar" target="_blank" rel="noopener" aria-label="Buka Telegram Izzah Annuar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 4.3 18.4 19c-.2 1-.9 1.3-1.7.8l-4.7-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.8 8.8-7.9c.4-.3-.1-.5-.6-.2L6.3 13 1.7 11.6c-1-.3-1-1 .2-1.5L20.2 3c.8-.3 1.6.2 1.3 1.3Z" fill="currentColor"/></svg><span>Telegram</span></a>
+            </span>
+          </li>
+          <li class="people-group" aria-hidden="true">Cawangan Utara</li>
+          <li class="person">
+            <span class="avatar">S</span>
+            <span class="person-info"><strong>Ustaz Syahir</strong><span class="handle">@syahiralias92</span></span>
+            <span class="person-actions">
+              <button type="button" class="icon-action copy-handle" data-handle="@syahiralias92" aria-label="Salin @syahiralias92" title="Salin username"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15V5a2 2 0 0 1 2-2h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+              <a class="tg-btn" href="https://t.me/syahiralias92" target="_blank" rel="noopener" aria-label="Buka Telegram Ustaz Syahir"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 4.3 18.4 19c-.2 1-.9 1.3-1.7.8l-4.7-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.8 8.8-7.9c.4-.3-.1-.5-.6-.2L6.3 13 1.7 11.6c-1-.3-1-1 .2-1.5L20.2 3c.8-.3 1.6.2 1.3 1.3Z" fill="currentColor"/></svg><span>Telegram</span></a>
+            </span>
+          </li>
+        </ul>
+      </article>
+      <article class="unit unit-virality" id="unit-virality" role="tabpanel" aria-labelledby="tab-virality" hidden>
+        <header class="unit-head">
+          <span class="unit-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20 20 4M14 4h6v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5.5 6 3l1 2.5L9.5 6.5 7 7.5 6 10 5 7.5 2.5 6.5Z" fill="currentColor"/></svg></span>
+          <span class="unit-title"><strong>Unit Virality</strong><span>Content plan, posting &amp; footage program</span></span>
+          <span class="unit-count">4 PIC</span>
+        </header>
+        <ul class="people">
+          <li class="people-group" aria-hidden="true">Pusat</li>
+          <li class="person">
+            <span class="avatar">A</span>
+            <span class="person-info"><strong>Akmal Asyraaf</strong><span class="handle">@akmalasyraaaaf</span></span>
+            <span class="person-actions">
+              <button type="button" class="icon-action copy-handle" data-handle="@akmalasyraaaaf" aria-label="Salin @akmalasyraaaaf" title="Salin username"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15V5a2 2 0 0 1 2-2h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+              <a class="tg-btn" href="https://t.me/akmalasyraaaaf" target="_blank" rel="noopener" aria-label="Buka Telegram Akmal Asyraaf"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 4.3 18.4 19c-.2 1-.9 1.3-1.7.8l-4.7-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.8 8.8-7.9c.4-.3-.1-.5-.6-.2L6.3 13 1.7 11.6c-1-.3-1-1 .2-1.5L20.2 3c.8-.3 1.6.2 1.3 1.3Z" fill="currentColor"/></svg><span>Telegram</span></a>
+            </span>
+          </li>
+          <li class="person">
+            <span class="avatar">N</span>
+            <span class="person-info"><strong>Nadirah Aisyah</strong><span class="handle">@nadirahaisyah</span></span>
+            <span class="person-actions">
+              <button type="button" class="icon-action copy-handle" data-handle="@nadirahaisyah" aria-label="Salin @nadirahaisyah" title="Salin username"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15V5a2 2 0 0 1 2-2h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+              <a class="tg-btn" href="https://t.me/nadirahaisyah" target="_blank" rel="noopener" aria-label="Buka Telegram Nadirah Aisyah"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 4.3 18.4 19c-.2 1-.9 1.3-1.7.8l-4.7-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.8 8.8-7.9c.4-.3-.1-.5-.6-.2L6.3 13 1.7 11.6c-1-.3-1-1 .2-1.5L20.2 3c.8-.3 1.6.2 1.3 1.3Z" fill="currentColor"/></svg><span>Telegram</span></a>
+            </span>
+          </li>
+          <li class="person">
+            <span class="avatar">A</span>
+            <span class="person-info"><strong>Afrina Zakirah</strong><span class="handle">@nurafrinazakirah</span></span>
+            <span class="person-actions">
+              <button type="button" class="icon-action copy-handle" data-handle="@nurafrinazakirah" aria-label="Salin @nurafrinazakirah" title="Salin username"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15V5a2 2 0 0 1 2-2h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+              <a class="tg-btn" href="https://t.me/nurafrinazakirah" target="_blank" rel="noopener" aria-label="Buka Telegram Afrina Zakirah"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 4.3 18.4 19c-.2 1-.9 1.3-1.7.8l-4.7-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.8 8.8-7.9c.4-.3-.1-.5-.6-.2L6.3 13 1.7 11.6c-1-.3-1-1 .2-1.5L20.2 3c.8-.3 1.6.2 1.3 1.3Z" fill="currentColor"/></svg><span>Telegram</span></a>
+            </span>
+          </li>
+          <li class="people-group" aria-hidden="true">Cawangan Tengah</li>
+          <li class="person">
+            <span class="avatar">A</span>
+            <span class="person-info"><strong>Adibah</strong><span class="handle">@adibahnahran</span></span>
+            <span class="person-actions">
+              <button type="button" class="icon-action copy-handle" data-handle="@adibahnahran" aria-label="Salin @adibahnahran" title="Salin username"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15V5a2 2 0 0 1 2-2h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+              <a class="tg-btn" href="https://t.me/adibahnahran" target="_blank" rel="noopener" aria-label="Buka Telegram Adibah"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 4.3 18.4 19c-.2 1-.9 1.3-1.7.8l-4.7-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.8 8.8-7.9c.4-.3-.1-.5-.6-.2L6.3 13 1.7 11.6c-1-.3-1-1 .2-1.5L20.2 3c.8-.3 1.6.2 1.3 1.3Z" fill="currentColor"/></svg><span>Telegram</span></a>
+            </span>
+          </li>
+        </ul>
+      </article>
+      <article class="unit unit-mutarabbi" id="unit-mutarabbi" role="tabpanel" aria-labelledby="tab-mutarabbi" hidden>
+        <header class="unit-head">
+          <span class="unit-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15ZM4 20.5A2.5 2.5 0 0 0 6.5 23H20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.5 8h7M8.5 11.5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+          <span class="unit-title"><strong>Unit Mutarabbi</strong><span>Modul &amp; RO program</span></span>
+          <span class="unit-count">3 PIC</span>
+        </header>
+        <ul class="people">
+          <li class="people-group" aria-hidden="true">Pusat</li>
+          <li class="person">
+            <span class="avatar">H</span>
+            <span class="person-info"><strong>Harith</strong><span class="handle">@Harithbinhabibali</span></span>
+            <span class="person-actions">
+              <button type="button" class="icon-action copy-handle" data-handle="@Harithbinhabibali" aria-label="Salin @Harithbinhabibali" title="Salin username"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15V5a2 2 0 0 1 2-2h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+              <a class="tg-btn" href="https://t.me/Harithbinhabibali" target="_blank" rel="noopener" aria-label="Buka Telegram Harith"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 4.3 18.4 19c-.2 1-.9 1.3-1.7.8l-4.7-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.8 8.8-7.9c.4-.3-.1-.5-.6-.2L6.3 13 1.7 11.6c-1-.3-1-1 .2-1.5L20.2 3c.8-.3 1.6.2 1.3 1.3Z" fill="currentColor"/></svg><span>Telegram</span></a>
+            </span>
+          </li>
+          <li class="people-group" aria-hidden="true">Cawangan Tengah</li>
+          <li class="person">
+            <span class="avatar">N</span>
+            <span class="person-info"><strong>Najman</strong><span class="handle">@najmannoordin</span></span>
+            <span class="person-actions">
+              <button type="button" class="icon-action copy-handle" data-handle="@najmannoordin" aria-label="Salin @najmannoordin" title="Salin username"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15V5a2 2 0 0 1 2-2h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+              <a class="tg-btn" href="https://t.me/najmannoordin" target="_blank" rel="noopener" aria-label="Buka Telegram Najman"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 4.3 18.4 19c-.2 1-.9 1.3-1.7.8l-4.7-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.8 8.8-7.9c.4-.3-.1-.5-.6-.2L6.3 13 1.7 11.6c-1-.3-1-1 .2-1.5L20.2 3c.8-.3 1.6.2 1.3 1.3Z" fill="currentColor"/></svg><span>Telegram</span></a>
+            </span>
+          </li>
+          <li class="person">
+            <span class="avatar">A</span>
+            <span class="person-info"><strong>Aaliya Syakirah</strong><span class="handle">@aaliyasyakirah</span></span>
+            <span class="person-actions">
+              <button type="button" class="icon-action copy-handle" data-handle="@aaliyasyakirah" aria-label="Salin @aaliyasyakirah" title="Salin username"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15V5a2 2 0 0 1 2-2h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+              <a class="tg-btn" href="https://t.me/aaliyasyakirah" target="_blank" rel="noopener" aria-label="Buka Telegram Aaliya Syakirah"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 4.3 18.4 19c-.2 1-.9 1.3-1.7.8l-4.7-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.8 8.8-7.9c.4-.3-.1-.5-.6-.2L6.3 13 1.7 11.6c-1-.3-1-1 .2-1.5L20.2 3c.8-.3 1.6.2 1.3 1.3Z" fill="currentColor"/></svg><span>Telegram</span></a>
+            </span>
+          </li>
+        </ul>
+      </article>
+    </div>
+    <p class="copy-toast" id="copyToast" role="status" aria-live="polite"></p>
+  </section>
+
+  <!-- ── Virality commitments ─────────────────────── -->
+  <section id="ketetapan" class="section">
+    <h2 class="section-title">Ketetapan <em>Virality</em></h2>
+    <p class="section-lead">Ana berjanji akan menyiapkan 3 amanah ini. Baca setiap satu dan tandakan untuk mengesahkan.</p>
+
+    <div class="amanah-bar">
+      <div class="amanah-progress">
+        <span><strong id="amanahCount">0/3</strong> amanah diakui</span>
+        <div class="progress-bar"><span id="amanahFill"></span></div>
+      </div>
+      <span class="deadline-chip">⏳ Tempoh: 7 hari</span>
+    </div>
+
+    <div class="timeline">
+      <div class="phase phase-before">
+        <span class="phase-label"><i></i>Sebelum program</span>
+        <div class="phase-cards">
+        <label class="amanah-card">
+          <input type="checkbox" class="amanah">
+          <span class="amanah-num">01</span>
+          <strong>Isi Details Program</strong>
+          <span class="amanah-text">Isi details program dalam form yang akan diberikan dalam group PIC Virality.</span>
+          <span class="amanah-foot"><span class="amanah-check" aria-hidden="true"></span><span class="amanah-state"></span></span>
+        </label>
+        <label class="amanah-card">
+          <input type="checkbox" class="amanah">
+          <span class="amanah-num">02</span>
+          <strong>Pantau Content Plan</strong>
+          <span class="amanah-text">Pantauan content plan &amp; update posting sepanjang program.</span>
+          <span class="amanah-foot"><span class="amanah-check" aria-hidden="true"></span><span class="amanah-state"></span></span>
+        </label>
+        </div>
+      </div>
+      <div class="phase-divider" aria-hidden="true"><span>Hari <br>program</span></div>
+      <div class="phase phase-after">
+        <span class="phase-label"><i></i>Selepas program</span>
+        <div class="phase-cards">
+        <label class="amanah-card">
+          <input type="checkbox" class="amanah">
+          <span class="amanah-num">03</span>
+          <strong>Upload Footage</strong>
+          <span class="amanah-text">Upload semua footage dan content dalam Google Drive.</span>
+          <span class="amanah-foot"><span class="amanah-check" aria-hidden="true"></span><span class="amanah-state"></span></span>
+        </label>
+        </div>
+      </div>
+    </div>
+
+    <p class="field-error" id="amanahError">Sila tandakan semua 3 ketetapan virality sebelum hantar borang.</p>
+
+    <div class="amanah-done" id="amanahDone" hidden>
+      <span class="amanah-done-icon" aria-hidden="true"></span>
+      <span class="amanah-done-text"><strong>Semua amanah diakui</strong><span>Terima kasih! Anda boleh teruskan mengisi borang program.</span></span>
+      <a href="#borang" class="pill pill-dark">Teruskan ke borang <span class="pill-arrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+    </div>
+  </section>
+
+  <!-- ── CTA band ─────────────────────────────────── -->
+  <section class="cta-band">
+    <svg class="deco deco-arrow" viewBox="0 0 40 40" aria-hidden="true"><path d="M8 32 32 8M14 8h18v18" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <h2>Jadikan program anda<br><em>lebih tersusun</em></h2>
+    <p>Lengkapkan borang di bawah. Bot Yosh Junior akan menghantar maklumat program terus ke group cawangan anda dan group kompilasi.</p>
+  </section>
+
+  <!-- ── Form ─────────────────────────────────────── -->
+  <section id="borang" class="section">
+    <h2 class="section-title">Borang <em>Program</em></h2>
+    <form class="card form-card" id="programForm" novalidate>
+      <div class="form-progress" aria-live="polite">
+        <div class="progress-text"><strong id="progressCount">0/5</strong> bahagian lengkap</div>
+        <div class="progress-bar"><span id="progressFill"></span></div>
+      </div>
+
+      <section class="form-step" data-step="1">
+        <header class="step-head">
+          <span class="step-num">01</span>
+          <span class="step-title"><strong>Maklumat Asas</strong><span>Cawangan, sekolah dan jenis program</span></span>
+          <span class="step-done" aria-hidden="true"></span>
+        </header>
+        <div class="field">
+          <span class="field-label" id="cawanganLabel">Cawangan Sekolah</span>
+          <div class="tiles tiles-6" id="cawanganTiles" role="radiogroup" aria-labelledby="cawanganLabel" data-for="cawangan"><button type="button" class="tile" role="radio" aria-checked="false" data-value="Tengah"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="9.5" r="2.5" fill="currentColor"/></svg><span>Tengah</span></button><button type="button" class="tile" role="radio" aria-checked="false" data-value="Utara"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="9.5" r="2.5" fill="currentColor"/></svg><span>Utara</span></button><button type="button" class="tile" role="radio" aria-checked="false" data-value="Pantai Timur"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="9.5" r="2.5" fill="currentColor"/></svg><span>Pantai Timur</span></button><button type="button" class="tile" role="radio" aria-checked="false" data-value="Borneo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="9.5" r="2.5" fill="currentColor"/></svg><span>Borneo</span></button><button type="button" class="tile" role="radio" aria-checked="false" data-value="Indonesia"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="9.5" r="2.5" fill="currentColor"/></svg><span>Indonesia</span></button><button type="button" class="tile" role="radio" aria-checked="false" data-value="MEA"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="9.5" r="2.5" fill="currentColor"/></svg><span>MEA</span></button></div>
+          <input type="hidden" id="cawangan">
+        </div>
+
+        <div class="field">
+          <label for="sekolah">Nama Sekolah</label>
+          <div class="combo" id="sekolahCombo">
+            <input id="sekolah" type="text" placeholder="Pilih atau taip nama sekolah" autocomplete="off" required
+                   role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="sekolahList">
+            <span class="combo-caret" aria-hidden="true"></span>
+            <ul class="combo-list" id="sekolahList" role="listbox" aria-label="Sekolah dalam database Legality" hidden></ul>
+          </div>
+          <p class="combo-hint" id="sekolahHint">Pilih cawangan dahulu untuk melihat senarai sekolah.</p>
+        </div>
+
+        <div class="field">
+          <label for="namaProgram">Nama Program</label>
+          <input id="namaProgram" type="text" placeholder="cth. Kem Kepimpinan Pelajar 2026" autocomplete="off" required>
+        </div>
+
+        <div class="field">
+          <span class="field-label" id="jenisLabel">Jenis Program</span>
+          <div class="tiles tiles-4" id="jenisTiles" role="radiogroup" aria-labelledby="jenisLabel" data-for="jenis"><button type="button" class="tile" role="radio" aria-checked="false" data-value="Kepimpinan"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4m0 0h11l-2 4 2 4H5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span>Kepimpinan</span></button><button type="button" class="tile" role="radio" aria-checked="false" data-value="Kerohanian"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 1 0 6 9 7 7 0 1 1-6-9Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m17 4 .7 1.6L19.3 6l-1.6.7L17 8.3l-.7-1.6L14.7 6l1.6-.4Z" fill="currentColor"/></svg><span>Kerohanian</span></button><button type="button" class="tile" role="radio" aria-checked="false" data-value="Akademik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15ZM4 20.5A2.5 2.5 0 0 0 6.5 23H20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span>Akademik</span></button><button type="button" class="tile" role="radio" aria-checked="false" data-value="Lain-lain"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg><span>Lain-lain</span></button></div>
+          <input type="hidden" id="jenis">
+        </div>
+      </section>
+
+      <section class="form-step" data-step="2">
+        <header class="step-head">
+          <span class="step-num">02</span>
+          <span class="step-title"><strong>Tarikh &amp; Masa</strong><span>Bila program berlangsung</span></span>
+          <span class="step-done" aria-hidden="true"></span>
+        </header>
+        <div class="schedule">
+          <div class="grid-2">
+            <div class="field">
+              <label for="tarikhMula">Tarikh Mula</label>
+              <input id="tarikhMula" type="date" min="2024-01-01" max="2099-12-31" required>
+            </div>
+            <div class="field">
+              <label for="tarikhTamat">Tarikh Tamat</label>
+              <input id="tarikhTamat" type="date" min="2024-01-01" max="2099-12-31" required>
+            </div>
+          </div>
+          <p class="field-error" id="tarikhError">Tarikh tamat tidak boleh sebelum tarikh mula.</p>
+          <div class="grid-2">
+            <div class="field">
+              <label for="masaMula">Masa Mula</label>
+              <input id="masaMula" type="time" required>
+            </div>
+            <div class="field">
+              <label for="masaTamat">Masa Tamat</label>
+              <input id="masaTamat" type="time" required>
+            </div>
+          </div>
+          <p class="field-error" id="masaError">Masa tamat mesti selepas masa mula.</p>
+          <p class="duration" id="duration" hidden></p>
+        </div>
+      </section>
+
+      <section class="form-step" data-step="3">
+        <header class="step-head">
+          <span class="step-num">03</span>
+          <span class="step-title"><strong>Guru &amp; Pelajar</strong><span>Siapa yang terlibat</span></span>
+          <span class="step-done" aria-hidden="true"></span>
+        </header>
+        <fieldset class="field" id="guruGroup">
+          <legend>Guru Bertugas</legend>
+          <p class="field-hint"><span>Tulis <strong>"Tiada"</strong> pada nama dan jawatan jika tiada guru bertugas.</span></p>
+          <div id="guruList" class="guru-list"></div>
+          <button type="button" class="btn-add" id="guruAdd">+ Tambah Guru</button>
+          <datalist id="jawatanList">
+            <option value="Pengetua">
+            <option value="Guru Besar">
+            <option value="PK Pentadbiran">
+            <option value="PK HEM">
+            <option value="PK Kokurikulum">
+            <option value="Guru Kaunseling">
+            <option value="Guru Disiplin">
+            <option value="Guru Kelas">
+            <option value="Guru Penasihat">
+          </datalist>
+        </fieldset>
+
+        <template id="guruRowTpl">
+          <div class="guru-row">
+            <span class="guru-num"></span>
+            <input type="text" class="guru-nama" placeholder="Nama guru" aria-label="Nama guru">
+            <input type="text" class="guru-jawatan" placeholder="Jawatan" list="jawatanList" aria-label="Jawatan guru">
+            <button type="button" class="guru-remove" aria-label="Buang guru">✕</button>
+          </div>
+        </template>
+
+        <fieldset class="field" id="pelajarGroup">
+          <legend class="sr-only">Pelajar Terlibat</legend>
+          <div class="level-head">
+            <span class="field-label">Pelajar Terlibat <span class="legend-hint" id="pelajarCount">boleh pilih lebih dari satu</span></span>
+            <button type="button" class="link-btn" id="pelajarAll">Pilih semua</button>
+          </div>
+          <div class="level-grid">
+            <label class="level"><input type="checkbox" name="pelajar" value="T1"><span class="level-box"><small>Tingkatan</small><strong>1</strong><i class="level-check" aria-hidden="true"></i></span></label>
+            <label class="level"><input type="checkbox" name="pelajar" value="T2"><span class="level-box"><small>Tingkatan</small><strong>2</strong><i class="level-check" aria-hidden="true"></i></span></label>
+            <label class="level"><input type="checkbox" name="pelajar" value="T3"><span class="level-box"><small>Tingkatan</small><strong>3</strong><i class="level-check" aria-hidden="true"></i></span></label>
+            <label class="level"><input type="checkbox" name="pelajar" value="T4"><span class="level-box"><small>Tingkatan</small><strong>4</strong><i class="level-check" aria-hidden="true"></i></span></label>
+            <label class="level"><input type="checkbox" name="pelajar" value="T5"><span class="level-box"><small>Tingkatan</small><strong>5</strong><i class="level-check" aria-hidden="true"></i></span></label>
+          </div>
+          <div class="level-counts" id="levelCounts" hidden>
+            <div class="level-count-list" id="levelCountList"></div>
+            <div class="level-total"><span>Jumlah pelajar</span><strong id="levelTotal">0</strong></div>
+          </div>
+          <template id="levelCountTpl">
+            <div class="level-count-row">
+              <label class="level-count-name"></label>
+              <div class="stepper stepper-sm">
+                <button type="button" class="step-btn" data-delta="-1" aria-label="Kurang">−</button>
+                <input type="number" class="level-count" min="1" inputmode="numeric" placeholder="0">
+                <button type="button" class="step-btn" data-delta="1" aria-label="Tambah">+</button>
+              </div>
+              <span class="level-count-unit">pelajar</span>
+            </div>
+          </template>
+        </fieldset>
+      </section>
+
+      <section class="form-step" data-step="4">
+        <header class="step-head">
+          <span class="step-num">04</span>
+          <span class="step-title"><strong>Manpower &amp; Sheet</strong><span>Keperluan tenaga kerja</span></span>
+          <span class="step-done" aria-hidden="true"></span>
+        </header>
+        <div class="field">
+          <label for="manpower">Jumlah Manpower</label>
+          <div class="stepper">
+            <button type="button" class="step-btn" data-target="manpower" data-delta="-1" aria-label="Kurang">−</button>
+            <input id="manpower" type="number" min="0" inputmode="numeric" placeholder="0" required>
+            <button type="button" class="step-btn" data-target="manpower" data-delta="1" aria-label="Tambah">+</button>
+          </div>
+        </div>
+
+        <fieldset class="field" id="tambahanGroup">
+          <legend class="sr-only">Perlukan Manpower Tambahan?</legend>
+          <span class="field-label" aria-hidden="true">Perlukan Manpower Tambahan?</span>
+          <div class="level-grid level-grid-2">
+            <label class="level"><input type="radio" name="tambahan" value="Ya"><span class="level-box"><small>Perlu tambahan</small><strong>Ya</strong><i class="level-check" aria-hidden="true"></i></span></label>
+            <label class="level"><input type="radio" name="tambahan" value="Tidak"><span class="level-box"><small>Sudah cukup</small><strong>Tidak</strong><i class="level-check" aria-hidden="true"></i></span></label>
+          </div>
+        </fieldset>
+
+        <div class="field" id="tambahanJumlahField" hidden>
+          <label for="tambahanJumlah">Jumlah Manpower Tambahan</label>
+          <div class="stepper">
+            <button type="button" class="step-btn" data-target="tambahanJumlah" data-delta="-1" aria-label="Kurang">−</button>
+            <input id="tambahanJumlah" type="number" min="1" inputmode="numeric" placeholder="0">
+            <button type="button" class="step-btn" data-target="tambahanJumlah" data-delta="1" aria-label="Tambah">+</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="sheet">Sheet Program <span class="legend-hint">pilihan</span></label>
+          <div class="with-action">
+            <input id="sheet" type="url" placeholder="https://docs.google.com/…">
+            <a id="sheetOpen" class="btn-ghost" target="_blank" rel="noopener" hidden>Buka ↗</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="form-step" data-step="5">
+        <header class="step-head">
+          <span class="step-num">05</span>
+          <span class="step-title"><strong>PIC Program</strong><span>Username Telegram tanpa @</span></span>
+          <span class="step-done" aria-hidden="true"></span>
+        </header>
+        <div class="field">
+          <label for="mainPic">Main PIC Program</label>
+          <div class="pic-row">
+            <div class="at"><span>@</span><input id="mainPic" type="text" placeholder="username Telegram" autocomplete="off" required></div>
+            <div class="seg" id="mainPicAlumniGroup" role="radiogroup" aria-label="Status alumni Main PIC">
+              <label><input type="radio" name="mainPicAlumni" value="Alumni"><span>Alumni</span></label>
+              <label><input type="radio" name="mainPicAlumni" value="Bukan Alumni"><span>Bukan Alumni</span></label>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label for="legality">PIC Legality</label>
+          <div class="pic-row">
+            <div class="at"><span>@</span><input id="legality" type="text" placeholder="username Telegram" autocomplete="off" required></div>
+            <div class="seg" id="legalityAlumniGroup" role="radiogroup" aria-label="Status alumni PIC Legality">
+              <label><input type="radio" name="legalityAlumni" value="Alumni"><span>Alumni</span></label>
+              <label><input type="radio" name="legalityAlumni" value="Bukan Alumni"><span>Bukan Alumni</span></label>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label for="virality">PIC Virality</label>
+          <div class="pic-row">
+            <div class="at"><span>@</span><input id="virality" type="text" placeholder="username Telegram" autocomplete="off" required></div>
+            <div class="seg" id="viralityAlumniGroup" role="radiogroup" aria-label="Status alumni PIC Virality">
+              <label><input type="radio" name="viralityAlumni" value="Alumni"><span>Alumni</span></label>
+              <label><input type="radio" name="viralityAlumni" value="Bukan Alumni"><span>Bukan Alumni</span></label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Honeypot: hidden from people, bots tend to fill it in -->
+      <div class="hp" aria-hidden="true">
+        <label for="website">Website</label>
+        <input id="website" type="text" tabindex="-1" autocomplete="off">
+      </div>
+
+      <p class="form-error" id="formError" role="alert"></p>
+      <button type="submit" class="btn-primary">Jana Template &amp; Hantar <span class="pill-arrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
+    </form>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="#top" class="logo"><img src="/assets/images/logo.png" alt="Yosh Junior" width="1200" height="465"></a>
+        <p>Platform rasmi Yosh Junior untuk menghantar maklumat program sekolah ke group cawangan.</p>
+        <span class="hero-badge footer-status"><i class="live-dot" aria-hidden="true"></i>Borang dibuka · 6 cawangan</span>
+      </div>
+
+      <nav class="footer-col" aria-label="Pautan">
+        <h3>Pautan</h3>
+        <a href="#pic">Hubungi PIC</a>
+        <a href="#ketetapan">Ketetapan Virality</a>
+        <a href="#borang">Borang Program</a>
+      </nav>
+
+      <div class="footer-col">
+        <h3>Bantuan</h3>
+        <a href="https://t.me/akmalasyraaaaf" target="_blank" rel="noopener" class="footer-tg"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 4.3 18.4 19c-.2 1-.9 1.3-1.7.8l-4.7-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.8 8.8-7.9c.4-.3-.1-.5-.6-.2L6.3 13 1.7 11.6c-1-.3-1-1 .2-1.5L20.2 3c.8-.3 1.6.2 1.3 1.3Z" fill="currentColor"/></svg><span>PIC Legality</span></a>
+        <a href="https://t.me/nadirahaisyah" target="_blank" rel="noopener" class="footer-tg"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 4.3 18.4 19c-.2 1-.9 1.3-1.7.8l-4.7-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.8 8.8-7.9c.4-.3-.1-.5-.6-.2L6.3 13 1.7 11.6c-1-.3-1-1 .2-1.5L20.2 3c.8-.3 1.6.2 1.3 1.3Z" fill="currentColor"/></svg><span>PIC Virality</span></a>
+        <a href="https://t.me/Harithbinhabibali" target="_blank" rel="noopener" class="footer-tg"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 4.3 18.4 19c-.2 1-.9 1.3-1.7.8l-4.7-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.8 8.8-7.9c.4-.3-.1-.5-.6-.2L6.3 13 1.7 11.6c-1-.3-1-1 .2-1.5L20.2 3c.8-.3 1.6.2 1.3 1.3Z" fill="currentColor"/></svg><span>PIC Mutarabbi</span></a>
+      </div>
+    </div>
+
+    <p class="footer-mark" aria-hidden="true">Program Sekolah <span>Sedunia</span></p>
+
+    <div class="footer-bottom">
+      <p>© <span id="footerYear">2026</span> Yosh Junior · Program Sekolah Sedunia</p>
+      <a href="#top" class="to-top">Kembali ke atas <span aria-hidden="true">↑</span></a>
+    </div>
+  </div>
+</footer>
+
+<!-- ── Template modal ───────────────────────────── -->
+<div class="modal" id="modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-head">
+      <h2 id="modalTitle">Template Program</h2>
+      <button class="icon-btn" id="modalClose" aria-label="Tutup">✕</button>
+    </div>
+    <p class="muted">Semak template di bawah. Bila tekan hantar, bot akan hantar ke group Cawangan <strong id="modalCawangan"></strong>.</p>
+    <pre id="templateBox"></pre>
+
+    <p class="send-status" id="sendStatus" role="status" aria-live="polite"></p>
+
+    <div class="join-box" id="joinBox" hidden>
+      <p>Sertai group Telegram cawangan anda untuk melihat program yang dihantar:</p>
+      <a class="btn-join" id="joinLink" target="_blank" rel="noopener">Join Group <span id="joinName"></span> ↗</a>
+    </div>
+
+    <button class="btn-primary" id="sendBtn">Hantar ke Telegram</button>
+    <button class="btn-secondary" id="copyBtn">Copy</button>
+  </div>
+</div>
+
+<script src="/src/config/config.js"></script>
+<script src="/src/services/legalityApi.js"></script>
+<script src="/src/components/gate.js"></script>
+<script src="/src/components/portalNav.js"></script>
+<script type="module" src="/src/pages/program/app.js"></script>
+</body>
+</html>

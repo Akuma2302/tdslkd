@@ -3,3 +3,7 @@ __pycache__/
 *.pyc
 .DS_Store
 Thumbs.db
+
+# Local secrets for dev-server.mjs (Telegram bot token) and Netlify CLI state
+.env
+.netlify/

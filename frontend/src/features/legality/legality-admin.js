@@ -7,7 +7,8 @@
   var Api = window.LegalityApi;
   var API = Api.configured;
   var ALL = "*";
-  var state = { data: null, loading: false, error: "", needKod: false };
+  var state = { data: null, loading: false, error: "", needKod: false,
+                programs: null, progLoading: false, progError: "", sheetUrl: "" };
   var listeners = [];
 
   var getKod = Api.getKod, setKod = Api.setKod;
@@ -38,6 +39,17 @@
         state.error = e.message || String(e);
       })
       .then(function () { state.loading = false; changed(); });
+    loadPrograms();
+  }
+
+  // Programmes sent from the Program page (program.html), kept in their own Google Sheet.
+  function loadPrograms() {
+    if (!API || !getKod()) return;
+    state.progLoading = true; state.progError = "";
+    Api.get({ action: "programs" })
+      .then(function (d) { state.programs = d.programs || []; state.sheetUrl = d.sheetUrl || ""; })
+      .catch(function (e) { state.progError = e.message || String(e); })
+      .then(function () { state.progLoading = false; changed(); });
   }
 
   // ---------- Helpers ----------
@@ -116,7 +128,7 @@
   function links(branch) {
     var box = el("div", "lgd-links");
     var a = el("a", "link-btn", "Buka portal user ↗");
-    a.href = new URL("legality.html" + (branch && branch !== ALL ? "#/" + encodeURIComponent(branch) : ""), location.href).href;
+    a.href = new URL("/legality/database" + (branch && branch !== ALL ? "#/" + encodeURIComponent(branch) : ""), location.href).href;
     a.target = "_blank"; a.rel = "noopener";
     box.appendChild(a);
     (state.data ? state.data.cawangan : []).forEach(function (c) {
@@ -234,7 +246,110 @@
     }
     grid.appendChild(mw);
 
+    grid.appendChild(programWidget(branch));
     body.appendChild(grid);
+  }
+
+  function fmtDate(isoDate) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate || "")) return isoDate || "—";
+    var p = isoDate.split("-");
+    return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString("ms-MY", { day: "numeric", month: "short", year: "numeric" });
+  }
+  function today() {
+    var d = new Date();
+    return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+  }
+
+  // "Program Sekolah" tracker: every programme the cawangan sent through the Program page.
+  function programWidget(branch) {
+    var all = (state.programs || []).filter(function (p) { return branch === ALL || p.cawangan === branch; });
+    var w = widget("w-4 lgd-programs", "Program Sekolah dihantar", state.programs ? all.length + " program" : "");
+    if (state.sheetUrl) {
+      var open = el("a", "link-btn lgd-sheet", "Buka Sheet ↗");
+      open.href = state.sheetUrl; open.target = "_blank"; open.rel = "noopener";
+      w.querySelector(".w-head").appendChild(open);
+    }
+    if (!state.programs) {
+      w.appendChild(el("p", "empty-text", state.progError ? "Tidak dapat memuatkan program (" + state.progError + ")."
+        : state.progLoading ? "Memuatkan program…" : "Belum dimuatkan."));
+      return w;
+    }
+    var now = today();
+    var upcoming = all.filter(function (p) { return (p.tamat || p.mula) >= now; }).length;
+    var kpi = el("div", "lgd-prog-kpi");
+    [["Program", all.length], ["Akan datang", upcoming],
+     ["Pelajar", sum(all.map(function (p) { return p.jumlahPelajar; }))],
+     ["Manpower", sum(all.map(function (p) { return p.manpower; }))]].forEach(function (k) {
+      var b = el("div", "lgd-prog-k");
+      b.appendChild(el("strong", null, String(k[1])));
+      b.appendChild(el("span", null, k[0]));
+      kpi.appendChild(b);
+    });
+    w.appendChild(kpi);
+
+    if (!all.length) {
+      w.appendChild(el("p", "empty-text", "Belum ada program dihantar" + (branch === ALL ? "." : " untuk cawangan " + branch + ".")));
+      return w;
+    }
+    var search = el("input", "borang-input lgd-prog-search");
+    search.type = "search";
+    search.placeholder = "Cari sekolah, program atau PIC";
+    search.setAttribute("aria-label", "Cari program");
+    w.appendChild(search);
+
+    var wrap = el("div", "tbl-wrap");
+    var t = el("table", "mtable lgd-prog-table");
+    var hr = el("tr");
+    ["Tarikh", "Sekolah", "Program", "Pelajar", "Manpower", "PIC", "Telegram", "Dihantar"].forEach(function (h, i) {
+      hr.appendChild(el("th", i === 3 || i === 4 ? "num" : null, h));
+    });
+    var th = el("thead"); th.appendChild(hr); t.appendChild(th);
+    var tb = el("tbody");
+    t.appendChild(tb);
+    wrap.appendChild(t);
+    w.appendChild(wrap);
+
+    function draw() {
+      tb.textContent = "";
+      var q = search.value.trim().toLowerCase();
+      all.filter(function (p) {
+        return !q || [p.sekolah, p.nama, p.jenis, p.mainPic, p.legality, p.virality, p.cawangan].join(" ").toLowerCase().indexOf(q) > -1;
+      }).forEach(function (p) {
+        var r = el("tr", (p.tamat || p.mula) >= now ? "is-upcoming" : "");
+        var d = el("td", "lgd-prog-date");
+        d.appendChild(document.createTextNode(fmtDate(p.mula) + (p.tamat && p.tamat !== p.mula ? " – " + fmtDate(p.tamat) : "")));
+        if (p.masa) d.appendChild(el("small", null, p.masa));
+        r.appendChild(d);
+        var sc = el("td"); sc.appendChild(document.createTextNode(p.sekolah));
+        sc.appendChild(el("small", null, p.cawangan)); r.appendChild(sc);
+        var pr = el("td");
+        if (p.sheet && /^https?:/i.test(p.sheet)) {
+          var a = el("a", null, p.nama); a.href = p.sheet; a.target = "_blank"; a.rel = "noopener"; pr.appendChild(a);
+        } else pr.appendChild(document.createTextNode(p.nama));
+        pr.appendChild(el("small", null, [p.jenis, p.bilGuru ? p.bilGuru + " guru" : ""].filter(String).join(" · ")));
+        if (p.guru) pr.title = "Guru bertugas:\n" + p.guru;
+        r.appendChild(pr);
+        var pl = el("td", "num", String(p.jumlahPelajar)); if (p.pelajar) pl.title = p.pelajar; r.appendChild(pl);
+        r.appendChild(el("td", "num", p.manpower + (p.tambahan ? " +" + p.tambahan : "")));
+        var pic = el("td", "lgd-prog-pic");
+        [["Main", p.mainPic], ["Legality", p.legality], ["Virality", p.virality]].forEach(function (x) {
+          if (x[1]) pic.appendChild(el("small", null, x[0] + ": " + x[1]));
+        });
+        r.appendChild(pic);
+        var ok = /^berjaya/i.test(p.telegram);
+        var tg = el("td"); var badge = el("span", "lgd-tg " + (ok ? "is-ok" : "is-fail"), ok ? "Terhantar" : (p.telegram ? "Gagal" : "—"));
+        if (!ok && p.telegram) badge.title = p.telegram;
+        tg.appendChild(badge); r.appendChild(tg);
+        r.appendChild(el("td", "lgd-prog-sent", p.dihantar ? new Date(p.dihantar).toLocaleString("ms-MY", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—"));
+        tb.appendChild(r);
+      });
+      if (!tb.children.length) {
+        var er = el("tr"); var ec = el("td", "empty-text", "Tiada program sepadan."); ec.colSpan = 8; er.appendChild(ec); tb.appendChild(er);
+      }
+    }
+    search.addEventListener("input", draw);
+    draw();
+    return w;
   }
 
   function render(panel) {
@@ -285,7 +400,7 @@
 
       var refresh = el("button", "link-btn", "Muat semula");
       refresh.type = "button";
-      refresh.addEventListener("click", function () { load(true); });
+      refresh.addEventListener("click", function () { load(true); });   // also reloads the programmes
 
       var tools = el("div", "report-tools");
       tools.appendChild(label);

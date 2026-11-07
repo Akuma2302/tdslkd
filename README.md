@@ -5,7 +5,9 @@ Laman web statik (HTML/CSS/JavaScript biasa, tiada build) di **https://tdslkd.ne
 | Link | Untuk | Fail |
 |---|---|---|
 | `/` | Portal user, **Utama**: kad setiap tab dengan penerangan ringkas | `frontend/index.html` |
-| `/legality` | Portal user, tab **Legality** | `frontend/legality.html` |
+| `/legality/database` | Portal user, **Legality ▾ Database Legality** (`/legality` pun dibawa ke sini) | `frontend/legality/database.html` |
+| `/legality/program` | Portal user, **Legality ▾ Program Sekolah**: borang program (hantar ke Telegram + simpan ke Sheet Program) | `frontend/legality/program.html` |
+| `/legality/panduan` | Portal user, **Legality ▾ Panduan Legality** (akan datang) | `frontend/legality/panduan.html` |
 | `/alumni` | Portal user, tab **Alumni** (sheet Alumni Back to School) | `frontend/alumni.html` |
 | `/pentajmikan` | Portal user, tab **Pentajmikan** (akan datang) | `frontend/pentajmikan.html` |
 | `/pembinaan` | Portal user, tab **Pembinaan** (akan datang) | `frontend/pembinaan.html` |
@@ -22,26 +24,34 @@ Selepas intro, semua halaman minta kod. Kod user → portal (`/`), kod admin →
 tdslkd/
 ├── frontend/                    ← folder yang Netlify publish (lihat netlify.toml)
 │   ├── index.html               portal user: Utama (kad setiap tab)
-│   ├── legality.html            portal user: Legality
+│   ├── legality/                portal user, menu Legality:
+│   │   ├── database.html        /legality/database (CRM, progress, planning…)
+│   │   ├── program.html         /legality/program (borang Program Sekolah, dulu laman yoshjuniorprogram)
+│   │   └── panduan.html         /legality/panduan (akan datang)
 │   ├── alumni.html              portal user: Alumni Back to School
 │   ├── pentajmikan.html         portal user: Pentajmikan (akan datang)
 │   ├── pembinaan.html           portal user: Pembinaan (akan datang)
 │   ├── admin.html               dashboard admin
 │   ├── borang.html              borang Unit Murabbi
-│   ├── _redirects               /admin → admin.html
+│   ├── _redirects               /admin → admin.html, /legality → /legality/database, pautan lama
 │   ├── assets/
-│   │   ├── css/style.css        semua gaya
+│   │   ├── css/style.css        gaya portal & admin
+│   │   ├── css/chrome.css       navbar & skrin log masuk (dikongsi semua halaman)
+│   │   ├── css/program.css      gaya borang Program Sekolah
 │   │   └── images/logo.png
 │   └── src/
 │       ├── config/config.js     pautan API Apps Script
 │       ├── services/            panggilan API (legalityApi.js: kod akses, get/post)
 │       ├── components/          UI boleh guna semula (intro.js, gate.js: log masuk/keluar, portalNav.js: navbar portal user dengan dropdown, slides.js)
 │       ├── features/            modul ikut unit (legality/, murabbi/) untuk dashboard admin
-│       ├── pages/               skrip utama setiap halaman (home/, portal/, alumni/, admin/, borang/)
+│       ├── pages/               skrip utama setiap halaman (home/, portal/, program/, alumni/, admin/, borang/)
+│       │                        program/template.js dikongsi dengan fungsi Telegram di backend
 │       └── data/                kandungan statik (units.js, murabbi-reports.js)
 ├── backend/                     Google Apps Script (tidak dipublish ke Netlify)
-│   ├── legality/                Legality.gs + README (setup, kod akses, sheet cawangan)
+│   ├── legality/                Legality.gs + README (setup, kod akses, sheet cawangan, Program Sekolah)
+│   ├── program/                 hantar.mjs: fungsi Netlify yang hantar borang program ke group Telegram
 │   └── murabbi/                 Code.gs + README + senarai-murabbi.csv
+├── dev-server.mjs               pelayan ujian tempatan (halaman + fungsi Telegram)
 ├── tools/                       skrip pembantu (import_murabbi.py)
 └── netlify.toml
 ```
@@ -57,13 +67,16 @@ Tiada bundler, jadi setiap halaman memuatkan skrip mengikut turutan: `config` �
 ## Uji di komputer
 
 ```bash
-python -m http.server 4320 --directory frontend
+node dev-server.mjs --dry-run
 ```
 
-Buka http://localhost:4320/ (portal) dan http://localhost:4320/admin.html (admin; `/admin` hanya berfungsi di Netlify).
+Buka http://localhost:4321/ (portal), http://localhost:4321/legality/database, http://localhost:4321/legality/program dan http://localhost:4321/admin. Pelayan ini meniru Netlify: pautan cantik (`/alumni`), `_redirects`, dan fungsi Telegram borang Program. Dengan `--dry-run`, mesej Telegram dibina dan disemak tetapi **tidak** dihantar. Tanpa `--dry-run`, ia betul-betul menghantar menggunakan token dalam fail `.env` (tidak masuk GitHub).
 
 ## Deploy
 
-Push ke `main` → Netlify bina semula secara automatik dari folder `frontend/`.
+Push ke `main` → Netlify bina semula secara automatik dari folder `frontend/` (dan fungsi dalam `netlify/functions/`).
+
+Fungsi Telegram untuk borang Program perlukan environment variables dalam Netlify (**Site configuration → Environment variables**):
+`TELEGRAM_BOT_TOKEN`, `GROUP_TENGAH`, `GROUP_UTARA`, `GROUP_PANTAI_TIMUR`, `GROUP_BORNEO`, `GROUP_INDONESIA`, `GROUP_MEA` (pilihan; tanpanya MEA hanya dihantar ke topik MEA dalam group kompilasi) (pilihan: `DRY_RUN=1` untuk uji tanpa hantar mesej). Selepas menukarnya, buat **Deploys → Trigger deploy**.
 
 Backend Apps Script dikemas kini berasingan: tampal fail `.gs` ke editor Apps Script, kemudian **Deploy → Manage deployments → Edit → New version**. Lihat README dalam `backend/legality/` dan `backend/murabbi/`.

@@ -6,17 +6,18 @@
   <title>Yosh Junior — Portal Ahli</title>
   <meta name="description" content="Portal ahli Yosh Junior: Legality, Alumni, Pentajmikan dan Pembinaan.">
   <!-- Old links like /#/TENGAH/SAS go to the Legality tab -->
-  <script>if (/^#\//.test(location.hash)) location.replace("legality.html" + location.hash);</script>
+  <script>if (/^#\//.test(location.hash)) location.replace("/legality/database" + location.hash);</script>
   <meta name="theme-color" content="#0b0b0b">
-  <link rel="icon" href="favicon.ico" sizes="any">
-  <link rel="icon" type="image/png" href="assets/icons/favicon-64.png">
-  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
-  <link rel="manifest" href="site.webmanifest">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="/assets/icons/favicon-64.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
   <meta name="apple-mobile-web-app-title" content="Yosh Junior">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Inter:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link rel="stylesheet" href="/assets/css/chrome.css">
 </head>
 <body class="borang-page lg-page locked" data-tab="utama" data-intro="once-per-visit" data-gate="user">
 
@@ -38,7 +39,7 @@
   <div class="intro-stage">
     <div class="intro-glow"></div>
     <div class="intro-logo-wrap" id="introLogoWrap">
-      <img class="intro-logo" id="introLogo" src="assets/images/logo.png" alt="Yosh Junior" width="1200" height="462">
+      <img class="intro-logo" id="introLogo" src="/assets/images/logo.png" alt="Yosh Junior" width="1200" height="462">
       <!-- Shown only if logo.png is missing -->
       <div class="intro-wordmark" aria-hidden="true">yosh<small>Junior</small></div>
     </div>
@@ -61,18 +62,20 @@
   <main class="borang lg home">
     <header class="borang-head">
       <h1 class="borang-title">Selamat datang</h1>
-      <p class="home-lead">Pilih modul di bawah untuk mula mengemas kini data cawangan anda.</p>
+      <p class="home-lead">Apa yang anda mahu buat hari ini?</p>
     </header>
 
-    <!-- One card per portal tab, from window.PORTAL_TABS (src/components/portalNav.js) -->
+    <!-- Built by src/pages/home/home.js from window.PORTAL_TABS (src/components/portalNav.js) -->
+    <nav class="home-quick" id="homeQuick" aria-label="Tindakan pantas"></nav>
     <div class="home-grid" id="homeGrid"></div>
+    <div class="home-soon" id="homeSoon" hidden></div>
   </main>
 
-  <script src="src/config/config.js"></script>
-  <script src="src/services/legalityApi.js"></script>
-  <script src="src/components/gate.js"></script>
-  <script src="src/components/intro.js"></script>
-  <script src="src/components/portalNav.js"></script>
-  <script src="src/pages/home/home.js"></script>
+  <script src="/src/config/config.js"></script>
+  <script src="/src/services/legalityApi.js"></script>
+  <script src="/src/components/gate.js"></script>
+  <script src="/src/components/intro.js"></script>
+  <script src="/src/components/portalNav.js"></script>
+  <script src="/src/pages/home/home.js"></script>
 </body>
 </html>

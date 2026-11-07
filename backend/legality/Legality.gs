@@ -69,6 +69,10 @@ function doGet(e) {
     if (p.action === "cawangan") return json(listCawangan());
     if (p.action === "schools") return json(listSchools(p.cawangan));
     if (p.action === "school") return json(readSchool(p.cawangan, p.sekolah));
+    if (p.action === "programs") {
+      if (role !== "admin") throw new Error("KOD_SALAH");
+      return json(listPrograms());
+    }
     if (p.action === "summary") {
       if (role !== "admin") throw new Error("KOD_SALAH");
       return json(summary(p.fresh === "1"));
@@ -89,6 +93,9 @@ function doPost(e) {
     if (body.action === "addSchool") return json(addSchool(body.cawangan, body.sekolah));
     if (body.action === "saveProgress") return json(saveProgress(body));
     if (body.action === "saveAlumni") return json(saveAlumni(body));
+    if (body.action === "uploadImage") return json(uploadImage(body));
+    if (body.action === "saveProgram") return json(saveProgram(body));
+    if (body.action === "deleteImage") return json(deleteImage(body));
     return json({ error: "Tindakan tidak dikenali: " + body.action });
   } catch (err) {
     return json({ error: String(err && err.message || err) });
@@ -275,6 +282,7 @@ function readSchool(cawangan, sekolah) {
     entiti: Object.keys(entitiOpts)
   };
   data.progress = { items: PROGRESS_ITEMS, values: readProgress(ss, sh.getName()) };
+  data.images = listImages(ss, sh.getName());
   return data;
 }
 
@@ -521,6 +529,221 @@ function summary(fresh) {
   });
   try { cache.put("summary", JSON.stringify(out), 600); } catch (e) {}
   return out;
+}
+
+// ---------- Images (Planning) ----------
+
+// Pictures are kept in Google Drive: folder "Yosh Legality – Gambar" / cawangan / sekolah.
+// Each cawangan sheet has a "Gambar" tab listing them: Sekolah | Bahagian | Nama fail | File ID | Pautan | Dimuat naik.
+// Files are shared "anyone with the link can view" so the portal can show them.
+var IMAGE_TAB = "Gambar";
+var IMAGE_ROOT = "Yosh Legality – Gambar";
+var IMAGE_SECTIONS = ["planning"];
+var IMAGE_MAX_BYTES = 8 * 1024 * 1024;
+
+function imageSheet(ss, create) {
+  var sh = ss.getSheetByName(IMAGE_TAB);
+  if (sh || !create) return sh;
+  sh = ss.insertSheet(IMAGE_TAB);
+  var head = ["Sekolah", "Bahagian", "Nama fail", "File ID", "Pautan", "Dimuat naik"];
+  sh.getRange(1, 1, 1, head.length).setValues([head]).setFontWeight("bold").setBackground("#1f1f1f").setFontColor("#ffc300");
+  sh.setFrozenRows(1);
+  sh.setColumnWidths(1, 3, 180);
+  sh.setColumnWidth(5, 320);
+  return sh;
+}
+
+function imageView(id) {
+  return {
+    thumb: "https://drive.google.com/thumbnail?id=" + id + "&sz=w800",
+    full: "https://drive.google.com/thumbnail?id=" + id + "&sz=w2000",
+    url: "https://drive.google.com/file/d/" + id + "/view"
+  };
+}
+
+function listImages(ss, school) {
+  var sh = imageSheet(ss, false);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, 6).getValues()
+    .filter(function (r) { return text(r[0]) === school && text(r[3]); })
+    .map(function (r) {
+      var v = imageView(text(r[3]));
+      return { id: text(r[3]), section: text(r[1]), name: text(r[2]), thumb: v.thumb, full: v.full, url: v.url,
+               date: r[5] instanceof Date ? iso(r[5]) : text(r[5]) };
+    });
+}
+
+function childFolder(parent, name) {
+  var it = parent.getFoldersByName(name);
+  return it.hasNext() ? it.next() : parent.createFolder(name);
+}
+
+function imageFolder(cawangan, school) {
+  var props = PropertiesService.getScriptProperties();
+  var root = null, id = props.getProperty("GAMBAR_FOLDER");
+  if (id) { try { root = DriveApp.getFolderById(id); if (root.isTrashed()) root = null; } catch (e) { root = null; } }
+  if (!root) {
+    root = DriveApp.createFolder(IMAGE_ROOT);
+    props.setProperty("GAMBAR_FOLDER", root.getId());
+  }
+  return childFolder(childFolder(root, cawangan), school);
+}
+
+/** body: { cawangan, sekolah, section, name, mime, data (base64) } */
+function uploadImage(body) {
+  var section = text(body.section);
+  if (IMAGE_SECTIONS.indexOf(section) < 0) throw new Error("Gambar tidak boleh dimuat naik untuk bahagian ini.");
+  var mime = text(body.mime);
+  if (!/^image\/(jpeg|png|webp|gif)$/.test(mime)) throw new Error("Hanya gambar JPG, PNG, WEBP atau GIF.");
+  var bytes = Utilities.base64Decode(String(body.data || ""));
+  if (!bytes.length) throw new Error("Gambar kosong.");
+  if (bytes.length > IMAGE_MAX_BYTES) throw new Error("Gambar terlalu besar (had 8 MB).");
+  var ss = book(body.cawangan);
+  var school = text(body.sekolah);
+  if (schoolNames(ss).indexOf(school) < 0) throw new Error("Sekolah tidak dijumpai: " + body.sekolah);
+  var cawangan = text(body.cawangan).toUpperCase();
+  var name = (text(body.name) || "gambar").replace(/[\\/:*?"<>|]+/g, "_").slice(0, 120);
+  var file = imageFolder(cawangan, school).createFile(Utilities.newBlob(bytes, mime, name));
+  try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
+  var v = imageView(file.getId());
+  imageSheet(ss, true).appendRow([school, section, name, file.getId(), v.url, new Date()]);
+  return { ok: true, images: listImages(ss, school) };
+}
+
+/** body: { cawangan, sekolah, id }. The file goes to Drive's bin, so it can still be restored. */
+function deleteImage(body) {
+  var ss = book(body.cawangan);
+  var school = text(body.sekolah), id = text(body.id);
+  var sh = imageSheet(ss, false);
+  if (sh && sh.getLastRow() > 1) {
+    var vals = sh.getRange(2, 1, sh.getLastRow() - 1, 4).getValues();
+    for (var i = vals.length - 1; i >= 0; i--) {
+      if (text(vals[i][0]) === school && text(vals[i][3]) === id) {
+        sh.deleteRow(i + 2);
+        try { DriveApp.getFileById(id).setTrashed(true); } catch (e) {}
+      }
+    }
+  }
+  return { ok: true, images: listImages(ss, school) };
+}
+
+/** Run once from the editor after adding the image feature, to allow Drive access. */
+function setupGambar() {
+  var f = imageFolder("TENGAH", "_ujian");
+  Logger.log("Folder gambar sedia: " + f.getUrl());
+  f.setTrashed(true);
+}
+
+// ---------- Program Sekolah (program.html) ----------
+
+// Every programme sent from the Program page is kept in its own Google Sheet ("Program Sekolah – Yosh Junior"),
+// separate from the cawangan Checklist Legality sheets. The sheet is made on the first save and its id kept
+// in Script Properties (PROGRAM_SHEET). One row per programme; sending again with the same ID updates that row.
+var PROGRAM_TITLE = "Program Sekolah – Yosh Junior";
+var PROGRAM_TAB = "Program";
+var PROGRAM_HEAD = ["ID", "Dihantar", "Cawangan", "Sekolah", "Nama program", "Jenis", "Tarikh mula", "Tarikh tamat",
+  "Masa", "Guru bertugas", "Bil. guru", "Pelajar", "Jumlah pelajar", "Manpower", "Manpower tambahan",
+  "Sheet program", "Main PIC", "PIC Legality", "PIC Virality", "Telegram"];
+// Program page names → cawangan codes used everywhere else.
+var PROGRAM_CAWANGAN = { "Tengah": "TENGAH", "Utara": "UTARA", "Pantai Timur": "PT", "Borneo": "BORNEO", "Indonesia": "INDONESIA", "MEA": "MEA" };
+
+function programSheet() {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty("PROGRAM_SHEET"), ss = null;
+  if (id) { try { ss = SpreadsheetApp.openById(id); } catch (e) { ss = null; } }
+  if (!ss) {
+    ss = SpreadsheetApp.create(PROGRAM_TITLE);
+    props.setProperty("PROGRAM_SHEET", ss.getId());
+    ss.getSheets()[0].setName(PROGRAM_TAB);
+  }
+  var sh = ss.getSheetByName(PROGRAM_TAB) || ss.insertSheet(PROGRAM_TAB);
+  if (sh.getLastRow() === 0) {
+    sh.getRange(1, 1, 1, PROGRAM_HEAD.length).setValues([PROGRAM_HEAD])
+      .setFontWeight("bold").setBackground("#1f1f1f").setFontColor("#ffc300").setVerticalAlignment("middle");
+    sh.setFrozenRows(1);
+    sh.setRowHeight(1, 32);
+    sh.hideColumns(1);
+    sh.setColumnWidths(2, PROGRAM_HEAD.length - 1, 140);
+    sh.setColumnWidth(4, 220); sh.setColumnWidth(5, 240); sh.setColumnWidth(10, 260);
+    sh.getRange("B:B").setNumberFormat("d/m/yyyy h:mm");
+    sh.getRange("G:H").setNumberFormat("d/m/yyyy");
+  }
+  return sh;
+}
+
+function ymd(v) {
+  var m = text(v).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? new Date(+m[1], +m[2] - 1, +m[3]) : "";
+}
+function at(v) { var h = text(v).replace(/^@+/, ""); return h ? "@" + h : ""; }
+function withAlumni(handle, status) { return handle ? handle + (text(status) ? " (" + text(status) + ")" : "") : ""; }
+
+/** body: { id, program: {...the Program form...}, telegram: "Berjaya" | "Gagal: ..." | "Ujian" } */
+function saveProgram(body) {
+  var d = body.program || {};
+  var id = text(body.id).slice(0, 60);
+  if (!/^[A-Za-z0-9_-]{8,60}$/.test(id)) throw new Error("ID program tidak sah.");
+  if (!PROGRAM_CAWANGAN[text(d.cawangan)]) throw new Error("Cawangan tidak dikenali: " + d.cawangan);
+  if (!text(d.sekolah) || !text(d.namaProgram)) throw new Error("Nama sekolah dan nama program perlu diisi.");
+  var guru = (Array.isArray(d.guru) ? d.guru : []).slice(0, 20).filter(function (g) { return g && text(g.nama); });
+  var pelajar = (Array.isArray(d.pelajar) ? d.pelajar : []).slice(0, 5);
+  var bil = d.pelajarBilangan || {};
+  var jumlah = pelajar.reduce(function (t, k) { return t + (parseInt(bil[k], 10) || 0); }, 0);
+  var row = [
+    id, new Date(), PROGRAM_CAWANGAN[text(d.cawangan)], safe(d.sekolah), safe(d.namaProgram), safe(d.jenis),
+    ymd(d.tarikhMula), ymd(d.tarikhTamat),
+    text(d.masaMula) && text(d.masaTamat) ? "'" + text(d.masaMula) + " – " + text(d.masaTamat) : "",
+    safe(guru.map(function (g, i) { return (i + 1) + ". " + text(g.nama) + (text(g.jawatan) ? " (" + text(g.jawatan) + ")" : ""); }).join("\n")),
+    guru.length,
+    safe(pelajar.map(function (k) { return "Tingkatan " + text(k).replace(/^T/, "") + ": " + (parseInt(bil[k], 10) || 0); }).join("\n")),
+    jumlah,
+    parseInt(d.manpower, 10) || 0,
+    d.tambahan === "Ya" ? (parseInt(d.tambahanJumlah, 10) || 0) : 0,
+    safe(d.sheet),
+    safe(withAlumni(at(d.mainPic), d.mainPicAlumni)),
+    safe(withAlumni(at(d.legality), d.legalityAlumni)),
+    safe(withAlumni(at(d.virality), d.viralityAlumni)),
+    safe(text(body.telegram).slice(0, 300))
+  ];
+  var sh = programSheet();
+  var r = 0;
+  if (sh.getLastRow() > 1) {
+    var ids = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues();
+    for (var i = 0; i < ids.length; i++) if (text(ids[i][0]) === id) { r = i + 2; break; }
+  }
+  if (r) {
+    row[1] = sh.getRange(r, 2).getValue() || row[1];   // keep the first send time
+    sh.getRange(r, 1, 1, row.length).setValues([row]);
+  } else {
+    sh.appendRow(row);
+    r = sh.getLastRow();
+  }
+  sh.getRange(r, 1, 1, row.length).setVerticalAlignment("top").setWrap(true);
+  CacheService.getScriptCache().remove("programs");
+  return { ok: true, id: id };
+}
+
+function iso2(v) { return v instanceof Date ? iso(v) : text(v); }
+
+/** Admin: every programme, newest first. */
+function listPrograms() {
+  var sh = programSheet();
+  var out = [];
+  if (sh.getLastRow() > 1) {
+    sh.getRange(2, 1, sh.getLastRow() - 1, PROGRAM_HEAD.length).getValues().forEach(function (r) {
+      if (!text(r[0]) && !text(r[3])) return;
+      out.push({
+        id: text(r[0]), dihantar: r[1] instanceof Date ? r[1].toISOString() : text(r[1]),
+        cawangan: text(r[2]), sekolah: text(r[3]), nama: text(r[4]), jenis: text(r[5]),
+        mula: iso2(r[6]), tamat: iso2(r[7]), masa: text(r[8]),
+        guru: text(r[9]), bilGuru: Number(r[10]) || 0, pelajar: text(r[11]), jumlahPelajar: Number(r[12]) || 0,
+        manpower: Number(r[13]) || 0, tambahan: Number(r[14]) || 0, sheet: text(r[15]),
+        mainPic: text(r[16]), legality: text(r[17]), virality: text(r[18]), telegram: text(r[19])
+      });
+    });
+  }
+  out.sort(function (a, b) { return a.dihantar < b.dihantar ? 1 : a.dihantar > b.dihantar ? -1 : 0; });
+  return { programs: out, sheetUrl: sh.getParent().getUrl(), generated: new Date().toISOString() };
 }
 
 // ---------- Saving ----------

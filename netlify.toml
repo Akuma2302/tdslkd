@@ -2,6 +2,12 @@
 [build]
   publish = "frontend"
 
+# Serverless function for the Program form (/legality/program): sends the programme details to
+# Telegram (backend/program/hantar.mjs). Needs TELEGRAM_BOT_TOKEN and GROUP_* environment variables.
+[functions]
+  directory = "backend/program"
+  node_bundler = "esbuild"
+
 # App manifests ("Add to Home Screen" / Install app)
 [[headers]]
   for = "/*.webmanifest"

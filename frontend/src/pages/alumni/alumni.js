@@ -150,41 +150,52 @@
       badge.hidden = !state.dirty;
     }
 
-    function rowCard(row, n) {
-      var d = el("details", "lg-person");
-      if (row.open) d.open = true;
-      d.addEventListener("toggle", function () { row.open = d.open; });
-      var sum = el("summary", "lg-person-sum");
-      var left = el("span", "lg-person-left");
-      var name = el("span", "lg-person-name");
-      var meta = el("span", "lg-person-meta");
-      left.appendChild(name); left.appendChild(meta);
-      sum.appendChild(el("span", "al-num", String(n)));
-      sum.appendChild(left);
-      d.appendChild(sum);
-      function refresh() {
-        name.textContent = row.w[0] || (row.r == null ? "Alumni baru" : "Tanpa nama");
-        name.classList.toggle("is-empty", !row.w[0]);
-        meta.textContent = [row.w[1], row.w[6]].filter(String).join(" · ");
-      }
-      refresh();
+    function summaryOf(row) {
+      return {
+        name: row.w[0] || (row.r == null ? "Alumni baru" : "Tanpa nama"),
+        empty: !row.w[0],
+        meta: [row.w[1], row.w[6]].filter(String).join(" · ")
+      };
+    }
 
-      var body = el("div", "lg-person-body");
+    // One line per alumni in the list; tapping it opens the popup with all the details.
+    function rowCard(row, n) {
+      var sm = summaryOf(row);
+      var card = button("lg-person lg-person-btn" + (row.r == null ? " is-new" : ""), null, function () { openRow(row, false); });
+      card.appendChild(el("span", "al-num", String(n)));
+      var left = el("span", "lg-person-left");
+      left.appendChild(el("span", "lg-person-name" + (sm.empty ? " is-empty" : ""), sm.name));
+      left.appendChild(el("span", "lg-person-meta", sm.meta));
+      card.appendChild(left);
+      card.appendChild(el("span", "lg-person-go", "›"));
+      return card;
+    }
+
+    function openRow(row, isNew) {
+      var modal;
+      function ch() {
+        var sm = summaryOf(row);
+        modal.setTitle(sm.name, sm.empty);
+        modal.setSubtitle(sm.meta);
+        markDirty();
+      }
+      var form = el("div", "ym-form");
       var grid = el("div", "lg-fields");
+      var checks = el("div", "lg-checklist");
       cols.forEach(function (col, j) {
         if (col.kind === "check") {
-          var lab = el("label", "lg-check is-solo");
+          var lab = el("label", "lg-check");
           var cb = el("input");
           cb.type = "checkbox";
           cb.checked = row.w[j] === true;
-          cb.addEventListener("change", function () { row.w[j] = cb.checked; markDirty(); });
+          cb.addEventListener("change", function () { row.w[j] = cb.checked; ch(); });
           lab.appendChild(cb);
           lab.appendChild(el("span", null, col.label));
-          grid.appendChild(lab);
+          checks.appendChild(lab);
           return;
         }
         var box = el("div", "lg-field" + (j === 0 ? " is-wide" : "") + (col.kind === "list" ? " borang-field" : ""));
-        var id = "al-" + (row.r || "n" + (row.uid || (row.uid = ++newUid))) + "-" + j;
+        var id = "al-f" + j;
         var label = el("label", "lg-label", col.label);
         label.htmlFor = id;
         var input;
@@ -195,26 +206,37 @@
           input.appendChild(new Option("—", ""));
           opts.forEach(function (o) { input.appendChild(new Option(o, o)); });
           input.value = row.w[j] || "";
-          input.addEventListener("change", function () { row.w[j] = input.value; refresh(); markDirty(); });
+          input.addEventListener("change", function () { row.w[j] = input.value; ch(); });
         } else {
           input = el("input", "borang-input");
           input.value = row.w[j] || "";
-          input.addEventListener("input", function () { row.w[j] = input.value; refresh(); markDirty(); });
+          input.addEventListener("input", function () { row.w[j] = input.value; ch(); });
         }
         input.id = id;
         box.appendChild(label);
         box.appendChild(input);
         grid.appendChild(box);
       });
-      body.appendChild(grid);
+      form.appendChild(el("h3", "ym-sec", "Maklumat"));
+      form.appendChild(grid);
+      if (checks.children.length) {
+        form.appendChild(el("h3", "ym-sec", "Progress"));
+        form.appendChild(checks);
+      }
       if (row.r == null) {
-        body.appendChild(button("link-btn lg-remove", "Buang alumni baru ini", function () {
+        form.appendChild(button("link-btn lg-remove", "Buang alumni baru ini", function () {
           state.rows.splice(state.rows.indexOf(row), 1);
-          markDirty(); drawList();
+          markDirty();
+          modal.close();
         }));
       }
-      d.appendChild(body);
-      return d;
+      var sm = summaryOf(row);
+      modal = window.YoshModal.open({
+        title: sm.name, titleEmpty: sm.empty, subtitle: sm.meta,
+        body: form, focusFirst: isNew,
+        actions: [{ label: "Simpan", primary: true, onClick: function (m) { m.close(); save.click(); } }],
+        onClose: drawList
+      });
     }
 
     function drawList() {
@@ -237,11 +259,10 @@
 
     addBtn.addEventListener("click", function () {
       var blank = cols.map(function (c) { return c.kind === "check" ? false : ""; });
-      state.rows.push({ r: null, v: blank.slice(), w: blank, open: true });
+      state.rows.push({ r: null, v: blank.slice(), w: blank });
       search.value = "";
       drawList();
-      var first = list.firstChild && list.firstChild.querySelector("input, select");
-      if (first) first.focus();
+      openRow(state.rows[state.rows.length - 1], true);
     });
 
     var status = el("p", "borang-error-summary");

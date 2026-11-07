@@ -53,6 +53,14 @@ Selepas intro, setiap halaman (portal user dan admin) memaparkan skrin **Log mas
 
 Tab **Alumni** dalam portal membaca dan menulis sheet *Alumni Back to School* (`ALUMNI_SHEET_ID` dalam `Legality.gs`), satu tab bagi setiap cawangan. Baris tajuk dikenal pasti dengan **NAMA** di lajur C; lajur B (Bil) dinombor secara automatik bila alumni baru ditambah. Pilihan dropdown (Jenis Sekolah, Cawangan, Negeri, Progress, Reporting) dibaca terus dari data validation dalam sheet.
 
+## Gambar Planning
+
+Bahagian **Planning** boleh muat naik gambar. Fail disimpan dalam Google Drive (folder *Yosh Legality – Gambar* / cawangan / sekolah, id folder dalam Script Property `GAMBAR_FOLDER`) dan dikongsi "sesiapa yang ada pautan boleh lihat" supaya portal dapat memaparkannya. Senarai gambar direkod dalam tab **Gambar** sheet cawangan. Gambar yang dibuang masuk ke Bin Drive (boleh dipulihkan).
+
+## Program Sekolah
+
+Borang `program.html` menghantar program ke Telegram (fungsi Netlify) dan menyimpan salinan ke Google Sheet berasingan **Program Sekolah – Yosh Junior** (dicipta automatik pada simpanan pertama; id dalam Script Property `PROGRAM_SHEET`). Satu baris bagi setiap program; menghantar semula program yang sama (Cuba Lagi) mengemas kini baris itu. Dashboard admin Legality memaparkan semua program (tindakan `programs`, kod admin sahaja).
+
 ## Bila kod `Legality.gs` diubah
 
 Dalam editor Apps Script: **Deploy → Manage deployments → Edit (pensel) → Version: New version → Deploy**. Pautan `/exec` kekal sama.

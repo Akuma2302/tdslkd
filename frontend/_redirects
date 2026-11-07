@@ -1,2 +1,9 @@
 # Admin dashboard
-/admin            /admin.html   200
+/admin            /admin.html          200
+
+# Legality section: /legality/database, /legality/program, /legality/panduan
+# (files in frontend/legality/). Old links keep working:
+/legality         /legality/database   301
+/legality.html    /legality/database   301
+/program          /legality/program    301
+/program.html     /legality/program    301

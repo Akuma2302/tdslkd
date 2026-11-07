@@ -45,7 +45,7 @@
     card.noValidate = true;
 
     var logo = el("img", "gate-logo");
-    logo.src = "assets/images/logo.png";
+    logo.src = "/assets/images/logo.png";
     logo.alt = "Yosh Junior";
     card.appendChild(logo);
     var title = el("h1", "gate-title", "Log masuk");
@@ -91,7 +91,7 @@
             // The code belongs to the other interface: remember it there and go.
             Api.setKodFor(r, kod);
             go.textContent = r === "admin" ? "Membuka admin…" : "Membuka portal…";
-            location.href = r === "admin" ? "admin.html" : "./";
+            location.href = r === "admin" ? "/admin" : "/";
             return;
           }
           Api.setKod(kod);
@@ -113,7 +113,7 @@
   // Log out of both interfaces and go back to the login screen (on the portal page, without the intro).
   function logout() {
     Api.clearAll();
-    location.href = "./";
+    location.href = "/";
   }
   document.addEventListener("click", function (e) {
     var b = e.target.closest && e.target.closest("[data-logout]");

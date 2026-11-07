@@ -8,46 +8,51 @@
   "use strict";
 
   var TABS = [
-    { id: "utama", label: "Utama", href: "./", home: true },
+    { id: "utama", label: "Utama", href: "/", home: true },
     {
       id: "legality", label: "Legality", status: "Aktif",
-      title: "Database Legality", href: "legality.html",
+      title: "Legality", href: "/legality/database",
+      short: "CRM cikgu, progress legality dan program sekolah ikut cawangan.",
       desc: "Checklist legality setiap sekolah mengikut cawangan: CRM cikgu dan KPI hubungan, progress legality " +
             "(meeting, pembentangan, surat kerjasama, tarikh mentoring, survey), program, analisa dan perancangan.",
       source: "Sheet Checklist Legality setiap cawangan",
       menu: [
-        { id: "legality", label: "Database Legality", href: "legality.html", hint: "CRM, KPI dan progress sekolah ikut cawangan" },
-        { label: "Panduan Legality", soon: true, hint: "Langkah dan SOP urusan legality sekolah" }
+        { id: "legality", label: "Database Legality", href: "/legality/database", hint: "CRM, KPI dan progress sekolah ikut cawangan" },
+        { id: "program", label: "Program Sekolah", href: "/legality/program", hint: "Hantar maklumat program ke group Telegram cawangan" },
+        { id: "legality-panduan", label: "Panduan Legality", href: "/legality/panduan", soon: true, hint: "Langkah dan SOP urusan legality sekolah" }
       ]
     },
     {
       id: "alumni", label: "Alumni", status: "Aktif",
-      title: "Alumni Back to School", href: "alumni.html",
+      title: "Alumni Back to School", href: "/alumni",
+      short: "Alumni yang turun ke sekolah, program dibawa dan status reporting.",
       desc: "Senarai alumni yang turun ke sekolah: sekolah dan PIC yang dihubungi, program yang dibawa, " +
             "progress (PM cikgu hingga reporting) dan status reporting, mengikut cawangan.",
       source: "Sheet Alumni Back to School",
       menu: [
-        { id: "alumni", label: "Database Alumni", href: "alumni.html", hint: "Alumni Back to School ikut cawangan" },
+        { id: "alumni", label: "Database Alumni", href: "/alumni", hint: "Alumni Back to School ikut cawangan" },
         { label: "Panduan Alumni", soon: true, hint: "Cara susun program Alumni Back to School" }
       ]
     },
     {
       id: "pentajmikan", label: "Pentajmikan", status: "Akan datang",
-      title: "Pentajmikan", href: "pentajmikan.html",
+      title: "Pentajmikan", href: "/pentajmikan",
+      short: "Sedang disediakan.",
       desc: "Modul pentajmikan sedang disediakan.",
       source: "",
       menu: [
-        { id: "pentajmikan", label: "Database Pentajmikan", href: "pentajmikan.html", soon: true, hint: "Sedang disediakan" },
+        { id: "pentajmikan", label: "Database Pentajmikan", href: "/pentajmikan", soon: true, hint: "Sedang disediakan" },
         { label: "Panduan Pentajmikan", soon: true, hint: "Sedang disediakan" }
       ]
     },
     {
       id: "pembinaan", label: "Pembinaan", status: "Akan datang",
-      title: "Pembinaan", href: "pembinaan.html",
+      title: "Pembinaan", href: "/pembinaan",
+      short: "Sedang disediakan.",
       desc: "Modul pembinaan sedang disediakan.",
       source: "",
       menu: [
-        { id: "pembinaan", label: "Database Pembinaan", href: "pembinaan.html", soon: true, hint: "Sedang disediakan" },
+        { id: "pembinaan", label: "Database Pembinaan", href: "/pembinaan", soon: true, hint: "Sedang disediakan" },
         { label: "Panduan Pembinaan", soon: true, hint: "Sedang disediakan" }
       ]
     }
@@ -68,10 +73,10 @@
   var bar = el("div", "site-nav-inner");
 
   var brand = el("a", "site-brand");
-  brand.href = "./";
+  brand.href = "/";
   brand.setAttribute("aria-label", "Yosh Junior — Utama");
   var logo = el("img");
-  logo.src = "assets/images/logo.png";
+  logo.src = "/assets/images/logo.png";
   logo.alt = "Yosh Junior";
   brand.appendChild(logo);
   bar.appendChild(brand);

@@ -334,14 +334,14 @@
     function draw() {
       body.textContent = "";
       headTools.textContent = "";
-      RENDER[info.key](body, model, markDirty, draw);
+      RENDER[info.key](body, model, markDirty, draw, function () { save.click(); });
       // Move the section's "+ Tambah …" button up beside the title, and show the new entry once added.
       var add = body.querySelector(":scope > .lg-add");
       if (add) {
         add.className = "lg-add-btn";
         headTools.appendChild(add);
         add.addEventListener("click", function () {
-          var items = body.querySelectorAll(".lg-person[open], .lg-row");
+          var items = body.querySelectorAll(".lg-row");
           var last = items[items.length - 1];
           if (!last) return;
           last.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -544,7 +544,7 @@
   // ---------- Section renderers ----------
 
   var RENDER = {
-    crm: function (body, model, changed, redraw) {
+    crm: function (body, model, changed, redraw, saveNow) {
       var kpi = state.school.kpi;
       var listId = "entiti-list";
       if (!document.getElementById(listId)) {
@@ -571,37 +571,50 @@
 
       var add = button("lg-add", "+ Tambah orang CRM", function () {
         var row = blankRow("crm");
-        row.open = true;
         model.rows.push(row);
         redraw();
+        openPerson(row, true);
       });
       body.appendChild(add);
 
+      function summaryOf(row) {
+        var n = row.w.slice(C.check).filter(function (v) { return v === true; }).length;
+        return {
+          name: row.w[C.nama] || (row.r == null ? "Orang baru" : "Belum diisi"),
+          empty: !row.w[C.nama],
+          meta: [row.w[C.entiti], row.w[C.phase]].filter(String).join(" · "),
+          done: n
+        };
+      }
+
+      // One line per person in the list; tapping it opens the popup with all the details.
       function personCard(row) {
-        var card = el("details", "lg-person");
-        if (row.open) card.open = true;
-        card.addEventListener("toggle", function () { row.open = card.open; });
-        var sum = el("summary", "lg-person-sum");
-        var name = el("span", "lg-person-name");
-        var meta = el("span", "lg-person-meta");
-        var done = el("span", "lg-progress");
-        function refreshSummary() {
-          name.textContent = row.w[C.nama] || (row.r == null ? "Orang baru" : "Belum diisi");
-          name.classList.toggle("is-empty", !row.w[C.nama]);
-          meta.textContent = [row.w[C.entiti], row.w[C.phase]].filter(String).join(" · ");
-          var n = row.w.slice(C.check).filter(function (v) { return v === true; }).length;
-          done.textContent = n + "/" + checks.length;
-          done.style.setProperty("--p", Math.round(n / checks.length * 100) + "%");
-        }
-        refreshSummary();
+        var sm = summaryOf(row);
+        var card = button("lg-person lg-person-btn", null, function () { openPerson(row, false); });
         var left = el("span", "lg-person-left");
-        left.appendChild(name); left.appendChild(meta);
-        sum.appendChild(left); sum.appendChild(done);
-        card.appendChild(sum);
+        var name = el("span", "lg-person-name" + (sm.empty ? " is-empty" : ""), sm.name);
+        left.appendChild(name);
+        left.appendChild(el("span", "lg-person-meta", sm.meta));
+        card.appendChild(left);
+        var done = el("span", "lg-progress", sm.done + "/" + checks.length);
+        done.style.setProperty("--p", Math.round(sm.done / checks.length * 100) + "%");
+        card.appendChild(done);
+        card.appendChild(el("span", "lg-person-go", "›"));
+        if (row.r == null) card.classList.add("is-new");
+        return card;
+      }
 
-        function ch() { refreshSummary(); changed(); }
-        var inner = el("div", "lg-person-body");
+      function openPerson(row, isNew) {
+        var modal;
+        function ch() {
+          var sm = summaryOf(row);
+          modal.setTitle(sm.name, sm.empty);
+          modal.setSubtitle([sm.meta, sm.done + "/" + checks.length + " checklist"].filter(String).join(" · "));
+          changed();
+        }
+        var inner = el("div", "ym-form");
 
+        inner.appendChild(el("h3", "ym-sec", "Maklumat"));
         var basic = el("div", "lg-fields");
         basic.appendChild(textField("Entiti", row, C.entiti, { list: listId }, ch));
         basic.appendChild(textField("Nama", row, C.nama, {}, ch));
@@ -611,7 +624,7 @@
         inner.appendChild(basic);
         inner.appendChild(checkField("Ada / Tiada (CRM aktif)", row, C.ada, ch, "is-solo"));
 
-        inner.appendChild(el("h4", "lg-sub", "KPI CRM"));
+        inner.appendChild(el("h3", "ym-sec", "KPI CRM"));
         var k = el("div", "lg-fields");
         k.appendChild(selectField(kpi.headers[0] || "Kategori Cikgu", row, C.kat, kpi.kategori, ch));
         k.appendChild(selectField(kpi.headers[1] || "Phase", row, C.phase, kpi.phase, ch));
@@ -621,7 +634,7 @@
         k.appendChild(textField(kpi.headers[5] || "Collect Video Feedback", row, C.video, {}, ch));
         inner.appendChild(k);
 
-        inner.appendChild(el("h4", "lg-sub", "Checklist hubungan"));
+        inner.appendChild(el("h3", "ym-sec", "Checklist hubungan"));
         var list = el("div", "lg-checklist");
         checks.forEach(function (label, j) { list.appendChild(checkField(label, row, C.check + j, ch)); });
         inner.appendChild(list);
@@ -629,11 +642,19 @@
         if (row.r == null) {
           inner.appendChild(button("link-btn lg-remove", "Buang orang baru ini", function () {
             model.rows.splice(model.rows.indexOf(row), 1);
-            redraw();
+            modal.close();
           }));
         }
-        card.appendChild(inner);
-        return card;
+
+        var sm = summaryOf(row);
+        modal = window.YoshModal.open({
+          title: sm.name, titleEmpty: sm.empty,
+          subtitle: [sm.meta, sm.done + "/" + checks.length + " checklist"].filter(String).join(" · "),
+          body: inner,
+          focusFirst: isNew,
+          actions: [{ label: "Simpan CRM", primary: true, onClick: function (m) { m.close(); saveNow(); } }],
+          onClose: redraw
+        });
       }
     },
 
@@ -658,6 +679,7 @@
         body.appendChild(textField(label, row, 1, { long: true, rows: 2, wide: true }, changed));
       });
       if (!any) body.appendChild(el("p", "lg-empty", "Bahagian ini tiada dalam tab sekolah."));
+      body.appendChild(imageGallery("planning"));
     },
 
     program: tableSection([
@@ -675,6 +697,132 @@
       { i: 2, label: "Permanfaatan", long: true, wide: true }
     ], "+ Tambah peluang", "Belum ada peluang direkodkan.")
   };
+
+  // ---------- Images (Planning) ----------
+  // Pictures upload straight away (no Simpan needed) to Google Drive through the Apps Script.
+
+  // Shrinks a photo to at most 1600px and turns it into JPEG, so phone photos upload quickly.
+  function shrinkImage(file) {
+    return new Promise(function (resolve, reject) {
+      if (file.type === "image/gif") {
+        var fr = new FileReader();
+        fr.onload = function () { resolve({ mime: file.type, data: String(fr.result).split(",")[1], name: file.name }); };
+        fr.onerror = function () { reject(new Error("Gambar tidak dapat dibaca.")); };
+        return fr.readAsDataURL(file);
+      }
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        var max = 1600, w = img.naturalWidth, h = img.naturalHeight;
+        var k = Math.min(1, max / Math.max(w, h));
+        var c = document.createElement("canvas");
+        c.width = Math.round(w * k); c.height = Math.round(h * k);
+        var g = c.getContext("2d");
+        g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+        g.drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        var name = file.name.replace(/\.[^.]+$/, "") + ".jpg";
+        resolve({ mime: "image/jpeg", data: c.toDataURL("image/jpeg", 0.85).split(",")[1], name: name });
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error("Fail ini bukan gambar yang boleh dibaca.")); };
+      img.src = url;
+    });
+  }
+
+  function imageGallery(section) {
+    var wrap = el("div", "lg-gallery");
+    var head = el("div", "lg-gallery-head");
+    head.appendChild(el("h4", "lg-sub", "Gambar"));
+    var pick = el("input");
+    pick.type = "file"; pick.accept = "image/*"; pick.multiple = true; pick.hidden = true;
+    var addBtn = button("lg-add-btn", "+ Muat naik gambar", function () { pick.click(); });
+    head.appendChild(addBtn);
+    head.appendChild(pick);
+    wrap.appendChild(head);
+    var grid = el("div", "lg-gallery-grid");
+    wrap.appendChild(grid);
+    var note = el("p", "lg-gallery-note");
+    wrap.appendChild(note);
+
+    function mine() { return (state.school.images || []).filter(function (im) { return im.section === section; }); }
+
+    function draw(pending) {
+      grid.textContent = "";
+      mine().forEach(function (im) {
+        var fig = el("figure", "lg-thumb");
+        var open = button("lg-thumb-open", null, function () { viewImage(im); });
+        open.setAttribute("aria-label", "Lihat " + im.name);
+        var img = el("img");
+        img.alt = im.name;
+        // Drive may need a moment to make the thumbnail of a new upload, so try once more before giving up.
+        var tries = 0;
+        img.onerror = function () {
+          if (tries++ < 2) setTimeout(function () { img.src = im.thumb + "&r=" + tries; }, 2500);
+          else fig.classList.add("is-broken");
+        };
+        img.src = im.thumb;
+        open.appendChild(img);
+        fig.appendChild(open);
+        var del = button("lg-thumb-del", "×", function () {
+          if (!confirm("Buang gambar \"" + im.name + "\"? Ia akan dipindah ke Bin Google Drive.")) return;
+          fig.classList.add("is-busy");
+          post({ action: "deleteImage", cawangan: state.cawangan, sekolah: state.sekolah, id: im.id })
+            .then(function (d) { state.school.images = d.images; draw(); toast("Gambar dibuang.", "ok"); })
+            .catch(function (e) { fig.classList.remove("is-busy"); toast("Tidak dapat buang: " + (e.message || e), "warn"); });
+        });
+        del.setAttribute("aria-label", "Buang " + im.name);
+        fig.appendChild(del);
+        grid.appendChild(fig);
+      });
+      for (var i = 0; i < (pending || 0); i++) grid.appendChild(el("div", "lg-thumb is-loading", "Memuat naik…"));
+      if (!grid.children.length) grid.appendChild(el("p", "lg-empty", "Belum ada gambar. Contohnya gambar timeline, carta atau dokumen."));
+    }
+    draw();
+
+    pick.addEventListener("change", function () {
+      var files = Array.prototype.slice.call(pick.files || []);
+      pick.value = "";
+      if (!files.length) return;
+      var left = files.length, failed = [];
+      addBtn.disabled = true;
+      note.textContent = "";
+      draw(left);
+      // One at a time keeps each request small and the order as chosen.
+      files.reduce(function (chain, file) {
+        return chain.then(function () {
+          return shrinkImage(file)
+            .then(function (g) {
+              return post({ action: "uploadImage", cawangan: state.cawangan, sekolah: state.sekolah, section: section,
+                            name: g.name, mime: g.mime, data: g.data });
+            })
+            .then(function (d) { state.school.images = d.images; })
+            .catch(function (e) { failed.push(file.name + ": " + (e.message || e)); })
+            .then(function () { left--; draw(left); });
+        });
+      }, Promise.resolve()).then(function () {
+        addBtn.disabled = false;
+        if (failed.length) { note.textContent = "Tidak dimuat naik — " + failed.join("; "); toast("Sebahagian gambar gagal dimuat naik.", "warn"); }
+        else toast(files.length > 1 ? files.length + " gambar dimuat naik." : "Gambar dimuat naik.", "ok");
+      });
+    });
+    return wrap;
+  }
+
+  function viewImage(im) {
+    var box = el("div", "lg-viewer");
+    var img = el("img");
+    img.alt = im.name;
+    img.src = im.thumb;                       // already loaded for the grid, so it shows at once
+    var big = new Image();
+    big.onload = function () { if (big.naturalWidth > img.naturalWidth) img.src = big.src; };
+    big.src = im.full;                        // swap in the sharper copy if Drive has one
+    box.appendChild(img);
+    window.YoshModal.open({
+      title: im.name, subtitle: im.date ? "Dimuat naik " + im.date : "",
+      body: box,
+      actions: [{ label: "Buka di Drive", primary: true, onClick: function () { window.open(im.url, "_blank", "noopener"); } }]
+    });
+  }
 
   // Rows with content are shown as editable cards; empty rows stay hidden until "Tambah" is used.
   function tableSection(fields, addLabel, emptyText) {

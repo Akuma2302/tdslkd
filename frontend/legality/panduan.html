@@ -3,20 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Legality — Portal Ahli Yosh Junior</title>
-  <meta name="description" content="Portal ahli Yosh Junior: Database Legality sekolah mengikut cawangan.">
+  <title>Panduan Legality — Portal Ahli Yosh Junior</title>
+  <meta name="description" content="Portal ahli Yosh Junior: Panduan Legality.">
   <meta name="theme-color" content="#0b0b0b">
-  <link rel="icon" href="favicon.ico" sizes="any">
-  <link rel="icon" type="image/png" href="assets/icons/favicon-64.png">
-  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
-  <link rel="manifest" href="site.webmanifest">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="/assets/icons/favicon-64.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
   <meta name="apple-mobile-web-app-title" content="Yosh Junior">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Inter:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link rel="stylesheet" href="/assets/css/chrome.css">
 </head>
-<body class="borang-page lg-page locked" data-tab="legality" data-intro="once-per-visit" data-gate="user">
+<body class="borang-page lg-page locked" data-tab="legality-panduan" data-intro="once-per-visit" data-gate="user">
 
 <div id="intro" class="intro" role="dialog" aria-modal="true" aria-label="Pengenalan">
   <div class="intro-bg" aria-hidden="true">
@@ -36,7 +37,7 @@
   <div class="intro-stage">
     <div class="intro-glow"></div>
     <div class="intro-logo-wrap" id="introLogoWrap">
-      <img class="intro-logo" id="introLogo" src="assets/images/logo.png" alt="Yosh Junior" width="1200" height="462">
+      <img class="intro-logo" id="introLogo" src="/assets/images/logo.png" alt="Yosh Junior" width="1200" height="462">
       <!-- Shown only if logo.png is missing -->
       <div class="intro-wordmark" aria-hidden="true">yosh<small>Junior</small></div>
     </div>
@@ -58,22 +59,20 @@
 
   <main class="borang lg">
     <header class="borang-head">
-      <h1 class="borang-title">Database Legality</h1>
-      <nav class="lg-crumbs" id="crumbs" aria-label="Lokasi"></nav>
+      <h1 class="borang-title">Panduan Legality</h1>
     </header>
 
-    <div id="root" aria-live="polite">
-      <p class="borang-status">Memuatkan…</p>
-    </div>
+    <!-- Placeholder until the Legality guide (langkah & SOP) is written. -->
+    <section class="borang-card borang-message">
+      <h2 class="borang-message-title">Akan datang</h2>
+      <p>Panduan langkah dan SOP urusan legality sekolah sedang disediakan. Buat masa ini, gunakan <a href="/legality/database">Database Legality</a> atau <a href="/legality/program">Program Sekolah</a>.</p>
+    </section>
   </main>
 
-  <div class="lg-toast" id="toast" role="status" hidden></div>
-
-  <script src="src/config/config.js"></script>
-  <script src="src/services/legalityApi.js"></script>
-  <script src="src/components/gate.js"></script>
-  <script src="src/components/intro.js"></script>
-  <script src="src/components/portalNav.js"></script>
-  <script src="src/pages/portal/legality.js"></script>
+  <script src="/src/config/config.js"></script>
+  <script src="/src/services/legalityApi.js"></script>
+  <script src="/src/components/gate.js"></script>
+  <script src="/src/components/intro.js"></script>
+  <script src="/src/components/portalNav.js"></script>
 </body>
 </html>
