@@ -63,8 +63,9 @@ export function buildTemplate(d) {
     `🔻 Jenis Program: ${or(d.jenis)}`,
     `🔻 Tarikh Program: ${formatDateRange(d.tarikhMula, d.tarikhTamat)}`,
     `🔻 Masa: ${or(d.masaMula)} – ${or(d.masaTamat)}`,
-    `🔻 Guru Bertugas (${d.guru.length} orang):`,
-    ...d.guru.map((g, i) => `     ${i + 1}. ${g.nama} (${g.jawatan})`),
+    ...(d.guru.every((g) => /^tiada$/i.test(g.nama))
+      ? ['🔻 Guru Bertugas: Tiada']
+      : [`🔻 Guru Bertugas (${d.guru.length} orang):`, ...d.guru.map((g, i) => `     ${i + 1}. ${g.nama} (${g.jawatan})`)]),
     '',
     ...pelajarLines(d),
     `🔻 Jumlah Manpower: ${or(d.manpower)}`,

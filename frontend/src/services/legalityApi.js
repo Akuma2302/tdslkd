@@ -6,9 +6,12 @@
   "use strict";
 
   var URL_ = ((window.YOSH_CONFIG || {}).legalityApi || "").trim();
-  // Admin pages (<body data-gate="admin">) keep the admin code; portal pages keep the user code.
-  var KEYS = { admin: "admin:kod", user: "legality:kod" };
-  var KEY = document.body && document.body.getAttribute("data-gate") === "admin" ? KEYS.admin : KEYS.user;
+  // Each interface keeps its own code: admin (<body data-gate="admin">), the Tengah page
+  // (data-gate="tengah", /tengah) and the user portal (everything else).
+  var KEYS = { admin: "admin:kod", user: "legality:kod", tengah: "tengah:kod" };
+  var ROLE = (document.body && document.body.getAttribute("data-gate")) || "user";
+  if (!KEYS[ROLE]) ROLE = "user";
+  var KEY = KEYS[ROLE];
 
   // Codes live only for this browser session: closing the tab or browser logs everyone out,
   // so the login screen comes back each time the app is opened. (Older versions kept them in
@@ -16,7 +19,7 @@
   try { localStorage.removeItem(KEYS.admin); localStorage.removeItem(KEYS.user); } catch (e) {}
 
   function getKod() { try { return sessionStorage.getItem(KEY) || ""; } catch (e) { return ""; } }
-  function setKod(k) { setKodFor(KEY === KEYS.admin ? "admin" : "user", k); }
+  function setKod(k) { setKodFor(ROLE, k); }
   // Saves the code for the given interface ("user" or "admin"), used when the login sends someone across.
   function setKodFor(role, k) {
     var key = KEYS[role] || KEYS.user;
@@ -51,7 +54,7 @@
       .then(checked);
   }
 
-  // Checks a code without saving it. Resolves to "user" or "admin"; rejects with .kod = true if wrong.
+  // Checks a code without saving it. Resolves to "user", "admin" or "tengah"; rejects with .kod = true if wrong.
   function ping(kod) {
     return fetch(URL_ + (URL_.indexOf("?") < 0 ? "?" : "&") + query({ action: "ping", kod: kod }))
       .then(function (r) { return r.json(); })
@@ -62,8 +65,8 @@
       });
   }
 
-  // Forget both codes (log out of portal and admin).
-  function clearAll() { setKodFor("admin", ""); setKodFor("user", ""); }
+  // Forget every code (log out of the portal, admin and the Tengah page).
+  function clearAll() { setKodFor("admin", ""); setKodFor("user", ""); setKodFor("tengah", ""); }
 
   window.LegalityApi = {
     configured: !!URL_,

@@ -53,10 +53,12 @@ function range_(a, b) { var r = []; for (var i = a; i <= b; i++) r.push(i); retu
 function checkKod(kod) {
   var props = PropertiesService.getScriptProperties();
   var user = props.getProperty("KOD_AKSES"), admin = props.getProperty("KOD_ADMIN");
+  var tengah = props.getProperty("KOD_TENGAH");   // Tengah page (/tengah): MOM only
   if (!user && !admin) throw new Error("Kod akses belum ditetapkan oleh pentadbir.");
   var k = text(kod);
   if (admin && k === admin) return "admin";
   if (user && k === user) return "user";
+  if (tengah && k === tengah) return "tengah";
   throw new Error("KOD_SALAH");
 }
 
@@ -65,10 +67,16 @@ function doGet(e) {
   try {
     var role = checkKod(p.kod);
     if (p.action === "ping") return json({ ok: true, role: role });
+    if (p.action === "mom") {
+      if (role !== "tengah" && role !== "admin") throw new Error("KOD_SALAH");
+      return json(readMom());
+    }
+    if (role === "tengah") throw new Error("KOD_SALAH");   // the Tengah code opens the MOM page only
     if (p.action === "alumni") return json(readAlumni(p.cawangan));
     if (p.action === "cawangan") return json(listCawangan());
     if (p.action === "schools") return json(listSchools(p.cawangan));
     if (p.action === "schoolList") return json(schoolList(p.cawangan));
+    if (p.action === "teachers") return json(schoolTeachers(p.cawangan, p.sekolah));
     if (p.action === "school") return json(readSchool(p.cawangan, p.sekolah));
     if (p.action === "reminder") {
       if (role !== "admin") throw new Error("KOD_SALAH");
@@ -92,11 +100,23 @@ function doPost(e) {
   var lock = LockService.getScriptLock();
   try {
     var body = JSON.parse(e.postData.contents);
-    checkKod(body.kod);
+    var role = checkKod(body.kod);
+    if (body.action === "saveMom") {
+      if (role !== "tengah" && role !== "admin") throw new Error("KOD_SALAH");
+      lock.waitLock(20000);
+      return json(saveMom(body));
+    }
+    if (body.action === "momClaim" || body.action === "momRelease") {   // Netlify bot functions (mom-hantar, mom-reminder)
+      if (role !== "tengah" && role !== "admin") throw new Error("KOD_SALAH");
+      lock.waitLock(20000);
+      return json(body.action === "momClaim" ? momClaim(body) : momRelease(body));
+    }
+    if (role === "tengah") throw new Error("KOD_SALAH");
     lock.waitLock(20000);
     if (body.action === "save") return json(saveSection(body));
     if (body.action === "addSchool") return json(addSchool(body.cawangan, body.sekolah));
     if (body.action === "saveProgress") return json(saveProgress(body));
+    if (body.action === "saveProgressNote") return json(saveProgressNote(body));
     if (body.action === "saveAlumni") return json(saveAlumni(body));
     if (body.action === "uploadImage") return json(uploadImage(body));
     if (body.action === "saveProgram") return json(saveProgram(body));
@@ -158,6 +178,30 @@ function schoolList(cawangan) {
   if (hit) return JSON.parse(hit);
   var out = { cawangan: c, schools: schoolNames(book(c)) };
   cache.put("schoolList:" + c, JSON.stringify(out), 600);
+  return out;
+}
+
+// Teachers in a school's CRM (for "Guru Bertugas" on the Program form): name + Entiti as jawatan. Cached 5 minutes.
+function teachersKey(c, s) { return "teachers:" + text(c).toUpperCase() + ":" + text(s); }
+function schoolTeachers(cawangan, sekolah) {
+  var c = text(cawangan).toUpperCase(), school = text(sekolah);
+  var cache = CacheService.getScriptCache();
+  var hit = cache.get(teachersKey(c, school));
+  if (hit) return JSON.parse(hit);
+  var ss = book(c);
+  var sh = ss.getSheetByName(school);
+  var out = { cawangan: c, sekolah: school, found: false, teachers: [] };
+  if (sh && schoolNames(ss).indexOf(school) > -1) {
+    out.found = true;
+    var seen = {};
+    readSection(sh, "crm").rows.forEach(function (row) {
+      var nama = text(row.v[2]);
+      if (!nama || seen[nama.toLowerCase()]) return;
+      seen[nama.toLowerCase()] = 1;
+      out.teachers.push({ nama: nama, jawatan: text(row.v[0]) });
+    });
+  }
+  cache.put(teachersKey(c, school), JSON.stringify(out), 300);
   return out;
 }
 
@@ -302,7 +346,7 @@ function readSchool(cawangan, sekolah) {
     level: listOptions(sh.getRange(3, COL.KPI + 2)),
     entiti: Object.keys(entitiOpts)
   };
-  data.progress = { items: PROGRESS_ITEMS, values: readProgress(ss, sh.getName()) };
+  data.progress = { items: PROGRESS_ITEMS, values: readProgress(ss, sh.getName()), note: readProgressNote(ss, sh.getName()) };
   data.images = listImages(ss, sh.getName());
   data.pic = readPic(ss, sh.getName());
   return data;
@@ -365,6 +409,44 @@ function readProgress(ss, school) {
   return p.sh.getRange(p.r, 2, 1, PROGRESS_ITEMS.length).getValues()[0].map(function (v) { return v === true; });
 }
 
+// "Progress semasa": a free-text note per school about where things stand, in two columns after
+// "Dikemas kini" in the Progress tab: Progress semasa | Catatan dikemas kini.
+function noteCol() { return PROGRESS_ITEMS.length + 3; }
+function ensureNoteHeader(sh) {
+  var c = noteCol();
+  if (text(sh.getRange(1, c).getValue()) === "") {
+    sh.getRange(1, c, 1, 2).setValues([["PROGRESS SEMASA", "Catatan dikemas kini"]])
+      .setBackground("#0b47a1").setFontColor("#ffffff").setFontWeight("bold").setFontSize(10).setWrap(true).setVerticalAlignment("top");
+    sh.setColumnWidth(c, 320);
+    sh.setColumnWidth(c + 1, 140);
+    sh.getRange(2, c, 300, 1).setWrap(true).setVerticalAlignment("top");
+    sh.getRange(2, c + 1, 300, 1).setNumberFormat("d mmm yyyy h:mm").setFontColor("#666666");
+  }
+}
+function readProgressNote(ss, school) {
+  var p = progressRow(ss, school, false);
+  if (!p.r) return { text: "", updated: "" };
+  var v = p.sh.getRange(p.r, noteCol(), 1, 2).getValues()[0];
+  return { text: text(v[0]), updated: v[1] instanceof Date ? v[1].toISOString() : "" };
+}
+/** body: { cawangan, sekolah, note, old } — old is the note as it was when the page loaded. */
+function saveProgressNote(body) {
+  var ss = book(body.cawangan);
+  var school = text(body.sekolah);
+  if (schoolNames(ss).indexOf(school) < 0) throw new Error("Sekolah tidak dijumpai: " + school);
+  var p = progressRow(ss, school, true);
+  ensureNoteHeader(p.sh);
+  var cell = p.sh.getRange(p.r, noteCol(), 1, 2);
+  var now = text(cell.getValues()[0][0]);
+  var note = String(body.note == null ? "" : body.note).trim().slice(0, 3000);
+  if (now !== text(body.old) && now !== note) throw new Error("Ada orang lain telah mengemas kini progress semasa ini. Muat semula halaman dan cuba lagi.");
+  if (now !== note) {
+    cell.setValues([[safe(note), new Date()]]);
+    markSummaryStale();
+  }
+  return { ok: true, note: readProgressNote(ss, school) };
+}
+
 // body: { cawangan, sekolah, values: [bool x6], old: [bool x6] }
 function saveProgress(body) {
   var ss = book(body.cawangan);
@@ -385,7 +467,7 @@ function saveProgress(body) {
   if (changed) {
     range.setValues([out]);
     p.sh.getRange(p.r, PROGRESS_ITEMS.length + 2).setValue(new Date());
-    CacheService.getScriptCache().remove("summary");
+    markSummaryStale();
   }
   return { ok: true, values: out };
 }
@@ -505,51 +587,84 @@ function saveAlumni(body) {
 // ---------- Admin summary (all cawangan) ----------
 
 /** Everything the admin dashboard needs, for every cawangan. Cached 10 minutes. */
+// Admin summary of every cawangan. Reading 15+ school tabs takes a while, so:
+//  - each school tab is read once (one getValues, markers found from that same block);
+//  - the result is cached for 6 hours and returned at once; after any save it is only marked out of date
+//    ("stale": true) and the admin page fetches a fresh copy in the background.
+var SUMMARY_KEY = "summary", SUMMARY_STALE = "summaryStale";
+function markSummaryStale() { CacheService.getScriptCache().put(SUMMARY_STALE, "1", 21600); }
+
+function summaryMarkers(a) {
+  function find(prefix, from) {
+    for (var i = (from || 2); i < a.length; i++) if (text(a[i][0]).toLowerCase().indexOf(prefix) === 0) return i + 1;
+    return 0;
+  }
+  var alumni = find("alumni sekolah");
+  if (!alumni) return null;
+  var program = find("program yang telah", alumni);
+  var analisa = find("analisa situasi", program);
+  return { crmEnd: alumni - 1, program: program, analisa: analisa };
+}
+
 function summary(fresh) {
   var cache = CacheService.getScriptCache();
   if (!fresh) {
-    var hit = cache.get("summary");
-    if (hit) return JSON.parse(hit);
+    var hit = cache.get(SUMMARY_KEY);
+    if (hit) {
+      var cached = JSON.parse(hit);
+      cached.stale = cache.get(SUMMARY_STALE) === "1";
+      return cached;
+    }
   }
   var map = sheetMap();
   var out = { items: PROGRESS_ITEMS, generated: new Date().toISOString(), cawangan: [] };
   CAWANGAN.forEach(function (c) {
     if (!map[c]) { out.cawangan.push({ id: c, ready: false, schools: [] }); return; }
     var ss = SpreadsheetApp.openById(map[c]);
-    var prog = {};
+    var prog = {}, note = {};
     var psh = ss.getSheetByName(PROGRESS_TAB);
     if (psh && psh.getLastRow() >= 2) {
-      psh.getRange(2, 1, psh.getLastRow() - 1, PROGRESS_ITEMS.length + 1).getValues().forEach(function (r) {
-        if (text(r[0])) prog[text(r[0])] = r.slice(1).map(function (v) { return v === true; });
+      psh.getRange(2, 1, psh.getLastRow() - 1, PROGRESS_ITEMS.length + 4).getValues().forEach(function (r) {
+        if (!text(r[0])) return;
+        prog[text(r[0])] = r.slice(1, PROGRESS_ITEMS.length + 1).map(function (v) { return v === true; });
+        note[text(r[0])] = { text: text(r[PROGRESS_ITEMS.length + 2]),
+          updated: r[PROGRESS_ITEMS.length + 3] instanceof Date ? r[PROGRESS_ITEMS.length + 3].toISOString() : "" };
       });
     }
-    var schools = schoolNames(ss).map(function (n) {
+    var schools = [];
+    schoolNames(ss).forEach(function (n) {
       var sh = ss.getSheetByName(n);
-      var m = markers(sh);
-      var crm = sh.getRange(3, 1, m.crmEnd - 2, COL.LAST).getValues();
+      var rows = Math.min(sh.getLastRow(), 400);
+      if (rows < 3) return;
+      var a = sh.getRange(1, 1, rows, COL.LAST).getValues();   // the only read for this school
+      var m = summaryMarkers(a);
+      if (!m) return;
       var people = 0, aktif = 0, phase = {}, kategori = {}, checks = 0;
-      crm.forEach(function (r) {
+      a.slice(2, m.crmEnd).forEach(function (r) {
         var named = text(r[3]) !== "";
         if (!named && r[2] !== true) return;
         people++;
         if (r[2] === true) aktif++;
-        var ph = text(r[COL.KPI]);       // I = Phase (KPI col + 1, zero-based KPI index is 8)
+        var ph = text(r[COL.KPI]);       // I = Phase
         var kt = text(r[COL.KPI - 1]);   // H = Kategori
         if (ph) phase[ph] = (phase[ph] || 0) + 1;
         if (kt) kategori[kt] = (kategori[kt] || 0) + 1;
         for (var c2 = COL.KPI_CHECK - 1; c2 < COL.LAST; c2++) if (r[c2] === true) checks++;
       });
-      var pRows = sectionRows(sh, "program", m);
-      var programs = pRows.length ? sh.getRange(pRows[0], 1, pRows.length, 1).getValues()
-        .filter(function (r) { return text(r[0]) !== ""; }).length : 0;
-      return {
+      var programs = 0;
+      if (m.program && m.analisa) {
+        a.slice(m.program + 1, m.analisa - 1).forEach(function (r) { if (text(r[0]) !== "") programs++; });
+      }
+      schools.push({
         name: n, people: people, aktif: aktif, phase: phase, kategori: kategori, checks: checks,
-        programs: programs, progress: prog[n] || PROGRESS_ITEMS.map(function () { return false; })
-      };
+        programs: programs, progress: prog[n] || PROGRESS_ITEMS.map(function () { return false; }),
+        note: note[n] || { text: "", updated: "" }
+      });
     });
     out.cawangan.push({ id: c, ready: true, url: ss.getUrl(), schools: schools });
   });
-  try { cache.put("summary", JSON.stringify(out), 600); } catch (e) {}
+  try { cache.put(SUMMARY_KEY, JSON.stringify(out), 21600); cache.remove(SUMMARY_STALE); } catch (e) {}
+  out.stale = false;
   return out;
 }
 
@@ -959,6 +1074,310 @@ function semakBotLegality() {
   }
 }
 
+// ---------- MOM Tengah (/tengah) ----------
+
+// Minutes of meeting for cawangan Tengah, kept in a "MOM" tab of the TENGAH sheet. The /tengah page saves the
+// whole list at once. Telegram (bot "SU Tengah", token SU_BOT_TENGAH in Netlify, never here):
+//  - right after a save the page calls the Netlify function mom-hantar, which posts each new item to its
+//    unit's topic, plus one list of the new items to "MOM Keseluruhan";
+//  - the scheduled Netlify function mom-reminder (every minute) posts the reminders each item asked for.
+// Both take their messages from momClaim(), which marks them as sent in the "Telegram" column so nothing is
+// posted twice; momRelease() puts back the ones Telegram refused, so they are tried again a minute later.
+var MOM_TAB = "MOM";
+var MOM_HEAD = ["Bil", "ID", "Tarikh MOM", "Tindakan", "Tarikh Due", "Masa Due", "Unit", "PIC", "Reminder", "Telegram", "Dikemas kini"];
+var MOM_COLS = MOM_HEAD.length;
+var MOM_TZ = "Asia/Kuala_Lumpur";
+// Topics of the SU Tengah group (t.me/c/1790355836/<topic>)
+var MOM_UNITS = [
+  { id: "murobbi",   label: "Unit Murobbi",   thread: 16599 },
+  { id: "mutarobbi", label: "Unit Mutarobbi", thread: 16597 },
+  { id: "legality",  label: "Unit Legality",  thread: 16598 },
+  { id: "virality",  label: "Unit Virality",  thread: 18527 },
+  { id: "tls",       label: "Unit TLS",       thread: 16596 }
+];
+var MOM_THREAD_ALL = 16601;   // "MOM Keseluruhan"
+var MOM_PICS = ["@nrhazirahrosli", "@Aznie_Sazreen", "@akmalasyraaaaf", "@muzamilmimilzamil", "@aaliyasyakirah",
+                "@IzzahAnnuar", "@Saummi", "@adibahnahran", "@nadirahaisyah", "@hakimiesaharo", "@najmannoordin"];
+// Reminder = number + time unit: "15m" (15 minit), "2h", "3d", "1w", "1b" (1 bulan = 30 hari). Several per item.
+var MOM_REM_UNITS = [
+  { id: "m", label: "minit",  min: 1,     max: 60 },
+  { id: "h", label: "jam",    min: 60,    max: 24 },
+  { id: "d", label: "hari",   min: 1440,  max: 365 },
+  { id: "w", label: "minggu", min: 10080, max: 52 },
+  { id: "b", label: "bulan",  min: 43200, max: 12 }
+];
+var MOM_REM_MAX = 10;   // reminders per item
+var MOM_LATE_GRACE = 10;   // minutes after the due time a missed reminder may still go out
+
+function momUnit(id) { for (var i = 0; i < MOM_UNITS.length; i++) if (MOM_UNITS[i].id === id || MOM_UNITS[i].label === id) return MOM_UNITS[i]; return null; }
+// "15m" or "15 minit sebelum" -> { id: "15m", label: "15 minit sebelum", min: 15 }; null when not a valid reminder.
+function momRem(x) {
+  var m = text(x).toLowerCase().match(/^(\d{1,3})\s*([a-z]+)/);
+  if (!m) return null;
+  var n = +m[1];
+  for (var i = 0; i < MOM_REM_UNITS.length; i++) {
+    var u = MOM_REM_UNITS[i];
+    if ((m[2] === u.id || m[2] === u.label) && n >= 1 && n <= u.max) return { id: n + u.id, label: n + " " + u.label + " sebelum", min: n * u.min };
+  }
+  return null;
+}
+// Valid reminder ids, without repeats, nearest to the due time first.
+function momRemIds(list) {
+  var out = [];
+  list.forEach(function (x) { var r = momRem(x); if (r && out.indexOf(r.id) < 0) out.push(r.id); });
+  return out.sort(function (a, b) { return momRem(a).min - momRem(b).min; }).slice(0, MOM_REM_MAX);
+}
+function momList(v) { return text(v).split(/\s*,\s*/).filter(function (x) { return x; }); }
+function momUniq(a) { return a.filter(function (x, i) { return x && a.indexOf(x) === i; }); }
+function momTime(v) {
+  var m = text(v).match(/^(\d{1,2}):(\d{2})/);
+  return m && +m[1] < 24 && +m[2] < 60 ? ("0" + +m[1]).slice(-2) + ":" + m[2] : "";
+}
+function momYmd(v) { return /^\d{4}-\d{2}-\d{2}$/.test(text(v)) ? text(v) : ""; }
+
+function momSheet(create) {
+  var ss = book("TENGAH");
+  var sh = ss.getSheetByName(MOM_TAB);
+  if (!sh) {
+    if (!create) return null;
+    sh = ss.insertSheet(MOM_TAB);
+  }
+  if (text(sh.getRange(1, 2).getValue()) !== "ID") momLayout(sh);
+  return sh;
+}
+
+// Sets up the columns; rows from the first layout (Bil | Tindakan | Due | PIC | Dikemas kini) are carried over.
+function momLayout(sh) {
+  var old = [];
+  if (sh.getLastRow() > 1 && text(sh.getRange(1, 2).getValue()) === "Tindakan") {
+    old = sh.getRange(2, 1, sh.getLastRow() - 1, 5).getValues().filter(function (r) { return text(r[1]); });
+  }
+  sh.clear();
+  sh.getRange(1, 1, 1, MOM_COLS).setValues([MOM_HEAD])
+    .setFontWeight("bold").setBackground("#1f1f1f").setFontColor("#ffc300").setVerticalAlignment("middle");
+  sh.setFrozenRows(1);
+  [45, 90, 100, 380, 100, 80, 120, 220, 200, 110, 130].forEach(function (w, i) { sh.setColumnWidth(i + 1, w); });
+  sh.getRange("D:D").setWrap(true);
+  sh.getRange("C:C").setNumberFormat("d/m/yyyy");
+  sh.getRange("E:E").setNumberFormat("d/m/yyyy");
+  sh.getRange("F:F").setNumberFormat("@");
+  sh.getRange("B:B").setFontColor("#999999");
+  sh.getRange("J:J").setFontColor("#999999");
+  sh.getRange("K:K").setNumberFormat("d/m/yyyy h:mm").setFontColor("#999999");
+  if (old.length) {
+    sh.getRange(2, 1, old.length, MOM_COLS).setValues(old.map(function (r, i) {
+      return [i + 1, momNewId(), "", r[1], r[2], "", "", text(r[3]), "", "", r[4]];
+    }));
+  }
+}
+
+function momNewId() { return Utilities.getUuid().replace(/-/g, "").slice(0, 10); }
+
+function momRow(r) {
+  var unit = momUnit(text(r[6]));
+  return {
+    id: text(r[1]),
+    tarikh: r[2] instanceof Date ? iso(r[2]) : momYmd(r[2]),
+    tindakan: text(r[3]),
+    due: r[4] instanceof Date ? iso(r[4]) : momYmd(r[4]),
+    masa: momTime(r[5]),
+    unit: unit ? unit.id : "",
+    pic: momList(r[7]),
+    reminder: momRemIds(momList(r[8])),
+    sent: momList(r[9])
+  };
+}
+
+function momRows(sh) {
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, MOM_COLS).getValues();
+}
+
+function readMom() {
+  var items = [], updated = "";
+  momRows(momSheet(false)).forEach(function (r) {
+    if (!text(r[1]) || !text(r[3])) return;
+    items.push(momRow(r));
+    if (r[10] instanceof Date && r[10].toISOString() > updated) updated = r[10].toISOString();
+  });
+  return {
+    items: items, updated: updated, pics: MOM_PICS,
+    units: MOM_UNITS.map(function (u) { return { id: u.id, label: u.label }; }),
+    remUnits: MOM_REM_UNITS.map(function (u) { return { id: u.id, label: u.label, max: u.max }; })
+  };
+}
+
+// What the page edits (the "Telegram" column is left out: the bot changes it on its own).
+function momKey(items) {
+  return JSON.stringify((items || []).map(function (it) {
+    return [text(it.id), text(it.tarikh), text(it.tindakan), text(it.due), text(it.masa), text(it.unit),
+            (it.pic || []).join(","), (it.reminder || []).join(",")];
+  }));
+}
+
+/** body: { items: [{ id, tarikh, tindakan, due, masa, unit, pic: [], reminder: [] }], old: [...as loaded] } — replaces the list. */
+function saveMom(body) {
+  var current = readMom();
+  if (momKey(current.items) !== momKey(body.old)) {
+    throw new Error("Ada orang lain telah mengemas kini MOM ini. Muat semula halaman dan cuba lagi.");
+  }
+  var byId = {};
+  current.items.forEach(function (it) { byId[it.id] = it; });
+  var items = (Array.isArray(body.items) ? body.items : []).slice(0, 300).map(function (it) {
+    it = it || {};
+    var unit = momUnit(text(it.unit));
+    return {
+      id: text(it.id), tarikh: momYmd(it.tarikh), tindakan: text(it.tindakan).slice(0, 2000),
+      due: momYmd(it.due), masa: momTime(it.masa), unit: unit ? unit.id : "",
+      pic: momUniq((Array.isArray(it.pic) ? it.pic : []).map(at).filter(function (p) { return /^@\w{3,32}$/.test(p); })).slice(0, 20),
+      reminder: momRemIds(Array.isArray(it.reminder) ? it.reminder : [])
+    };
+  }).filter(function (it) { return it.tindakan || it.due || it.pic.length; });
+
+  items.forEach(function (it, i) {
+    var n = "Item " + (i + 1) + ": ";
+    if (!it.tindakan) throw new Error(n + "Tindakan perlu diisi.");
+    if (it.reminder.length && !(it.due && it.masa)) throw new Error(n + "reminder perlu Tarikh Due dan Masa Due.");
+    var prev = byId[it.id];
+    if (!prev) { it.id = momNewId(); it.sent = []; return; }
+    var sent = prev.sent.slice();
+    if (prev.unit !== it.unit) sent = sent.filter(function (s) { return s !== "info"; });          // new unit: tell its topic
+    if (prev.due !== it.due || prev.masa !== it.masa) sent = sent.filter(function (s) { return !momRem(s); });  // new due: reminders start over
+    it.sent = sent;
+  });
+
+  var sh = momSheet(true);
+  if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, MOM_COLS).clearContent();
+  if (items.length) {
+    var now = new Date();
+    sh.getRange(2, 6, items.length, 1).setNumberFormat("@");
+    sh.getRange(2, 1, items.length, MOM_COLS).setValues(items.map(function (it, i) {
+      var unit = momUnit(it.unit);
+      return [i + 1, it.id, ymd(it.tarikh), safe(it.tindakan), ymd(it.due), it.masa, unit ? unit.label : "",
+              it.pic.join(", "), it.reminder.map(function (x) { return momRem(x).label; }).join(", "), it.sent.join(", "), now];
+    })).setVerticalAlignment("top");
+  }
+  SpreadsheetApp.flush();
+  return { ok: true, mom: readMom() };
+}
+
+// ----- Telegram messages for the SU Tengah bot -----
+
+var MOM_HARI = ["Ahad", "Isnin", "Selasa", "Rabu", "Khamis", "Jumaat", "Sabtu"];
+var MOM_BULAN = ["Jan", "Feb", "Mac", "Apr", "Mei", "Jun", "Jul", "Ogo", "Sep", "Okt", "Nov", "Dis"];
+function momFmtDate(s) {
+  var m = text(s).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return "";
+  var d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  return MOM_HARI[d.getUTCDay()] + ", " + +m[3] + " " + MOM_BULAN[+m[2] - 1] + " " + m[1];
+}
+function momFmtTime(s) {
+  var m = text(s).match(/^(\d{2}):(\d{2})$/);
+  if (!m) return "";
+  var h = +m[1];
+  var part = h < 12 ? "pagi" : h < 14 ? "tengah hari" : h < 19 ? "petang" : "malam";
+  return (h % 12 || 12) + ":" + m[2] + " " + part;
+}
+function momFmtDue(it) {
+  if (!it.due) return "Tiada";
+  return momFmtDate(it.due) + (it.masa ? ", " + momFmtTime(it.masa) : "");
+}
+function momDue(it) {
+  return it.due && it.masa ? Utilities.parseDate(it.due + " " + it.masa, MOM_TZ, "yyyy-MM-dd HH:mm") : null;
+}
+function momPics(it) { return it.pic.length ? it.pic.join(" ") : "Belum ditetapkan"; }
+function momLeft(ms) {
+  var min = Math.round(ms / 60000);
+  if (min <= 0) return "sudah tiba masa due";
+  if (min < 60) return min + " minit lagi";
+  if (min < 1440) return Math.round(min / 60) + " jam lagi";
+  return Math.round(min / 1440) + " hari lagi";
+}
+
+function momInfoText(it) {
+  var unit = momUnit(it.unit);
+  var lines = ["📝 MOM Tengah · " + (unit ? unit.label : "Tiada unit")];
+  if (it.tarikh) lines.push("🗓 Mesyuarat: " + momFmtDate(it.tarikh));
+  lines.push("", "📌 Tindakan: " + it.tindakan, "📅 Due: " + momFmtDue(it), "👤 PIC: " + momPics(it));
+  if (it.reminder.length) lines.push("⏰ Reminder: " + it.reminder.map(function (x) { return momRem(x).label; }).join(", "));
+  return lines.join("\n");
+}
+
+function momAllText(items) {
+  var dates = momUniq(items.map(function (it) { return it.tarikh; }));
+  var head = "📝 MOM Tengah · " + items.length + " tindakan baru";
+  if (dates.length === 1 && dates[0]) head += "\n🗓 Mesyuarat: " + momFmtDate(dates[0]);
+  return head + "\n\n" + items.map(function (it, i) {
+    var unit = momUnit(it.unit);
+    var meta = [unit ? unit.label : "Tiada unit", "📅 " + momFmtDue(it), "👤 " + momPics(it)];
+    if (dates.length > 1 && it.tarikh) meta.unshift("🗓 MOM " + momFmtDate(it.tarikh));
+    return (i + 1) + ". " + it.tindakan + "\n    " + meta.join(" · ");
+  }).join("\n\n");
+}
+
+function momReminderText(it, due, now) {
+  var unit = momUnit(it.unit);
+  return ["⏰ Peringatan MOM · " + momLeft(due.getTime() - now),
+          "", "📌 Tindakan: " + it.tindakan, "📅 Due: " + momFmtDue(it),
+          "🗂 " + (unit ? unit.label : "Tiada unit"), "👤 PIC: " + momPics(it)].join("\n");
+}
+
+/**
+ * Messages that are due now, for the Netlify bot functions: { jobs: [{ thread, text, refs: [{ id, key }] }] }.
+ * They are marked as sent at once (unless body.peek), so two runs never post the same message.
+ * Keys in the "Telegram" column: "all" (in the MOM Keseluruhan list), "info" (posted to the unit's topic),
+ * and the reminder ids ("15m", "2h", "3d", "1w", "1b").
+ */
+function momClaim(body) {
+  var sh = momSheet(false);
+  var rows = momRows(sh);
+  var now = Date.now(), jobs = [], fresh = [], changed = [];
+  rows.forEach(function (r, i) {
+    if (!text(r[1]) || !text(r[3])) return;
+    var it = momRow(r), sent = it.sent.slice();
+    var unit = momUnit(it.unit);
+    var thread = unit ? unit.thread : MOM_THREAD_ALL;
+    var isNew = sent.indexOf("all") < 0;
+    if (isNew) { fresh.push(it); sent.push("all"); }
+    if (unit && sent.indexOf("info") < 0) {
+      jobs.push({ thread: thread, text: momInfoText(it), refs: [{ id: it.id, key: "info" }] });
+      sent.push("info");
+    }
+    var due = momDue(it);
+    if (due) {
+      var hit = it.reminder.filter(function (x) {
+        return sent.indexOf(x) < 0 && now >= due.getTime() - momRem(x).min * 60000 && now <= due.getTime() + MOM_LATE_GRACE * 60000;
+      });
+      // A new item already shows its due date, so reminders whose time has passed are skipped, not sent at once.
+      if (hit.length && !isNew) jobs.push({ thread: thread, text: momReminderText(it, due, now), refs: hit.map(function (x) { return { id: it.id, key: x }; }) });
+      sent = sent.concat(hit);
+    }
+    if (sent.join(",") !== it.sent.join(",")) changed.push({ row: i + 2, sent: sent });
+  });
+  if (fresh.length) jobs.unshift({ thread: MOM_THREAD_ALL, text: momAllText(fresh), refs: fresh.map(function (it) { return { id: it.id, key: "all" }; }) });
+  if (!body.peek) {
+    changed.forEach(function (c) { sh.getRange(c.row, 10).setValue(c.sent.join(", ")); });
+    SpreadsheetApp.flush();
+  }
+  return { jobs: jobs };
+}
+
+/** body: { refs: [{ id, key }] } — messages Telegram refused; they go back in the queue. */
+function momRelease(body) {
+  var sh = momSheet(false);
+  var drop = {};
+  (Array.isArray(body.refs) ? body.refs : []).forEach(function (x) {
+    if (!x) return;
+    (drop[text(x.id)] = drop[text(x.id)] || []).push(text(x.key));
+  });
+  momRows(sh).forEach(function (r, i) {
+    var keys = drop[text(r[1])];
+    if (!keys) return;
+    sh.getRange(i + 2, 10).setValue(momList(r[9]).filter(function (s) { return keys.indexOf(s) < 0; }).join(", "));
+  });
+  return { ok: true };
+}
+
 // ---------- Saving ----------
 
 // Stops answers like "=IMPORTXML(...)" from being run as a formula in the sheet.
@@ -1043,7 +1462,8 @@ function saveSection(body) {
     });
   }
   SpreadsheetApp.flush();
-  CacheService.getScriptCache().remove("summary");
+  markSummaryStale();
+  if (key === "crm") CacheService.getScriptCache().remove(teachersKey(body.cawangan, body.sekolah));
   return { ok: true, section: key, data: readSection(sh, key) };
 }
 
@@ -1087,7 +1507,7 @@ function addSchool(cawangan, name) {
   var list = ss.getSheetByName(LIST_TAB);
   list.getRange(Math.max(list.getLastRow(), 1) + 1, 1).setValue(n);
   progressRow(ss, n, true);
-  CacheService.getScriptCache().remove("summary");
+  markSummaryStale();
   SpreadsheetApp.flush();
   CacheService.getScriptCache().remove("schoolList:" + text(cawangan).toUpperCase());
   return { ok: true, sekolah: n };
@@ -1136,7 +1556,7 @@ function setupProgress() {
       }
     });
   });
-  CacheService.getScriptCache().remove("summary");
+  markSummaryStale();
   Logger.log("Tab Progress sedia untuk semua cawangan.");
 }
 
@@ -1148,7 +1568,7 @@ function refreshProgressHeaders() {
     var sh = progressSheet(SpreadsheetApp.openById(map[c]));
     sh.getRange(1, 2, 1, PROGRESS_ITEMS.length).setValues([PROGRESS_ITEMS.map(function (it) { return it.label.toUpperCase(); })]);
   });
-  CacheService.getScriptCache().remove("summary");
+  markSummaryStale();
   Logger.log("Tajuk Progress dikemas kini.");
 }
 

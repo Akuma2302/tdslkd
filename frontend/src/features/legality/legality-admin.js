@@ -25,21 +25,30 @@
     window.dispatchEvent(new Event("yosh:unitdata"));
   }
 
-  function load(fresh) {
+  // The last summary is kept on this device and shown at once; the server copy (cached, refreshed in the
+  // background after any save) replaces it as soon as it arrives.
+  var SAVED = "lgd-summary";
+  function load(fresh, quiet) {
     if (!API) return;
     if (!getKod()) { state.needKod = true; changed(); return; }
+    if (!state.data) { try { var s = JSON.parse(localStorage.getItem(SAVED)); if (s && s.cawangan) state.data = s; } catch (e) {} }
     state.loading = true; state.error = ""; state.needKod = false;
-    changed();
+    if (!quiet) changed();
     var params = { action: "summary" };
     if (fresh) params.fresh = "1";
     Api.get(params)
-      .then(function (d) { state.data = d; })
+      .then(function (d) {
+        state.data = d;
+        try { localStorage.setItem(SAVED, JSON.stringify(d)); } catch (e) {}
+        // Someone saved since this copy was made: fetch an up-to-date one without blocking the page.
+        if (d.stale && !fresh) setTimeout(function () { load(true, true); }, 0);
+      })
       .catch(function (e) {
         if (e.kod) { state.needKod = true; state.error = "Kod akses tidak sah."; return; }
         state.error = e.message || String(e);
       })
       .then(function () { state.loading = false; changed(); });
-    loadPrograms();
+    if (!quiet) loadPrograms();
   }
 
   // Programmes sent from the Program page (program.html), kept in their own Google Sheet.
@@ -212,7 +221,7 @@
       var mwrap = el("div", "lgd-matrix-wrap");
       var m = el("table", "lgd-matrix");
       var mh = el("tr");
-      mh.appendChild(el("th", null, "Sekolah"));
+      mh.appendChild(el("th", null, "Sekolah · progress semasa"));
       items.forEach(function (it) { mh.appendChild(el("th", null, it.label)).title = it.label; });
       mh.appendChild(el("th", null, "Jumlah"));
       var mhead = el("thead"); mhead.appendChild(mh); m.appendChild(mhead);
@@ -222,6 +231,13 @@
         var name = el("td", "lgd-school", x.s.name);
         if (branch === ALL) name.appendChild(el("small", null, x.cawangan));
         name.title = x.s.people + " orang CRM · " + x.s.programs + " program";
+        // Progress semasa written by the PIC on the school page
+        var note = x.s.note && x.s.note.text;
+        if (note) {
+          var nEl = el("span", "lgd-note", note);
+          nEl.title = note + (x.s.note.updated ? "\n\nDikemas kini " + new Date(x.s.note.updated).toLocaleString("ms-MY", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "");
+          name.appendChild(nEl);
+        }
         r.appendChild(name);
         x.s.progress.forEach(function (v, i) {
           var td = el("td", v ? "is-yes" : "is-no");

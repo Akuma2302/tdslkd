@@ -109,9 +109,41 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
     if (ok) sheetOpen.href = url;
   });
 
-  // ── Guru bertugas (dynamic rows) ──────────────
+  // ── Guru bertugas: teachers from the school's CRM (Database Legality) ──
+  // Names can only be picked from the CRM of the chosen school; the jawatan comes from its Entiti.
+  // A teacher who is not listed has to be added to the CRM in Database Legality first.
   const guruList = $('guruList');
   const guruTpl = $('guruRowTpl');
+  const guruStatus = $('guruStatus');
+  const TIADA = 'Tiada';
+  let teachers = [];
+
+  function syncJawatan(row) {
+    const nama = row.querySelector('.guru-nama').value;
+    const jaw = row.querySelector('.guru-jawatan');
+    const t = teachers.find((x) => x.nama === nama);
+    if (nama === TIADA) { jaw.value = TIADA; jaw.readOnly = true; jaw.placeholder = 'Jawatan'; }
+    else if (t && t.jawatan) { jaw.value = t.jawatan; jaw.readOnly = true; jaw.placeholder = 'Jawatan'; }
+    else if (t) { if (jaw.readOnly) jaw.value = ''; jaw.readOnly = false; jaw.tabIndex = 0; jaw.placeholder = 'Jawatan belum ada dalam CRM — taip'; }
+    else { jaw.value = ''; jaw.readOnly = true; jaw.placeholder = 'Jawatan'; }
+  }
+  function fillGuruSelect(sel) {
+    const keep = sel.value;
+    sel.textContent = '';
+    sel.appendChild(new Option(teachers.length ? 'Pilih nama cikgu' : 'Tiada cikgu dalam CRM', ''));
+    teachers.forEach((t) => sel.appendChild(new Option(t.nama, t.nama)));
+    sel.appendChild(new Option('Tiada guru bertugas', TIADA));
+    sel.value = [...sel.options].some((o) => o.value === keep) ? keep : '';
+    syncJawatan(sel.closest('.guru-row'));
+  }
+  // Called by the school picker below whenever the school (or its teacher list) changes.
+  function setTeachers(list, status) {
+    teachers = list || [];
+    guruList.querySelectorAll('.guru-nama').forEach(fillGuruSelect);
+    guruStatus.textContent = '';
+    if (status) guruStatus.append(...status);
+    form.dispatchEvent(new Event('change'));
+  }
 
   function renumberGuru() {
     const rows = guruList.querySelectorAll('.guru-row');
@@ -123,13 +155,16 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
 
   function addGuru(focus) {
     const row = guruTpl.content.firstElementChild.cloneNode(true);
+    guruList.appendChild(row);
+    const sel = row.querySelector('.guru-nama');
+    fillGuruSelect(sel);
+    sel.addEventListener('change', () => { syncJawatan(row); sel.classList.remove('error'); row.querySelector('.guru-jawatan').classList.remove('error'); });
     row.querySelector('.guru-remove').addEventListener('click', () => {
       row.remove();
       renumberGuru();
     });
-    guruList.appendChild(row);
     renumberGuru();
-    if (focus) row.querySelector('.guru-nama').focus();
+    if (focus) sel.focus();
   }
 
   $('guruAdd').addEventListener('click', () => addGuru(true));
@@ -326,6 +361,49 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
     loadSchools();
   });
   if (window.YoshGate) window.YoshGate.ready(preloadSchools); else preloadSchools();
+
+  // ── Teachers of the chosen school (feeds "Guru Bertugas") ──
+  const teacherCache = {};
+  let teacherTimer = 0;
+  let teacherFor = '';
+  function dbLink(code, school, label) {
+    const a = document.createElement('a');
+    a.href = '/legality/database#/' + encodeURIComponent(code) + (school ? '/' + encodeURIComponent(school) : '');
+    a.target = '_blank'; a.rel = 'noopener';
+    a.textContent = label;
+    return a;
+  }
+  function loadTeachers() {
+    const cw = cawanganInput.value;
+    const code = LEGALITY_CODE[cw];
+    const typed = sekolahInput.value.trim();
+    const list = schoolCache[code] || [];
+    const school = list.find((n) => n.toLowerCase() === typed.toLowerCase());
+    const key = code + '|' + (school || typed);
+    if (key === teacherFor) return;
+    teacherFor = key;
+    if (!code || !typed) { setTeachers([], ['Pilih sekolah dahulu untuk melihat senarai cikgu.']); return; }
+    if (!school) {
+      setTeachers([], ['⚠️ ' + typed + ' belum ada dalam Database Legality ' + cw + '. PIC perlu tambah sekolah ini dan cikgu dalam CRM dahulu. ', dbLink(code, '', 'Buka Database Legality ↗')]);
+      return;
+    }
+    const show = (d) => {
+      if (teacherFor !== key) return;
+      const n = d.teachers.length;
+      setTeachers(d.teachers, n
+        ? [n + ' cikgu dalam CRM ' + school + '. Cikgu tiada dalam senarai? PIC perlu kemas kini CRM dahulu. ', dbLink(code, school, 'Kemas kini CRM ↗')]
+        : ['⚠️ Belum ada cikgu dalam CRM ' + school + '. PIC perlu kemas kini CRM di Database Legality dahulu. ', dbLink(code, school, 'Kemas kini CRM ↗')]);
+    };
+    if (teacherCache[key]) { show(teacherCache[key]); return; }
+    setTeachers([], ['Memuatkan cikgu ' + school + '…']);
+    window.LegalityApi.get({ action: 'teachers', cawangan: code, sekolah: school })
+      .then((d) => { teacherCache[key] = d; show(d); })
+      .catch(() => { if (teacherFor === key) { teacherFor = ''; setTeachers([], ['Senarai cikgu tidak dapat dimuatkan. Cuba pilih sekolah semula.']); } });
+  }
+  const queueTeachers = () => { clearTimeout(teacherTimer); teacherTimer = setTimeout(loadTeachers, 450); };
+  sekolahInput.addEventListener('input', queueTeachers);
+  sekolahInput.addEventListener('change', queueTeachers);
+  cawanganInput.addEventListener('change', queueTeachers);
 
   // ── − / + steppers ────────────────────────────
   // Delegated so rows added later (per-tingkatan counts) work too.

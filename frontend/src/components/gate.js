@@ -1,7 +1,7 @@
 // Login gate: a full-screen "Log masuk" screen shown right after the intro, on every page.
 // One login for everyone — the code decides where they go:
-//   user code  → user portal (/)        admin code → admin dashboard (/admin)
-// <body data-gate="user"> on portal pages, <body data-gate="admin"> on the admin page.
+//   user code → user portal (/) · admin code → admin dashboard (/admin) · Tengah code → MOM page (/tengah)
+// <body data-gate="user"> on portal pages, "admin" on the admin page, "tengah" on /tengah.
 // A code that worked is kept for this browser session only (via LegalityApi): reopening the app asks again.
 // Any element with [data-logout] logs out and returns to the login screen.
 // Page scripts start their work with YoshGate.ready(fn); YoshGate.show() asks for the code again
@@ -90,8 +90,8 @@
           if (r !== role) {
             // The code belongs to the other interface: remember it there and go.
             Api.setKodFor(r, kod);
-            go.textContent = r === "admin" ? "Membuka admin…" : "Membuka portal…";
-            location.href = r === "admin" ? "/admin" : "/";
+            go.textContent = r === "admin" ? "Membuka admin…" : r === "tengah" ? "Membuka halaman Tengah…" : "Membuka portal…";
+            location.href = r === "admin" ? "/admin" : r === "tengah" ? "/tengah" : "/";
             return;
           }
           Api.setKod(kod);

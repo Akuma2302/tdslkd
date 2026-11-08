@@ -277,7 +277,7 @@
       root.textContent = "";
       var nav = el("nav", "lg-sectnav");
       nav.setAttribute("aria-label", "Bahagian");
-      [{ key: "pic", short: "PIC" }, { key: "progress", short: "Progress" }].concat(SECTION_INFO).forEach(function (s) {
+      [{ key: "pic", short: "PIC" }, { key: "semasa", short: "Progress" }].concat(SECTION_INFO).forEach(function (s) {
         var a = el("a", "lg-chip", s.short);
         a.href = "#sec-" + s.key;
         a.addEventListener("click", function (e) {
@@ -288,7 +288,7 @@
       });
       root.appendChild(nav);
       root.appendChild(picCard(d.pic || []));
-      if (d.progress) root.appendChild(progressCard(d.progress));
+      if (d.progress) { root.appendChild(noteCard(d.progress.note || { text: "", updated: "" })); root.appendChild(progressCard(d.progress)); }
       SECTION_INFO.forEach(function (s) { root.appendChild(sectionCard(s)); });
     }).catch(fail);
   }
@@ -468,11 +468,76 @@
     return card;
   }
 
+  // Progress Semasa Legality: a short note on where things stand with the school, with when it was last updated.
+  function fmtWhen(isoStr) {
+    if (!isoStr) return "";
+    return new Date(isoStr).toLocaleString("ms-MY", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+  function noteCard(note) {
+    var card = el("section", "borang-card lg-section");
+    card.id = "sec-semasa";
+    var head = el("div", "lg-section-head");
+    var titleWrap = el("div", "lg-section-title");
+    titleWrap.appendChild(el("h2", "borang-section", "Progress Semasa Legality"));
+    var badge = el("span", "lg-unsaved", "Belum disimpan");
+    badge.hidden = true;
+    titleWrap.appendChild(badge);
+    head.appendChild(titleWrap);
+    card.appendChild(head);
+    card.appendChild(el("p", "lg-lead", "Tulis status terkini urusan legality sekolah ini (contoh: sudah jumpa PK HEM, menunggu kelulusan pengetua)."));
+
+    var orig = note.text || "";
+    var box = el("div", "lg-field is-wide");
+    var label = el("label", "lg-label", "Progress semasa");
+    label.htmlFor = "semasaNote";
+    var ta = el("textarea", "borang-input lg-note");
+    ta.id = "semasaNote";
+    ta.rows = 4;
+    ta.maxLength = 3000;
+    ta.placeholder = "Belum ada catatan progress.";
+    ta.value = orig;
+    box.appendChild(label);
+    box.appendChild(ta);
+    card.appendChild(box);
+    var when = el("p", "lg-note-when");
+    function showWhen(iso) { when.textContent = iso ? "Dikemas kini " + fmtWhen(iso) : "Belum pernah dikemas kini."; }
+    showWhen(note.updated);
+    card.appendChild(when);
+
+    ta.addEventListener("input", function () {
+      var d = ta.value.trim() !== orig.trim();
+      state.dirty.semasa = d;
+      badge.hidden = !d;
+    });
+
+    var status = el("p", "borang-error-summary");
+    status.hidden = true;
+    var save = button("borang-submit lg-btn-sm", "Simpan Progress Semasa", function () {
+      if (!state.dirty.semasa) { toast("Tiada perubahan untuk disimpan."); return; }
+      status.hidden = true;
+      save.disabled = true; save.textContent = "Menyimpan…";
+      post({ action: "saveProgressNote", cawangan: state.cawangan, sekolah: state.sekolah, note: ta.value, old: orig })
+        .then(function (d) {
+          orig = d.note.text; ta.value = orig;
+          showWhen(d.note.updated);
+          state.dirty.semasa = false; badge.hidden = true;
+          toast("Progress semasa disimpan.", "ok");
+        })
+        .catch(function (e) { status.hidden = false; status.textContent = "Belum disimpan: " + (e.message || e); })
+        .then(function () { save.disabled = false; save.textContent = "Simpan Progress Semasa"; });
+    });
+    var actions = el("div", "lg-actions");
+    actions.appendChild(status);
+    actions.appendChild(save);
+    card.appendChild(actions);
+    return card;
+  }
+
   function progressCard(p) {
     var card = el("section", "borang-card lg-section");
     card.id = "sec-progress";
     var head = el("div", "lg-section-head");
-    head.appendChild(el("h2", "borang-section", "Progress Legality"));
+    head.appendChild(el("h2", "borang-section", "Checklist Progress"));
     var badge = el("span", "lg-unsaved", "Belum disimpan");
     badge.hidden = true;
     head.appendChild(badge);

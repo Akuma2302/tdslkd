@@ -12,11 +12,12 @@ Laman web statik (HTML/CSS/JavaScript biasa, tiada build) di **https://tdslkd.ne
 | `/pentajmikan` | Portal user, tab **Pentajmikan** (akan datang) | `frontend/pentajmikan.html` |
 | `/pembinaan` | Portal user, tab **Pembinaan** (akan datang) | `frontend/pembinaan.html` |
 | `/admin` | Dashboard admin (Overall, Murabbi, Legality…) | `frontend/admin.html` |
+| `/tengah` | Halaman Cawangan Tengah (kod Tengah): **MOM** — Tarikh MOM, Tindakan, Tarikh/Masa Due, Unit, PIC, Reminder; bot SU Tengah hantar ke topik unit | `frontend/tengah.html` |
 | `/borang.html` | Borang laporan Unit Murabbi | `frontend/borang.html` |
 
 ## Log masuk
 
-Selepas intro, semua halaman minta kod. Kod user → portal (`/`), kod admin → `/admin`. Kod hanya disimpan untuk sesi browser semasa: tutup tab atau browser, dan kod perlu dimasukkan semula. Butang **Log keluar** ada di portal dan admin. Butiran kod: `backend/legality/README.md`.
+Selepas intro, semua halaman minta kod. Kod user → portal (`/`), kod admin → `/admin`, kod Tengah → `/tengah`. Kod hanya disimpan untuk sesi browser semasa: tutup tab atau browser, dan kod perlu dimasukkan semula. Butang **Log keluar** ada di portal dan admin. Butiran kod: `backend/legality/README.md`.
 
 ## Struktur folder
 
@@ -32,6 +33,7 @@ tdslkd/
 │   ├── pentajmikan.html         portal user: Pentajmikan (akan datang)
 │   ├── pembinaan.html           portal user: Pembinaan (akan datang)
 │   ├── admin.html               dashboard admin
+│   ├── tengah.html              halaman Cawangan Tengah (MOM)
 │   ├── borang.html              borang Unit Murabbi
 │   ├── _redirects               /admin → admin.html, /legality → /legality/database, pautan lama
 │   ├── assets/
@@ -49,7 +51,9 @@ tdslkd/
 │       └── data/                kandungan statik (units.js, murabbi-reports.js)
 ├── backend/                     Google Apps Script (tidak dipublish ke Netlify)
 │   ├── legality/                Legality.gs + README (setup, kod akses, sheet cawangan, Program Sekolah)
-│   ├── program/                 fungsi Netlify: hantar.mjs (borang program → Telegram), semak-legality.mjs (bot Legality Tds Tengah)
+│   ├── program/                 fungsi Netlify: hantar.mjs (borang program → Telegram), semak-legality.mjs (bot Legality Tds Tengah),
+│   │                            mom-hantar.mjs + mom-reminder.mjs (bot SU Tengah: MOM selepas simpan + reminder setiap minit)
+│   ├── lib/                     kod dikongsi fungsi Netlify (mom-bot.mjs)
 │   └── murabbi/                 Code.gs + README + senarai-murabbi.csv
 ├── dev-server.mjs               pelayan ujian tempatan (halaman + fungsi Telegram)
 ├── tools/                       skrip pembantu (import_murabbi.py)

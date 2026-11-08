@@ -355,7 +355,7 @@
 }
 .pg .link-btn:hover { text-decoration-color: var(--accent); }
 .pg .level-grid {
-  display: grid; grid-template-columns: repeat(5, 1fr);
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
   border: 1px solid var(--line-2); border-radius: 14px; overflow: hidden; background: var(--bg-2);
 }
 .pg .level { position: relative; cursor: pointer; }
@@ -385,13 +385,13 @@
 .pg .level input:focus-visible + .level-box { outline: 2px solid var(--accent); outline-offset: -4px; border-radius: 10px; }
 .pg fieldset.error .level-grid { border-color: var(--error); box-shadow: 0 0 0 3px rgba(255, 107, 107, .12); }
 .pg #pelajarGroup .level-grid { container-type: inline-size; }
-.pg @container (max-width: 600px) {
-  #pelajarGroup .level-box small { display: none; }
-  #pelajarGroup .level-box { padding: 1.05rem .25rem; }
-  #pelajarGroup .level-box strong { font-size: 1.25rem; }
-  #pelajarGroup .level-box strong::before { content: "T"; font-size: .75em; margin-right: .05em; opacity: .7; }
-  #pelajarGroup .level-check { width: 13px; height: 13px; top: .35rem; right: .35rem; }
-  #pelajarGroup .level input:checked + .level-box .level-check::after { left: 3px; top: 2.5px; width: 5px; height: 3px; border-width: 1.5px; }
+@container (max-width: 600px) {
+  .pg #pelajarGroup .level-box small { display: none; }
+  .pg #pelajarGroup .level-box { padding: 1.05rem .25rem; }
+  .pg #pelajarGroup .level-box strong { font-size: 1.25rem; }
+  .pg #pelajarGroup .level-box strong::before { content: "T"; font-size: .75em; margin-right: .05em; opacity: .7; }
+  .pg #pelajarGroup .level-check { width: 13px; height: 13px; top: .35rem; right: .35rem; }
+  .pg #pelajarGroup .level input:checked + .level-box .level-check::after { left: 3px; top: 2.5px; width: 5px; height: 3px; border-width: 1.5px; }
 }
 .pg .level-counts {
   margin-top: .6rem; border: 1px solid var(--line-2); border-radius: 14px; background: var(--bg-2);
@@ -672,3 +672,11 @@
 .pg input[type=date]::-webkit-calendar-picker-indicator,
 .pg input[type=time]::-webkit-calendar-picker-indicator { filter: invert(.8); cursor: pointer; }
 .pg .form-step { overflow-x: clip; }
+
+/* Guru Bertugas: names from the school's CRM */
+.pg .guru-status { margin: -.2rem 0 .7rem; color: var(--muted); font-size: .8rem; line-height: 1.5; }
+.pg .guru-status a { color: var(--accent); font-weight: 600; text-decoration: none; white-space: nowrap; }
+.pg .guru-status a:hover { text-decoration: underline; }
+.pg .guru-row select { min-width: 0; }
+.pg .guru-row .guru-jawatan[readonly] { color: var(--accent); background: var(--card-2); cursor: default; }
+.pg .guru-row .guru-jawatan[readonly]:placeholder-shown { color: var(--muted); }

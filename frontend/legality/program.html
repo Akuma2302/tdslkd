@@ -235,27 +235,17 @@
         </header>
         <fieldset class="field" id="guruGroup">
           <legend>Guru Bertugas</legend>
-          <p class="field-hint"><span>Tulis <strong>"Tiada"</strong> pada nama dan jawatan jika tiada guru bertugas.</span></p>
+          <p class="field-hint"><span>Pilih nama cikgu daripada <strong>CRM sekolah</strong> dalam Database Legality. Jawatan diisi automatik. Pilih <strong>"Tiada guru bertugas"</strong> jika tiada.</span></p>
+          <p class="guru-status" id="guruStatus" aria-live="polite">Pilih sekolah dahulu untuk melihat senarai cikgu.</p>
           <div id="guruList" class="guru-list"></div>
           <button type="button" class="btn-add" id="guruAdd">+ Tambah Guru</button>
-          <datalist id="jawatanList">
-            <option value="Pengetua">
-            <option value="Guru Besar">
-            <option value="PK Pentadbiran">
-            <option value="PK HEM">
-            <option value="PK Kokurikulum">
-            <option value="Guru Kaunseling">
-            <option value="Guru Disiplin">
-            <option value="Guru Kelas">
-            <option value="Guru Penasihat">
-          </datalist>
         </fieldset>
 
         <template id="guruRowTpl">
           <div class="guru-row">
             <span class="guru-num"></span>
-            <input type="text" class="guru-nama" placeholder="Nama guru" aria-label="Nama guru">
-            <input type="text" class="guru-jawatan" placeholder="Jawatan" list="jawatanList" aria-label="Jawatan guru">
+            <select class="guru-nama" aria-label="Nama guru"></select>
+            <input type="text" class="guru-jawatan" placeholder="Jawatan" aria-label="Jawatan guru" readonly tabindex="-1">
             <button type="button" class="guru-remove" aria-label="Buang guru">✕</button>
           </div>
         </template>

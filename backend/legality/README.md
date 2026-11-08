@@ -38,9 +38,21 @@ Selepas intro, setiap halaman (portal user dan admin) memaparkan skrin **Log mas
 |---|---|---|---|
 | Kod user | `KOD_AKSES` | Portal user `/` | Baca & kemas kini data sekolah |
 | Kod admin | `KOD_ADMIN` | Dashboard `/admin` | Semua, termasuk ringkasan semua cawangan (`summary`) |
+| Kod Tengah | `KOD_TENGAH` | Halaman `/tengah` | MOM Cawangan Tengah sahaja (`mom`, `saveMom`, `momClaim`, `momRelease`). Admin juga boleh. |
+
+### MOM Tengah (`/tengah`)
+
+- Data dalam tab **MOM** sheet TENGAH: Bil, ID, Tarikh MOM, Tindakan, Tarikh Due, Masa Due, Unit, PIC, Reminder, Telegram, Dikemas kini. Lajur **Telegram** diisi oleh bot (`all`, `info`, dan id reminder seperti `15m`, `2h`, `1d` = apa yang sudah dihantar); jangan ubah dengan tangan.
+- **Reminder** bebas: nombor + minit (1–60) / jam (1–24) / hari (1–365) / minggu (1–52) / bulan (1–12, = 30 hari) sebelum due, sehingga 10 reminder setiap item. Disimpan dalam sheet sebagai teks, cth. `15 minit sebelum, 1 hari sebelum`.
+- Senarai unit (dan topik Telegram setiap unit), PIC (username Telegram) dan had reminder ada dalam `MOM_UNITS`, `MOM_PICS`, `MOM_REM_UNITS` dalam `Legality.gs`. Tambah PIC baru di `MOM_PICS`, kemudian deploy versi baru.
+- Bot **SU Tengah** (group t.me/c/1790355836):
+  - selepas **Simpan MOM**, fungsi Netlify `mom-hantar` menghantar setiap tindakan baru ke topik unitnya, dan senarai tindakan baru ke topik **MOM Keseluruhan**;
+  - fungsi berjadual `mom-reminder` (setiap minit) menghantar reminder (masa yang dipilih sebelum due) ke topik unit, tag PIC.
+  - Reminder yang masanya sudah lepas semasa item mula disimpan tidak dihantar (maklumat pertama sudah menunjukkan due). Tukar Tarikh/Masa Due → reminder bermula semula. Tukar unit → maklumat dihantar ke topik unit baru.
+- Netlify environment variables: `SU_BOT_TENGAH` (token bot), `KOD_TENGAH` (kod Tengah, untuk reminder setiap minit), `SU_BOT_CHAT` (pilihan; lalai -1001790355836). Bot perlu ahli group itu dan boleh menulis dalam topik.
 
 - Kod disimpan untuk **sesi browser semasa sahaja**: bila tab atau browser ditutup dan dibuka semula, pengguna perlu log masuk lagi. Butang **Log keluar** membawa terus ke skrin log masuk.
-- Tukar kod: Apps Script → **Project Settings → Script properties** → ubah `KOD_AKSES` atau `KOD_ADMIN` (atau jalankan `setKodAkses()` / `setKodAdmin()` untuk kod rawak). Pengguna akan diminta log masuk semula secara automatik.
+- Tukar kod: Apps Script → **Project Settings → Script properties** → ubah `KOD_AKSES`, `KOD_ADMIN` atau `KOD_TENGAH` (atau jalankan `setKodAkses()` / `setKodAdmin()` untuk kod rawak). Pengguna akan diminta log masuk semula secara automatik.
 - Kongsi kod admin hanya dengan pentadbir.
 
 ## Peraturan tab sekolah (supaya borang dapat membacanya)
