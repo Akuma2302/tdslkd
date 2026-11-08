@@ -1,15 +1,16 @@
 // Tengah page (/tengah): MOM (minutes of meeting) for cawangan Tengah.
 // Each item: Tarikh MOM · Tindakan · Tarikh Due · Masa Due · Unit · PIC (one or more) · Reminder (one or more).
-// The whole list is saved at once to the "MOM" tab of the TENGAH sheet (backend/legality/Legality.gs: readMom /
-// saveMom). Right after a save the page asks the Netlify function mom-hantar to post the new items to Telegram
-// (bot SU Tengah, each unit's topic); reminders are posted later through the same function by the Apps Script trigger momReminderTick.
+// Each item has its own "Simpan MOM" button and is saved on its own to the "MOM" tab of the TENGAH sheet
+// (backend/legality/Legality.gs: readMom / saveMomItem / deleteMomItem). When a NEW item is saved the page asks
+// the Netlify function mom-hantar to post it to Telegram (bot SU Tengah, the unit's topic) once; edits are not
+// posted again. Reminders go out later through the same function, called by the Apps Script trigger momReminderTick.
 (function () {
   "use strict";
 
   var Api = window.LegalityApi;
   var root = document.getElementById("root");
   var toastEl = document.getElementById("toast");
-  var state = { orig: [], items: [], updated: "", dirty: false, units: [], pics: [], remUnits: [] };
+  var state = { items: [], updated: "", units: [], pics: [], remUnits: [] };   // each item keeps _orig (null = not saved yet)
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -46,12 +47,13 @@
     return { id: it.id || "", tarikh: it.tarikh || "", tindakan: it.tindakan || "", due: it.due || "", masa: it.masa || "",
              unit: it.unit || "", pic: (it.pic || []).slice(), reminder: (it.reminder || []).slice(), sent: (it.sent || []).slice() };
   }
-  function clean(list) {
-    return list.map(function (it) {
-      return { id: it.id, tarikh: it.tarikh, tindakan: it.tindakan.trim(), due: it.due, masa: it.masa, unit: it.unit,
-               pic: it.pic.slice(), reminder: it.reminder.slice() };
-    }).filter(function (it) { return it.tindakan || it.due || it.pic.length; });
+  function clean(it) {
+    return { id: it.id, tarikh: it.tarikh, tindakan: it.tindakan.trim(), due: it.due, masa: it.masa, unit: it.unit,
+             pic: it.pic.slice(), reminder: it.reminder.slice() };
   }
+  function saved(it) { var c = copy(it); c._orig = copy(it); return c; }
+  function isDirty(it) { return !it._orig || JSON.stringify(clean(it)) !== JSON.stringify(clean(it._orig)); }
+  function anyDirty() { return state.items.some(isDirty); }
   function labelOf(list, id) { for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i].label; return id; }
   // Reminder ids are a number + time unit: "15m", "2h", "3d", "1w", "1b" (bulan).
   function remParts(id) {
@@ -62,7 +64,7 @@
   var REM_MIN = { m: 1, h: 60, d: 1440, w: 10080, b: 43200 };
   function remMin(id) { var p = remParts(id); return p ? p.n * REM_MIN[p.unit.id] : 0; }
   function remLabel(id, short) { var p = remParts(id); return p ? p.n + " " + p.unit.label + (short ? "" : " sebelum") : id; }
-  window.addEventListener("beforeunload", function (e) { if (state.dirty) { e.preventDefault(); e.returnValue = ""; } });
+  window.addEventListener("beforeunload", function (e) { if (anyDirty()) { e.preventDefault(); e.returnValue = ""; } });
 
   // Only one dropdown (PIC / Reminder) open at a time; a click elsewhere closes it.
   document.addEventListener("click", function (e) {
@@ -84,13 +86,11 @@
   }
 
   function take(d) {
-    state.orig = d.items.map(copy);
-    state.items = d.items.map(copy);
+    state.items = d.items.map(saved);
     state.updated = d.updated;
     state.units = d.units || [];
     state.pics = d.pics || [];
     state.remUnits = d.remUnits || [];
-    state.dirty = false;
   }
 
   function load() {
@@ -99,8 +99,8 @@
     Api.get({ action: "mom" }).then(function (d) { take(d); draw(); }).catch(fail);
   }
 
-  // Ask the bot to post what is new (and any reminder that is due). Reminders keep coming from the
-  // scheduled function even if this call fails, and anything not sent is retried there.
+  // Ask the bot to post the new item (and any reminder that is due). If this call fails, the Apps Script
+  // trigger picks it up within a minute.
   function sendTelegram() {
     return fetch("/.netlify/functions/mom-hantar", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kod: Api.getKod() })
@@ -218,35 +218,37 @@
     return f;
   }
 
+  function problem(it) {
+    var c = clean(it);
+    if (!c.tindakan) return "Tindakan perlu diisi.";
+    if (c.masa && !c.due) return "Isi Tarikh Due untuk Masa Due itu.";
+    if (c.reminder.length && !(c.due && c.masa)) return "Reminder perlu Tarikh Due dan Masa Due.";
+    return "";
+  }
+
   function draw() {
     root.textContent = "";
     var card = el("section", "borang-card lg-section mom");
     var head = el("div", "lg-section-head");
     var titleWrap = el("div", "lg-section-title");
     titleWrap.appendChild(el("h2", "borang-section", "MOM"));
-    var badge = el("span", "lg-unsaved", "Belum disimpan");
-    badge.hidden = !state.dirty;
-    titleWrap.appendChild(badge);
     head.appendChild(titleWrap);
     var tools = el("div", "lg-section-tools");
     head.appendChild(tools);
     card.appendChild(head);
-    card.appendChild(el("p", "lg-lead", "Minit mesyuarat Cawangan Tengah. Selepas disimpan, bot SU Tengah menghantar setiap tindakan baru ke topik unitnya, kemudian mengingatkan PIC mengikut reminder yang dipilih."));
+    card.appendChild(el("p", "lg-lead", "Minit mesyuarat Cawangan Tengah. Setiap item disimpan dengan butang Simpan MOM masing-masing. Item baru dihantar sekali oleh bot SU Tengah ke topik unitnya; selepas itu bot hanya mengingatkan PIC mengikut reminder."));
 
     var list = el("div", "mom-list");
     card.appendChild(list);
     var count = el("p", "mom-count");
     card.appendChild(count);
 
-    function markDirty() {
-      state.dirty = JSON.stringify(clean(state.items)) !== JSON.stringify(clean(state.orig));
-      badge.hidden = !state.dirty;
-      paintCount();
-    }
     function paintCount() {
-      var n = clean(state.items).length;
-      var lateN = state.items.filter(isLate).length;
+      var n = state.items.filter(function (it) { return it._orig; }).length;
+      var lateN = state.items.filter(function (it) { return it._orig && isLate(it); }).length;
+      var unsaved = state.items.filter(isDirty).length;
       count.textContent = n + " item" + (lateN ? " · " + lateN + " lewat due" : "") +
+        (unsaved ? " · " + unsaved + " belum disimpan" : "") +
         (state.updated ? " · Dikemas kini " + fmtWhen(state.updated) : "");
     }
 
@@ -254,6 +256,22 @@
       var row = el("div", "mom-row");
       row.appendChild(el("span", "mom-num", String(i + 1)));
       var key = "mom-" + i + "-";
+
+      // Save bar of this item (under PIC / Reminder): saves this item only.
+      var foot = el("div", "mom-foot");
+      var err = el("p", "mom-err");
+      err.hidden = true;
+      var stateTag = el("span", "mom-state");
+      var save = button("mom-save", "Simpan MOM", function () { saveItem(item, save, err); });
+      function markDirty() {
+        var dirty = isDirty(item);
+        row.classList.toggle("is-dirty", dirty);
+        stateTag.textContent = !item._orig ? "Item baru · belum disimpan" : dirty ? "Belum disimpan" : "✓ Disimpan";
+        stateTag.className = "mom-state" + (dirty ? " is-dirty" : "");
+        save.disabled = !dirty;
+        err.hidden = true;
+        paintCount();
+      }
 
       var tarikh = el("input", "borang-input");
       tarikh.type = "date"; tarikh.id = key + "tarikh"; tarikh.value = item.tarikh;
@@ -299,11 +317,8 @@
       var pic = multi("mom-pic-pick", picOpts, item.pic, "Pilih PIC", markDirty);
       var rem = remPicker(item.reminder, markDirty);
 
-      var del = button("mom-del", "×", function () {
-        state.items.splice(state.items.indexOf(item), 1);
-        markDirty(); drawList();
-      });
-      del.setAttribute("aria-label", "Buang item " + (i + 1));
+      var del = button("mom-del", "×", function () { deleteItem(item, i); });
+      del.setAttribute("aria-label", "Padam item " + (i + 1));
 
       var fDue = field("mom-due", "Tarikh Due", due);
       fDue.appendChild(late);
@@ -321,7 +336,53 @@
       row.appendChild(field("mom-pic", "PIC", pic));
       row.appendChild(fRem);
       row.appendChild(del);
+      foot.appendChild(err);
+      foot.appendChild(stateTag);
+      foot.appendChild(save);
+      row.appendChild(foot);
+      markDirty();
       return row;
+    }
+
+    function saveItem(item, btn, err) {
+      var bad = problem(item);
+      if (bad) { err.hidden = false; err.textContent = bad; return; }
+      btn.disabled = true; btn.textContent = "Menyimpan…";
+      Api.post({ action: "saveMomItem", item: clean(item), old: item._orig ? clean(item._orig) : null })
+        .then(function (d) {
+          var at = state.items.indexOf(item);
+          if (at >= 0) state.items[at] = saved(d.item);
+          state.updated = d.updated;
+          drawList();
+          if (!d.isNew) { toast("Item dikemas kini. Bot hanya akan menghantar reminder.", "ok"); return; }
+          toast("Item disimpan. Menghantar ke Telegram…", "ok");
+          return sendTelegram().then(function (r) {
+            if (r.ok && r.dryRun) toast("Item disimpan. (Ujian: " + (r.preview || []).length + " mesej tidak dihantar.)", "ok");
+            else if (r.ok) toast(r.sent ? "Item disimpan dan dihantar ke Telegram." : "Item disimpan.", "ok");
+            else toast("Item disimpan, tetapi Telegram gagal (" + (r.error || "ralat") + "). Bot akan cuba lagi dalam seminit.", "warn");
+          });
+        })
+        .catch(function (e) {
+          if (e.kod) return fail(e);
+          err.hidden = false; err.textContent = "Belum disimpan: " + (e.message || e);
+          btn.disabled = false; btn.textContent = "Simpan MOM";
+        });
+    }
+
+    function deleteItem(item, i) {
+      if (!item._orig) {   // never saved: just drop the row
+        state.items.splice(state.items.indexOf(item), 1);
+        drawList();
+        return;
+      }
+      if (!window.confirm("Padam item " + (i + 1) + " (" + (item._orig.tindakan || "tanpa tindakan") + ") daripada MOM? Ini tidak boleh dibatalkan.")) return;
+      Api.post({ action: "deleteMomItem", id: item.id, old: clean(item._orig) })
+        .then(function () {
+          state.items.splice(state.items.indexOf(item), 1);
+          drawList();
+          toast("Item dipadam.", "ok");
+        })
+        .catch(function (e) { if (e.kod) return fail(e); toast("Tidak dapat dipadam: " + (e.message || e), "warn"); });
     }
 
     function drawList(focusLast) {
@@ -337,52 +398,12 @@
 
     tools.appendChild(button("lg-add-btn", "+ Tambah item", function () {
       var prev = state.items[state.items.length - 1];
-      state.items.push(copy({ tarikh: prev ? prev.tarikh : today() }));
-      markDirty(); drawList(true);
+      var it = copy({ tarikh: prev ? prev.tarikh : today() });
+      it._orig = null;
+      state.items.push(it);
+      drawList(true);
     }));
     drawList();
-
-    var status = el("p", "borang-error-summary");
-    status.hidden = true;
-    function problem() {
-      var items = clean(state.items);
-      for (var i = 0; i < items.length; i++) {
-        var it = items[i], n = "Item " + (i + 1) + ": ";
-        if (!it.tindakan) return n + "Tindakan perlu diisi.";
-        if (it.masa && !it.due) return n + "isi Tarikh Due untuk Masa Due itu.";
-        if (it.reminder.length && !(it.due && it.masa)) return n + "reminder perlu Tarikh Due dan Masa Due.";
-      }
-      return "";
-    }
-    var save = button("borang-submit lg-btn-sm", "Simpan MOM", function () {
-      if (!state.dirty) { toast("Tiada perubahan untuk disimpan."); return; }
-      var bad = problem();
-      if (bad) { status.hidden = false; status.textContent = bad; return; }
-      status.hidden = true;
-      save.disabled = true; save.textContent = "Menyimpan…";
-      Api.post({ action: "saveMom", items: clean(state.items), old: clean(state.orig) })
-        .then(function (d) {
-          take(d.mom);
-          draw();
-          toast("MOM disimpan. Menghantar ke Telegram…", "ok");
-          return sendTelegram().then(function (r) {
-            if (r.ok && r.dryRun) toast("MOM disimpan. (Ujian: " + (r.preview || []).length + " mesej tidak dihantar.)", "ok");
-            else if (r.ok) toast(r.sent ? "MOM disimpan dan " + r.sent + " mesej dihantar ke Telegram." : "MOM disimpan.", "ok");
-            else toast("MOM disimpan, tetapi Telegram gagal (" + (r.error || "ralat") + "). Bot akan cuba lagi dalam seminit.", "warn");
-            return Api.get({ action: "mom" }).then(function (fresh) { if (!state.dirty) { take(fresh); draw(); } });
-          });
-        })
-        .catch(function (e) {
-          if (e.kod) return fail(e);
-          status.hidden = false;
-          status.textContent = "Belum disimpan: " + (e.message || e);
-          save.disabled = false; save.textContent = "Simpan MOM";
-        });
-    });
-    var actions = el("div", "lg-actions");
-    actions.appendChild(status);
-    actions.appendChild(save);
-    card.appendChild(actions);
     root.appendChild(card);
   }
 

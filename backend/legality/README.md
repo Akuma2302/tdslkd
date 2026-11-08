@@ -38,7 +38,7 @@ Selepas intro, setiap halaman (portal user dan admin) memaparkan skrin **Log mas
 |---|---|---|---|
 | Kod user | `KOD_AKSES` | Portal user `/` | Baca & kemas kini data sekolah |
 | Kod admin | `KOD_ADMIN` | Dashboard `/admin` | Semua, termasuk ringkasan semua cawangan (`summary`) |
-| Kod Tengah | `KOD_TENGAH` | Halaman `/tengah` | MOM Cawangan Tengah sahaja (`mom`, `saveMom`, `momClaim`, `momRelease`). Admin juga boleh. |
+| Kod Tengah | `KOD_TENGAH` | Halaman `/tengah` | MOM Cawangan Tengah sahaja (`mom`, `saveMomItem`, `deleteMomItem`, `momClaim`, `momRelease`). Admin juga boleh. |
 
 ### MOM Tengah (`/tengah`)
 
@@ -46,10 +46,10 @@ Selepas intro, setiap halaman (portal user dan admin) memaparkan skrin **Log mas
 - **Reminder** bebas: nombor + minit (1–60) / jam (1–24) / hari (1–365) / minggu (1–52) / bulan (1–12, = 30 hari) sebelum due, sehingga 10 reminder setiap item. Disimpan dalam sheet sebagai teks, cth. `15 minit sebelum, 1 hari sebelum`.
 - Senarai unit (dan topik Telegram setiap unit), PIC (username Telegram) dan had reminder ada dalam `MOM_UNITS`, `MOM_PICS`, `MOM_REM_UNITS` dalam `Legality.gs`. Tambah PIC baru di `MOM_PICS`, kemudian deploy versi baru.
 - Bot **SU Tengah** (group t.me/c/1790355836):
-  - selepas **Simpan MOM**, fungsi Netlify `mom-hantar` menghantar setiap tindakan baru ke topik unitnya, dan senarai tindakan baru ke topik **MOM Keseluruhan**;
+  - setiap item ada butang **Simpan MOM** sendiri (simpan item itu sahaja). Bila item **baru** disimpan, fungsi Netlify `mom-hantar` menghantarnya sekali ke topik unitnya dan ke topik **MOM Keseluruhan**. Item yang diedit tidak dihantar semula;
   - trigger Apps Script `momReminderTick` (setiap minit) meminta fungsi yang sama menghantar reminder (masa yang dipilih sebelum due) ke topik unit, tag PIC. Ia hanya memanggil Netlify bila ada mesej menunggu, dan menggunakan `KOD_TENGAH` daripada Script Properties.
   - Trigger dipasang sekali: Apps Script → **Triggers** → **Add Trigger** → `momReminderTick` → Time-driven → Minutes timer → Every minute.
-  - Reminder yang masanya sudah lepas semasa item mula disimpan tidak dihantar (maklumat pertama sudah menunjukkan due). Tukar Tarikh/Masa Due → reminder bermula semula. Tukar unit → maklumat dihantar ke topik unit baru.
+  - Reminder yang masanya sudah lepas semasa item mula disimpan tidak dihantar (maklumat pertama sudah menunjukkan due). Tukar Tarikh/Masa Due → reminder bermula semula. Tukar unit → tiada mesej baru; reminder seterusnya pergi ke topik unit baru.
 - Netlify environment variables: `SU_BOT_TENGAH` (token bot), `SU_BOT_CHAT` (pilihan; lalai -1001790355836). Bot perlu ahli group itu dan boleh menulis dalam topik.
 
 - Kod disimpan untuk **sesi browser semasa sahaja**: bila tab atau browser ditutup dan dibuka semula, pengguna perlu log masuk lagi. Butang **Log keluar** membawa terus ke skrin log masuk.

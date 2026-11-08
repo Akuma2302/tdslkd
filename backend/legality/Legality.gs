@@ -101,10 +101,10 @@ function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents);
     var role = checkKod(body.kod);
-    if (body.action === "saveMom") {
+    if (body.action === "saveMomItem" || body.action === "deleteMomItem") {
       if (role !== "tengah" && role !== "admin") throw new Error("KOD_SALAH");
       lock.waitLock(20000);
-      return json(saveMom(body));
+      return json(body.action === "saveMomItem" ? saveMomItem(body) : deleteMomItem(body));
     }
     if (body.action === "momClaim" || body.action === "momRelease") {   // Netlify bot functions (mom-hantar, mom-reminder)
       if (role !== "tengah" && role !== "admin") throw new Error("KOD_SALAH");
@@ -1076,8 +1076,8 @@ function semakBotLegality() {
 
 // ---------- MOM Tengah (/tengah) ----------
 
-// Minutes of meeting for cawangan Tengah, kept in a "MOM" tab of the TENGAH sheet. The /tengah page saves the
-// whole list at once. Telegram (bot "SU Tengah", token SU_BOT_TENGAH in Netlify, never here):
+// Minutes of meeting for cawangan Tengah, kept in a "MOM" tab of the TENGAH sheet. The /tengah page saves one
+// item at a time (saveMomItem / deleteMomItem). Telegram (bot "SU Tengah", token SU_BOT_TENGAH in Netlify, never here):
 //  - right after a save the page calls the Netlify function mom-hantar, which posts each new item to its
 //    unit's topic, plus one list of the new items to "MOM Keseluruhan";
 //  - the Apps Script trigger momReminderTick (every minute) asks the same function to post the reminders.
@@ -1215,50 +1215,73 @@ function momKey(items) {
   }));
 }
 
-/** body: { items: [{ id, tarikh, tindakan, due, masa, unit, pic: [], reminder: [] }], old: [...as loaded] } — replaces the list. */
-function saveMom(body) {
-  var current = readMom();
-  if (momKey(current.items) !== momKey(body.old)) {
-    throw new Error("Ada orang lain telah mengemas kini MOM ini. Muat semula halaman dan cuba lagi.");
-  }
-  var byId = {};
-  current.items.forEach(function (it) { byId[it.id] = it; });
-  var items = (Array.isArray(body.items) ? body.items : []).slice(0, 300).map(function (it) {
-    it = it || {};
-    var unit = momUnit(text(it.unit));
-    return {
-      id: text(it.id), tarikh: momYmd(it.tarikh), tindakan: text(it.tindakan).slice(0, 2000),
-      due: momYmd(it.due), masa: momTime(it.masa), unit: unit ? unit.id : "",
-      pic: momUniq((Array.isArray(it.pic) ? it.pic : []).map(at).filter(function (p) { return /^@\w{3,32}$/.test(p); })).slice(0, 20),
-      reminder: momRemIds(Array.isArray(it.reminder) ? it.reminder : [])
-    };
-  }).filter(function (it) { return it.tindakan || it.due || it.pic.length; });
+// One item as sent by the page, cleaned up.
+function momClean(it) {
+  it = it || {};
+  var unit = momUnit(text(it.unit));
+  return {
+    id: text(it.id), tarikh: momYmd(it.tarikh), tindakan: text(it.tindakan).slice(0, 2000),
+    due: momYmd(it.due), masa: momTime(it.masa), unit: unit ? unit.id : "",
+    pic: momUniq((Array.isArray(it.pic) ? it.pic : []).map(at).filter(function (p) { return /^@\w{3,32}$/.test(p); })).slice(0, 20),
+    reminder: momRemIds(Array.isArray(it.reminder) ? it.reminder : [])
+  };
+}
 
-  items.forEach(function (it, i) {
-    var n = "Item " + (i + 1) + ": ";
-    if (!it.tindakan) throw new Error(n + "Tindakan perlu diisi.");
-    if (it.reminder.length && !(it.due && it.masa)) throw new Error(n + "reminder perlu Tarikh Due dan Masa Due.");
-    var prev = byId[it.id];
-    if (!prev) { it.id = momNewId(); it.sent = []; return; }
-    var sent = prev.sent.slice();
-    if (prev.unit !== it.unit) sent = sent.filter(function (s) { return s !== "info"; });          // new unit: tell its topic
-    if (prev.due !== it.due || prev.masa !== it.masa) sent = sent.filter(function (s) { return !momRem(s); });  // new due: reminders start over
-    it.sent = sent;
-  });
+function momCells(it, bil, sent, now) {
+  var unit = momUnit(it.unit);
+  return [bil, it.id, ymd(it.tarikh), safe(it.tindakan), ymd(it.due), it.masa, unit ? unit.label : "",
+          it.pic.join(", "), it.reminder.map(function (x) { return momRem(x).label; }).join(", "), sent.join(", "), now];
+}
 
+function momFind(sh, id) {
+  var rows = momRows(sh);
+  for (var i = 0; i < rows.length; i++) if (id && text(rows[i][1]) === id) return { row: i + 2, r: rows[i] };
+  return null;
+}
+
+var MOM_CONFLICT = "Ada orang lain telah mengemas kini item MOM ini. Muat semula halaman dan cuba lagi.";
+
+/**
+ * Saves ONE item (the "Simpan MOM" button of that item). body: { item, old: <item as loaded, or null if new> }.
+ * A new item is added at the end and is announced on Telegram once (mom-hantar, called by the page).
+ * An edited item is never announced again: only its reminders go out; changing Tarikh/Masa Due restarts them.
+ */
+function saveMomItem(body) {
+  var it = momClean(body.item);
+  if (!it.tindakan) throw new Error("Tindakan perlu diisi.");
+  if (it.masa && !it.due) throw new Error("Isi Tarikh Due untuk Masa Due itu.");
+  if (it.reminder.length && !(it.due && it.masa)) throw new Error("Reminder perlu Tarikh Due dan Masa Due.");
   var sh = momSheet(true);
-  if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, MOM_COLS).clearContent();
-  if (items.length) {
-    var now = new Date();
-    sh.getRange(2, 6, items.length, 1).setNumberFormat("@");
-    sh.getRange(2, 1, items.length, MOM_COLS).setValues(items.map(function (it, i) {
-      var unit = momUnit(it.unit);
-      return [i + 1, it.id, ymd(it.tarikh), safe(it.tindakan), ymd(it.due), it.masa, unit ? unit.label : "",
-              it.pic.join(", "), it.reminder.map(function (x) { return momRem(x).label; }).join(", "), it.sent.join(", "), now];
-    })).setVerticalAlignment("top");
+  var now = new Date(), found = it.id ? momFind(sh, it.id) : null, row, bil, sent;
+  if (it.id && !found) throw new Error("Item ini telah dipadam oleh orang lain. Muat semula halaman.");
+  if (found) {
+    var prev = momRow(found.r);
+    if (momKey([prev]) !== momKey([momClean(body.old)])) throw new Error(MOM_CONFLICT);
+    sent = prev.sent.slice();
+    if (prev.due !== it.due || prev.masa !== it.masa) sent = sent.filter(function (x) { return !momRem(x); });   // new due: reminders start over
+    row = found.row; bil = found.r[0];
+  } else {
+    it.id = momNewId(); sent = [];
+    row = Math.max(sh.getLastRow(), 1) + 1; bil = row - 1;
   }
+  sh.getRange(row, 6).setNumberFormat("@");
+  sh.getRange(row, 1, 1, MOM_COLS).setValues([momCells(it, bil, sent, now)]).setVerticalAlignment("top");
   SpreadsheetApp.flush();
-  return { ok: true, mom: readMom() };
+  it.sent = sent;
+  return { ok: true, item: it, isNew: !found, updated: now.toISOString() };
+}
+
+/** body: { id, old: <item as loaded> } — removes one item and renumbers Bil. */
+function deleteMomItem(body) {
+  var sh = momSheet(false);
+  var found = sh && momFind(sh, text(body.id));
+  if (!found) return { ok: true };
+  if (momKey([momRow(found.r)]) !== momKey([momClean(body.old)])) throw new Error(MOM_CONFLICT);
+  sh.deleteRow(found.row);
+  var n = sh.getLastRow() - 1;
+  if (n > 0) sh.getRange(2, 1, n, 1).setValues(range_(1, n).map(function (i) { return [i]; }));
+  SpreadsheetApp.flush();
+  return { ok: true };
 }
 
 // ----- Telegram messages for the SU Tengah bot -----
@@ -1332,8 +1355,8 @@ function momClaim(body) {
     var thread = unit ? unit.thread : MOM_THREAD_ALL;
     var isNew = sent.indexOf("all") < 0;
     if (isNew) { fresh.push(it); sent.push("all"); }
-    if (unit && sent.indexOf("info") < 0) {
-      jobs.push({ thread: thread, text: momInfoText(it), refs: [{ id: it.id, key: "info" }] });
+    if (sent.indexOf("info") < 0) {   // announced to the unit's topic once; an item without a unit has nothing to announce there
+      if (unit) jobs.push({ thread: thread, text: momInfoText(it), refs: [{ id: it.id, key: "info" }] });
       sent.push("info");
     }
     var due = momDue(it);
