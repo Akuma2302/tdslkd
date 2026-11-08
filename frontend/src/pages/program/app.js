@@ -208,6 +208,28 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
   let shown = [];
   let active = -1;
 
+  // Speed: lists are kept on this device (shown at once next time) and refreshed in the background;
+  // every cawangan is fetched as soon as the page opens, so a tap on a cawangan rarely has to wait.
+  const STORE = 'tds-schools:';
+  const fetching = {};
+  function stored(code) {
+    try { const v = JSON.parse(localStorage.getItem(STORE + code)); return Array.isArray(v) ? v : null; } catch { return null; }
+  }
+  function fetchSchools(code) {
+    const Api = window.LegalityApi;
+    if (!Api || !Api.configured) return Promise.reject(new Error('API'));
+    if (!fetching[code]) {
+      fetching[code] = Api.get({ action: 'schoolList', cawangan: code })
+        .then((d) => {
+          const list = (d.schools || []).filter(Boolean).sort((x, y) => x.localeCompare(y));
+          schoolCache[code] = list;
+          try { localStorage.setItem(STORE + code, JSON.stringify(list)); } catch {}
+          return list;
+        })
+        .finally(() => { delete fetching[code]; });
+    }
+    return fetching[code];
+  }
   function loadSchools() {
     const cw = cawanganInput.value;
     const code = LEGALITY_CODE[cw];
@@ -217,14 +239,18 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
       sekolahHint.textContent = code ? 'Senarai sekolah tidak tersedia. Taip nama sekolah.' : 'Pilih cawangan dahulu untuk melihat senarai sekolah.';
       return;
     }
-    if (schoolCache[code]) { showHint(cw); return; }
-    sekolahHint.textContent = 'Memuatkan sekolah ' + cw + '…';
-    Api.get({ action: 'schools', cawangan: code })
-      .then((d) => {
-        schoolCache[code] = (d.schools || []).map((x) => x.name).filter(Boolean).sort((x, y) => x.localeCompare(y));
-        if (cawanganInput.value === cw) showHint(cw);
-      })
-      .catch(() => { if (cawanganInput.value === cw) sekolahHint.textContent = 'Senarai sekolah tidak dapat dimuatkan. Taip nama sekolah.'; });
+    if (!schoolCache[code]) { const s = stored(code); if (s) schoolCache[code] = s; }
+    if (schoolCache[code]) showHint(cw);
+    else sekolahHint.textContent = 'Memuatkan sekolah ' + cw + '…';
+    fetchSchools(code)
+      .then(() => { if (cawanganInput.value === cw) showHint(cw); })
+      .catch(() => { if (cawanganInput.value === cw && !schoolCache[code]) sekolahHint.textContent = 'Senarai sekolah tidak dapat dimuatkan. Taip nama sekolah.'; });
+  }
+  function preloadSchools() {
+    const first = LEGALITY_CODE[cawanganInput.value];
+    const rest = Object.values(LEGALITY_CODE).filter((c) => c !== first);
+    loadSchools();
+    rest.reduce((p, code) => p.then(() => fetchSchools(code).catch(() => {})), Promise.resolve());
   }
   function showHint(cw) {
     schools = schoolCache[LEGALITY_CODE[cw]] || [];
@@ -299,7 +325,7 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
     if (Object.values(schoolCache).some((list) => list.includes(sekolahInput.value.trim()))) sekolahInput.value = '';
     loadSchools();
   });
-  if (window.YoshGate) window.YoshGate.ready(loadSchools); else loadSchools();
+  if (window.YoshGate) window.YoshGate.ready(preloadSchools); else preloadSchools();
 
   // ── − / + steppers ────────────────────────────
   // Delegated so rows added later (per-tingkatan counts) work too.
@@ -636,6 +662,13 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
 
   sendBtn.addEventListener('click', async () => {
     if (!pending || sent) return;
+    // The form must still be complete at the moment it is sent.
+    form.querySelectorAll('.error').forEach((el) => el.classList.remove('error'));
+    if (validate().length) {
+      sendStatus.className = 'send-status fail';
+      sendStatus.textContent = '⚠️ Borang belum lengkap. Tutup tetingkap ini dan lengkapkan bahagian yang bertanda merah. Tiada apa-apa dihantar atau direkod.';
+      return;
+    }
     sendBtn.disabled = true;
     sendBtn.textContent = 'Menghantar…';
     sendStatus.className = 'send-status';
@@ -654,11 +687,12 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
     const results = body?.results || [];
     const lines = results.map((r) => `${r.ok ? '✓' : '✕'} ${r.name}${r.ok ? '' : ' — ' + r.error}`);
 
-    const telegram = body?.ok ? (body.dryRun ? 'Ujian (tiada mesej dihantar)' : 'Berjaya')
-      : 'Gagal: ' + ((body?.error && !results.length ? body.error : results.filter((r) => !r.ok).map((r) => r.name + ' — ' + r.error).join('; ')) || 'tiada sambungan');
-    sendBtn.textContent = 'Merekod…';
-    const saveError = await saveToSheet(telegram);
-    lines.push(saveError ? `✕ Database program — ${saveError}` : '✓ Direkod dalam database program');
+    // Only a programme that was complete and actually sent is kept in the database.
+    if (body?.ok) {
+      sendBtn.textContent = 'Merekod…';
+      const saveError = await saveToSheet(body.dryRun ? 'Ujian (tiada mesej dihantar)' : 'Berjaya');
+      lines.push(saveError ? `✕ Database program — ${saveError}` : '✓ Direkod dalam database program');
+    }
 
     if (body?.ok) {
       sent = true;
@@ -676,10 +710,10 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
       sendBtn.textContent = 'Cuba Lagi';
       sendStatus.className = 'send-status fail';
       const fields = (body?.fields || []).map((f) => '• ' + (FIELD_LABEL[f] || f));
-      sendStatus.textContent = '⚠️ ' + (body?.error && !results.length ? body.error : 'Gagal dihantar sepenuhnya.') +
+      sendStatus.textContent = '⚠️ ' + (body?.error && !results.length ? body.error : body ? 'Gagal dihantar sepenuhnya.' : 'Tiada sambungan internet.') +
         (fields.length ? '. Sila semak:\n' + fields.join('\n') : '') +
         (lines.length ? '\n' + lines.join('\n') : '') +
-        '\nAnda boleh Copy template dan hantar secara manual.';
+        '\nProgram ini BELUM direkod dalam database. Betulkan dan tekan Cuba Lagi.';
     }
   });
 

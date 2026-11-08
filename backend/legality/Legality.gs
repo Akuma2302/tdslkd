@@ -68,6 +68,7 @@ function doGet(e) {
     if (p.action === "alumni") return json(readAlumni(p.cawangan));
     if (p.action === "cawangan") return json(listCawangan());
     if (p.action === "schools") return json(listSchools(p.cawangan));
+    if (p.action === "schoolList") return json(schoolList(p.cawangan));
     if (p.action === "school") return json(readSchool(p.cawangan, p.sekolah));
     if (p.action === "reminder") {
       if (role !== "admin") throw new Error("KOD_SALAH");
@@ -147,6 +148,17 @@ function schoolNames(ss) {
   return list.getRange(2, 1, list.getLastRow() - 1, 1).getValues()
     .map(function (r) { return text(r[0]); })
     .filter(function (n) { return n && ss.getSheetByName(n); });
+}
+
+// Names only (for the Program form's school picker): one small read of the "Senarai Sekolah" tab, cached 10 minutes.
+function schoolList(cawangan) {
+  var c = text(cawangan).toUpperCase();
+  var cache = CacheService.getScriptCache();
+  var hit = cache.get("schoolList:" + c);
+  if (hit) return JSON.parse(hit);
+  var out = { cawangan: c, schools: schoolNames(book(c)) };
+  cache.put("schoolList:" + c, JSON.stringify(out), 600);
+  return out;
 }
 
 function listSchools(cawangan) {
@@ -1077,6 +1089,7 @@ function addSchool(cawangan, name) {
   progressRow(ss, n, true);
   CacheService.getScriptCache().remove("summary");
   SpreadsheetApp.flush();
+  CacheService.getScriptCache().remove("schoolList:" + text(cawangan).toUpperCase());
   return { ok: true, sekolah: n };
 }
 
