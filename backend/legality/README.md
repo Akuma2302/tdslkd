@@ -65,7 +65,7 @@ Semakan dibuat oleh Apps Script (tindakan `reminder`, kod admin sahaja). Mesej d
 
 Persediaan (sekali sahaja), dalam **Netlify → tdslkd → Environment variables**:
 - `LEGALITY_BOT_TENGAH`: token bot Legality Tds Tengah (dari @BotFather).
-- `LEGALITY_BOT_CHAT` (pilihan): id group; jika tiada, group **Program Tengah** (`-5212609665`) digunakan. `LEGALITY_BOT_THREAD` (pilihan) untuk satu topik.
+- `LEGALITY_BOT_CHAT` (pilihan): id group; jika tiada, group **Program Tengah** (`-1004404368342`) digunakan. `LEGALITY_BOT_THREAD` (pilihan) untuk satu topik.
 - Selepas menukarnya, buat **Trigger deploy**.
 
 Guna: **Admin → Legality → Bot semakan Legality** → *Semak sekarang* (pratonton) → *Semak sambungan bot* (pastikan bot dalam group, tiada mesej) → *Hantar ke group*.

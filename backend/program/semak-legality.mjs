@@ -16,7 +16,7 @@
 //   LEGALITY_BOT_THREAD   topic id inside that group (optional)
 
 const LEGALITY_API = 'https://script.google.com/macros/s/AKfycbwSbdXQNM_xci-P1L_9ivhKzxOEf_aHhBiTvQLQ6YrpwcqDI730b7LXTEZiiJDQlIvh/exec';
-const DEFAULT_CHAT = '-5212609665'; // "Program Tengah"
+const DEFAULT_CHAT = '-1004404368342'; // "Program Tengah" (supergroup; was -5212609665 before the upgrade)
 
 const json = (status, body) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -28,8 +28,14 @@ async function tg(token, method, payload) {
     body: JSON.stringify(payload),
   });
   const body = await res.json().catch(() => ({}));
-  if (!body.ok) throw new Error(body.description || `HTTP ${res.status}`);
-  return body.result;
+  if (body.ok) return body.result;
+  // A group upgraded to a supergroup gets a new id; follow it once.
+  const newId = body.parameters?.migrate_to_chat_id;
+  if (newId && payload.chat_id && String(newId) !== String(payload.chat_id)) {
+    console.warn(`Chat ${payload.chat_id} moved to ${newId}; update LEGALITY_BOT_CHAT / DEFAULT_CHAT.`);
+    return tg(token, method, { ...payload, chat_id: newId });
+  }
+  throw new Error(body.description || `HTTP ${res.status}`);
 }
 
 // Telegram allows 4096 characters per message; long lists are split between schools.
