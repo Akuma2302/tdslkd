@@ -40,6 +40,10 @@ const EXTRA_TARGETS = {
     { name: 'PIC Virality Tengah', chatId: '-1003950267951', threadId: 7 },      // t.me/c/3950267951/7
     { name: 'Pemikir Tengah', chatId: '-1001790355836', threadId: 27732 },       // t.me/c/1790355836/27732
   ],
+  'Utara': [
+    // "TDS UTARA - Syuro Murobbi Sekolah", topic Legality TDS Utara
+    { name: 'Legality TDS Utara', chatId: '-1002112154110', threadId: 804 },  // t.me/c/2112154110/804
+  ],
   'Indonesia': [
     // "[IDN] TDS" — Program TDS Indonesia. t.me/c/3738721506/1 is the forum's General topic,
     // which takes no message_thread_id.
