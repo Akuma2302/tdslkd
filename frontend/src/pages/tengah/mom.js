@@ -2,7 +2,7 @@
 // Each item: Tarikh MOM · Tindakan · Tarikh Due · Masa Due · Unit · PIC (one or more) · Reminder (one or more).
 // The whole list is saved at once to the "MOM" tab of the TENGAH sheet (backend/legality/Legality.gs: readMom /
 // saveMom). Right after a save the page asks the Netlify function mom-hantar to post the new items to Telegram
-// (bot SU Tengah, each unit's topic); reminders are posted later by the scheduled function mom-reminder.
+// (bot SU Tengah, each unit's topic); reminders are posted later through the same function by the Apps Script trigger momReminderTick.
 (function () {
   "use strict";
 
@@ -34,7 +34,7 @@
   function pad(n) { return ("0" + n).slice(-2); }
   function today() { var d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
   function fmtWhen(iso) {
-    return iso ? new Date(iso).toLocaleString("ms-MY", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+    return iso ? new Date(iso).toLocaleString("ms-MY", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) : "";
   }
   function dueAt(it) {
     if (!it.due) return null;
@@ -268,9 +268,23 @@
       var due = el("input", "borang-input");
       due.type = "date"; due.id = key + "due"; due.value = item.due;
       due.addEventListener("change", function () { item.due = due.value; syncLate(); markDirty(); });
-      var masa = el("input", "borang-input");
-      masa.type = "time"; masa.id = key + "masa"; masa.value = item.masa;
-      masa.addEventListener("change", function () { item.masa = masa.value; syncLate(); markDirty(); });
+      // Masa Due in 24-hour time: two lists (jam 00–23, minit 00–59) instead of the browser's own time
+      // picker, which shows AM/PM on many phones and computers.
+      var masa = el("div", "mom-time");
+      var hh = el("select", "borang-input"), mm = el("select", "borang-input");
+      hh.id = key + "masa"; hh.setAttribute("aria-label", "Jam (24 jam)"); mm.setAttribute("aria-label", "Minit");
+      hh.appendChild(new Option("Jam", "")); mm.appendChild(new Option("Min", ""));
+      for (var h = 0; h < 24; h++) hh.appendChild(new Option(pad(h), pad(h)));
+      for (var mi = 0; mi < 60; mi++) mm.appendChild(new Option(pad(mi), pad(mi)));
+      if (item.masa) { hh.value = item.masa.slice(0, 2); mm.value = item.masa.slice(3, 5); }
+      function syncMasa() {
+        if (hh.value && !mm.value) mm.value = "00";
+        item.masa = hh.value ? hh.value + ":" + mm.value : "";
+        syncLate(); markDirty();
+      }
+      hh.addEventListener("change", syncMasa);
+      mm.addEventListener("change", syncMasa);
+      masa.appendChild(hh); masa.appendChild(el("span", "mom-time-sep", ":")); masa.appendChild(mm);
       syncLate();
 
       var unit = el("select", "borang-input");
@@ -300,7 +314,9 @@
       row.appendChild(field("mom-tarikh", "Tarikh MOM", tarikh));
       row.appendChild(field("mom-tindakan", "Tindakan", t));
       row.appendChild(fDue);
-      row.appendChild(field("mom-masa", "Masa Due", masa));
+      var fMasa = field("mom-masa", "Masa Due (24 jam)", masa);
+      fMasa.querySelector("label").htmlFor = hh.id;
+      row.appendChild(fMasa);
       row.appendChild(field("mom-unit", "Unit", unit));
       row.appendChild(field("mom-pic", "PIC", pic));
       row.appendChild(fRem);

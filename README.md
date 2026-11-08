@@ -52,7 +52,7 @@ tdslkd/
 ├── backend/                     Google Apps Script (tidak dipublish ke Netlify)
 │   ├── legality/                Legality.gs + README (setup, kod akses, sheet cawangan, Program Sekolah)
 │   ├── program/                 fungsi Netlify: hantar.mjs (borang program → Telegram), semak-legality.mjs (bot Legality Tds Tengah),
-│   │                            mom-hantar.mjs + mom-reminder.mjs (bot SU Tengah: MOM selepas simpan + reminder setiap minit)
+│   │                            mom-hantar.mjs (bot SU Tengah: MOM selepas simpan; reminder dipanggil oleh trigger Apps Script setiap minit)
 │   ├── lib/                     kod dikongsi fungsi Netlify (mom-bot.mjs)
 │   └── murabbi/                 Code.gs + README + senarai-murabbi.csv
 ├── dev-server.mjs               pelayan ujian tempatan (halaman + fungsi Telegram)

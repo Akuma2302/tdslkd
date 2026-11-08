@@ -1119,7 +1119,7 @@ html.ym-lock { overflow: hidden; }
 /* One line per item on wide screens: Tarikh MOM · Tindakan · Tarikh Due · Masa Due · Unit · PIC · Reminder */
 .mom-row {
   display: grid; gap: 0.6rem; align-items: start;
-  grid-template-columns: 1.8rem 9.2rem minmax(11rem, 2fr) 9.2rem 8.4rem 9.5rem minmax(9rem, 1.1fr) minmax(8.5rem, 1fr) 34px;
+  grid-template-columns: 1.8rem 9.2rem minmax(11rem, 2fr) 9.2rem 9.4rem 9.5rem minmax(8.5rem, 1.1fr) minmax(8.5rem, 1fr) 34px;
   grid-template-areas: "num tarikh tindakan due masa unit pic rem del";
   padding: 0.8rem; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-2);
 }
@@ -1141,6 +1141,9 @@ html.ym-lock { overflow: hidden; }
 }
 .mom-late { display: inline-block; margin-top: 0.35rem; padding: 0.1rem 0.5rem; border-radius: 999px; background: rgba(217, 58, 58, 0.18); color: #ff8c8c; font-size: 0.7rem; font-weight: 700; }
 .mom-late[hidden] { display: none; }
+.mom-time { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 0.2rem; }
+.mom-time select { padding-left: 0.55rem; padding-right: 1.4rem; background-position: right 0.45rem center; }
+.mom-time-sep { color: var(--muted); font-weight: 700; }
 .mom-sent { display: block; margin-top: 0.35rem; color: #7fd49b; font-size: 0.72rem; line-height: 1.35; }
 .mom-del {
   display: grid; place-items: center; width: 34px; height: 34px; margin-top: 1.6rem; border: 1px solid var(--line-2); border-radius: 50%;

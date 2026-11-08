@@ -47,9 +47,10 @@ Selepas intro, setiap halaman (portal user dan admin) memaparkan skrin **Log mas
 - Senarai unit (dan topik Telegram setiap unit), PIC (username Telegram) dan had reminder ada dalam `MOM_UNITS`, `MOM_PICS`, `MOM_REM_UNITS` dalam `Legality.gs`. Tambah PIC baru di `MOM_PICS`, kemudian deploy versi baru.
 - Bot **SU Tengah** (group t.me/c/1790355836):
   - selepas **Simpan MOM**, fungsi Netlify `mom-hantar` menghantar setiap tindakan baru ke topik unitnya, dan senarai tindakan baru ke topik **MOM Keseluruhan**;
-  - fungsi berjadual `mom-reminder` (setiap minit) menghantar reminder (masa yang dipilih sebelum due) ke topik unit, tag PIC.
+  - trigger Apps Script `momReminderTick` (setiap minit) meminta fungsi yang sama menghantar reminder (masa yang dipilih sebelum due) ke topik unit, tag PIC. Ia hanya memanggil Netlify bila ada mesej menunggu, dan menggunakan `KOD_TENGAH` daripada Script Properties.
+  - Trigger dipasang sekali: Apps Script → **Triggers** → **Add Trigger** → `momReminderTick` → Time-driven → Minutes timer → Every minute.
   - Reminder yang masanya sudah lepas semasa item mula disimpan tidak dihantar (maklumat pertama sudah menunjukkan due). Tukar Tarikh/Masa Due → reminder bermula semula. Tukar unit → maklumat dihantar ke topik unit baru.
-- Netlify environment variables: `SU_BOT_TENGAH` (token bot), `KOD_TENGAH` (kod Tengah, untuk reminder setiap minit), `SU_BOT_CHAT` (pilihan; lalai -1001790355836). Bot perlu ahli group itu dan boleh menulis dalam topik.
+- Netlify environment variables: `SU_BOT_TENGAH` (token bot), `SU_BOT_CHAT` (pilihan; lalai -1001790355836). Bot perlu ahli group itu dan boleh menulis dalam topik.
 
 - Kod disimpan untuk **sesi browser semasa sahaja**: bila tab atau browser ditutup dan dibuka semula, pengguna perlu log masuk lagi. Butang **Log keluar** membawa terus ke skrin log masuk.
 - Tukar kod: Apps Script → **Project Settings → Script properties** → ubah `KOD_AKSES`, `KOD_ADMIN` atau `KOD_TENGAH` (atau jalankan `setKodAkses()` / `setKodAdmin()` untuk kod rawak). Pengguna akan diminta log masuk semula secara automatik.

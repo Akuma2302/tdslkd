@@ -1,4 +1,5 @@
-// Shared by the Netlify functions mom-hantar (right after "Simpan MOM") and mom-reminder (every minute).
+// Used by the Netlify function mom-hantar, called right after "Simpan MOM" and every minute by the Apps Script
+// trigger momReminderTick (only when something is waiting).
 // Bot "SU Tengah" posts the MOM of cawangan Tengah to the SU Tengah group (t.me/c/1790355836/...):
 //   - each new item to its unit's topic, plus one list of new items to "MOM Keseluruhan";
 //   - the reminders each item asked for (any number of minit / jam / hari / minggu / bulan before due).
@@ -8,7 +9,6 @@
 //
 // Environment variables (Netlify → Site configuration → Environment variables):
 //   SU_BOT_TENGAH   token of the SU Tengah bot                         (required)
-//   KOD_TENGAH      Tengah access code, used by the every-minute run    (required for reminders)
 //   SU_BOT_CHAT     group chat id (optional; default: SU Tengah group)
 
 const LEGALITY_API = 'https://script.google.com/macros/s/AKfycbwSbdXQNM_xci-P1L_9ivhKzxOEf_aHhBiTvQLQ6YrpwcqDI730b7LXTEZiiJDQlIvh/exec';

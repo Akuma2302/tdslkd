@@ -1080,7 +1080,7 @@ function semakBotLegality() {
 // whole list at once. Telegram (bot "SU Tengah", token SU_BOT_TENGAH in Netlify, never here):
 //  - right after a save the page calls the Netlify function mom-hantar, which posts each new item to its
 //    unit's topic, plus one list of the new items to "MOM Keseluruhan";
-//  - the scheduled Netlify function mom-reminder (every minute) posts the reminders each item asked for.
+//  - the Apps Script trigger momReminderTick (every minute) asks the same function to post the reminders.
 // Both take their messages from momClaim(), which marks them as sent in the "Telegram" column so nothing is
 // posted twice; momRelease() puts back the ones Telegram refused, so they are tried again a minute later.
 var MOM_TAB = "MOM";
@@ -1271,13 +1271,7 @@ function momFmtDate(s) {
   var d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
   return MOM_HARI[d.getUTCDay()] + ", " + +m[3] + " " + MOM_BULAN[+m[2] - 1] + " " + m[1];
 }
-function momFmtTime(s) {
-  var m = text(s).match(/^(\d{2}):(\d{2})$/);
-  if (!m) return "";
-  var h = +m[1];
-  var part = h < 12 ? "pagi" : h < 14 ? "tengah hari" : h < 19 ? "petang" : "malam";
-  return (h % 12 || 12) + ":" + m[2] + " " + part;
-}
+function momFmtTime(s) { return momTime(s); }   // 24-hour, e.g. "21:20"
 function momFmtDue(it) {
   if (!it.due) return "Tiada";
   return momFmtDate(it.due) + (it.masa ? ", " + momFmtTime(it.masa) : "");
@@ -1299,7 +1293,6 @@ function momInfoText(it) {
   var lines = ["📝 MOM Tengah · " + (unit ? unit.label : "Tiada unit")];
   if (it.tarikh) lines.push("🗓 Mesyuarat: " + momFmtDate(it.tarikh));
   lines.push("", "📌 Tindakan: " + it.tindakan, "📅 Due: " + momFmtDue(it), "👤 PIC: " + momPics(it));
-  if (it.reminder.length) lines.push("⏰ Reminder: " + it.reminder.map(function (x) { return momRem(x).label; }).join(", "));
   return lines.join("\n");
 }
 
@@ -1360,6 +1353,20 @@ function momClaim(body) {
     SpreadsheetApp.flush();
   }
   return { jobs: jobs };
+}
+
+// Time-driven trigger, every minute (Apps Script → Triggers → momReminderTick → Time-driven → Minutes timer →
+// Every minute). Asks the Netlify bot (which holds the SU_BOT_TENGAH token) to post whatever is due; Netlify is
+// called only when something is waiting, so most runs end after one quick read of the MOM tab.
+var MOM_BOT_URL = "https://tdslkd.netlify.app/.netlify/functions/mom-hantar";
+function momReminderTick() {
+  if (!momClaim({ peek: true }).jobs.length) return;
+  var kod = PropertiesService.getScriptProperties().getProperty("KOD_TENGAH");
+  if (!kod) { Logger.log("KOD_TENGAH belum diisi dalam Script Properties."); return; }
+  var res = UrlFetchApp.fetch(MOM_BOT_URL, {
+    method: "post", contentType: "application/json", payload: JSON.stringify({ kod: kod }), muteHttpExceptions: true
+  });
+  Logger.log(res.getResponseCode() + " " + res.getContentText());
 }
 
 /** body: { refs: [{ id, key }] } — messages Telegram refused; they go back in the queue. */
