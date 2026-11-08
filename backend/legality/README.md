@@ -53,6 +53,25 @@ Selepas intro, setiap halaman (portal user dan admin) memaparkan skrin **Log mas
 
 Tab **Alumni** dalam portal membaca dan menulis sheet *Alumni Back to School* (`ALUMNI_SHEET_ID` dalam `Legality.gs`), satu tab bagi setiap cawangan. Baris tajuk dikenal pasti dengan **NAMA** di lajur C; lajur B (Bil) dinombor secara automatik bila alumni baru ditambah. Pilihan dropdown (Jenis Sekolah, Cawangan, Negeri, Progress, Reporting) dibaca terus dari data validation dalam sheet.
 
+## PIC Legality
+
+Kad **PIC Legality** di atas Progress dalam halaman sekolah menyimpan nama dan username Telegram PIC Legality sekolah itu, dalam tab **PIC Legality** sheet cawangan (Sekolah | Nama PIC | Username Telegram | Dikemas kini). Satu sekolah boleh ada lebih daripada seorang PIC; simpanan menggantikan senarai PIC sekolah itu.
+
+## Bot semakan Legality (Legality Tds Tengah)
+
+Bot ini menyemak setiap sekolah **TENGAH**. Jika **Planning Legality** atau **Peluang Lain Tahun Depan** masih kosong, ia menghantar satu mesej ke group dan tag PIC Legality setiap sekolah (dari tab *PIC Legality*). Planning dikira terisi bila ada tulisan (bukan teks contoh "*Tulis …") atau gambar; Peluang dikira terisi bila lajur **Peluang** ada isi.
+
+Semakan dibuat oleh Apps Script (tindakan `reminder`, kod admin sahaja). Mesej dihantar oleh fungsi Netlify `backend/program/semak-legality.mjs`, yang memegang token bot.
+
+Persediaan (sekali sahaja), dalam **Netlify → tdslkd → Environment variables**:
+- `LEGALITY_BOT_TENGAH`: token bot Legality Tds Tengah (dari @BotFather).
+- `LEGALITY_BOT_CHAT` (pilihan): id group; jika tiada, group **Program Tengah** (`-5212609665`) digunakan. `LEGALITY_BOT_THREAD` (pilihan) untuk satu topik.
+- Selepas menukarnya, buat **Trigger deploy**.
+
+Guna: **Admin → Legality → Bot semakan Legality** → *Semak sekarang* (pratonton) → *Semak sambungan bot* (pastikan bot dalam group, tiada mesej) → *Hantar ke group*.
+
+Bahagian lain boleh ditambah dalam `BOT_CHECKS` dalam `Legality.gs`.
+
 ## Gambar Planning
 
 Bahagian **Planning** boleh muat naik gambar. Fail disimpan dalam Google Drive (folder *Yosh Legality – Gambar* / cawangan / sekolah, id folder dalam Script Property `GAMBAR_FOLDER`) dan dikongsi "sesiapa yang ada pautan boleh lihat" supaya portal dapat memaparkannya. Senarai gambar direkod dalam tab **Gambar** sheet cawangan. Gambar yang dibuang masuk ke Bin Drive (boleh dipulihkan).

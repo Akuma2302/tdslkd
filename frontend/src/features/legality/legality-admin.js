@@ -247,6 +247,7 @@
     grid.appendChild(mw);
 
     grid.appendChild(programWidget(branch));
+    grid.appendChild(botWidget());
     body.appendChild(grid);
   }
 
@@ -258,6 +259,91 @@
   function today() {
     var d = new Date();
     return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+  }
+
+  // Bot "Legality Tds Tengah": which TENGAH schools still have empty sections, and the message the bot sends.
+  var bot = { data: null, loading: false, error: "", sending: false, note: "" };
+  function botWidget() {
+    var w = widget("w-4 lgd-bot", "Bot semakan Legality · TENGAH", "Planning & Peluang Lain Tahun Depan");
+    w.appendChild(el("p", "lgd-bot-lead",
+      "Bot menyemak setiap sekolah TENGAH. Jika bahagian di atas masih kosong, bot menghantar mesej ke group dan tag PIC Legality sekolah itu."));
+    var tools = el("div", "lgd-bot-tools");
+    var check = el("button", "link-btn", bot.data ? "Semak semula" : "Semak sekarang");
+    check.type = "button";
+    check.disabled = bot.loading;
+    check.addEventListener("click", function () {
+      bot.loading = true; bot.error = ""; bot.note = ""; changed();
+      Api.get({ action: "reminder", cawangan: "TENGAH" })
+        .then(function (d) { bot.data = d; })
+        .catch(function (e) { bot.error = e.message || String(e); })
+        .then(function () { bot.loading = false; changed(); });
+    });
+    tools.appendChild(check);
+    w.appendChild(tools);
+
+    if (bot.loading) { w.appendChild(el("p", "empty-text", "Menyemak semua sekolah TENGAH…")); return w; }
+    if (bot.error) { w.appendChild(el("p", "report-warning", "Tidak dapat menyemak: " + bot.error)); return w; }
+    if (!bot.data) return w;
+
+    var d = bot.data;
+    if (!d.gaps.length) { w.appendChild(el("p", "empty-text", "Semua sekolah TENGAH sudah lengkap. Bot tidak akan hantar mesej.")); return w; }
+
+    var list = el("div", "lgd-bot-list");
+    d.gaps.forEach(function (g) {
+      var row = el("div", "lgd-bot-row");
+      var who = g.pics.filter(function (p) { return p.username; }).map(function (p) { return "@" + p.username; }).join(" ");
+      var name = el("strong", null, g.sekolah);
+      row.appendChild(name);
+      row.appendChild(el("span", "lgd-bot-pic" + (who ? "" : " is-none"), who || "PIC belum ditetapkan"));
+      var miss = el("span", "lgd-bot-miss");
+      g.missing.forEach(function (m) { miss.appendChild(el("span", "lgd-tg is-fail", m)); });
+      row.appendChild(miss);
+      list.appendChild(row);
+    });
+    w.appendChild(list);
+
+    var det = el("details", "lgd-bot-preview");
+    det.appendChild(el("summary", null, "Pratonton mesej bot"));
+    det.appendChild(el("pre", null, d.text));
+    w.appendChild(det);
+
+    // Sending goes through the Netlify function (backend/program/semak-legality.mjs), which holds the
+    // bot token (LEGALITY_BOT_TENGAH) and posts to the Program Tengah group.
+    function botCall(mode) {
+      return fetch("/.netlify/functions/semak-legality", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kod: Api.getKod(), cawangan: "TENGAH", mode: mode })
+      }).then(function (r) {
+        return r.json().catch(function () { return { ok: false, error: "HTTP " + r.status }; });
+      }).then(function (r) { if (!r.ok) throw new Error(r.error || "Gagal"); return r; });
+    }
+    var test = el("button", "link-btn", "Semak sambungan bot");
+    test.type = "button";
+    test.disabled = bot.sending;
+    test.addEventListener("click", function () {
+      bot.sending = true; bot.note = "Menyemak bot…"; changed();
+      botCall("check")
+        .then(function (r) { bot.note = "✓ " + r.bot + " dalam group \"" + r.group + "\" (" + r.status + "). Sedia untuk hantar."; })
+        .catch(function (e) { bot.note = "✕ " + (e.message || e); })
+        .then(function () { bot.sending = false; changed(); });
+    });
+    var send = el("button", "borang-submit lg-btn-sm", bot.sending ? "Sila tunggu…" : "Hantar ke group");
+    send.type = "button";
+    send.disabled = bot.sending;
+    send.addEventListener("click", function () {
+      if (!confirm("Hantar mesej ini ke group Program Tengah sekarang? Ahli group akan nampak dan PIC akan di-tag.")) return;
+      bot.sending = true; bot.note = ""; changed();
+      botCall("send")
+        .then(function (r) { bot.note = r.sent ? "✓ Mesej dihantar (" + r.schools + " sekolah)." : (r.reason || "Tiada mesej dihantar."); })
+        .catch(function (e) { bot.note = "✕ Gagal: " + (e.message || e); })
+        .then(function () { bot.sending = false; changed(); });
+    });
+    var act = el("div", "lgd-bot-actions");
+    act.appendChild(send);
+    act.appendChild(test);
+    if (bot.note) act.appendChild(el("span", "lgd-bot-note", bot.note));
+    w.appendChild(act);
+    return w;
   }
 
   // "Program Sekolah" tracker: every programme the cawangan sent through the Program page.

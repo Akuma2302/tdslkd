@@ -277,7 +277,7 @@
       root.textContent = "";
       var nav = el("nav", "lg-sectnav");
       nav.setAttribute("aria-label", "Bahagian");
-      [{ key: "progress", short: "Progress" }].concat(SECTION_INFO).forEach(function (s) {
+      [{ key: "pic", short: "PIC" }, { key: "progress", short: "Progress" }].concat(SECTION_INFO).forEach(function (s) {
         var a = el("a", "lg-chip", s.short);
         a.href = "#sec-" + s.key;
         a.addEventListener("click", function (e) {
@@ -287,6 +287,7 @@
         nav.appendChild(a);
       });
       root.appendChild(nav);
+      root.appendChild(picCard(d.pic || []));
       if (d.progress) root.appendChild(progressCard(d.progress));
       SECTION_INFO.forEach(function (s) { root.appendChild(sectionCard(s)); });
     }).catch(fail);
@@ -375,6 +376,98 @@
   }
 
   // Progress Legality: six milestones, each simply done or not done.
+  // PIC Legality of the school: name + Telegram username, saved to the "PIC Legality" tab.
+  function picCard(saved) {
+    var card = el("section", "borang-card lg-section");
+    card.id = "sec-pic";
+    var head = el("div", "lg-section-head");
+    var titleWrap = el("div", "lg-section-title");
+    titleWrap.appendChild(el("h2", "borang-section", "PIC Legality"));
+    var badge = el("span", "lg-unsaved", "Belum disimpan");
+    badge.hidden = true;
+    titleWrap.appendChild(badge);
+    head.appendChild(titleWrap);
+    var tools = el("div", "lg-section-tools");
+    head.appendChild(tools);
+    card.appendChild(head);
+    card.appendChild(el("p", "lg-lead", "PIC Legality yang menguruskan sekolah ini."));
+
+    var orig = JSON.stringify(saved);
+    var rows = saved.map(function (p) { return { nama: p.nama, username: p.username }; });
+    var list = el("div", "lg-pic-list");
+    card.appendChild(list);
+
+    function current() {
+      return rows.map(function (r) { return { nama: r.nama.trim(), username: r.username.trim().replace(/^@+/, "") }; })
+        .filter(function (r) { return r.nama || r.username; });
+    }
+    function markDirty() {
+      var d = JSON.stringify(current()) !== orig;
+      state.dirty.pic = d;
+      badge.hidden = !d;
+    }
+    function draw(focusLast) {
+      list.textContent = "";
+      if (!rows.length) list.appendChild(el("p", "lg-empty", "Belum ada PIC Legality untuk sekolah ini."));
+      rows.forEach(function (r, i) {
+        var row = el("div", "lg-pic-row");
+        var nama = el("input", "borang-input");
+        nama.placeholder = "Nama PIC"; nama.value = r.nama;
+        nama.setAttribute("aria-label", "Nama PIC " + (i + 1));
+        nama.addEventListener("input", function () { r.nama = nama.value; markDirty(); });
+        var at = el("div", "lg-pic-at");
+        at.appendChild(el("span", null, "@"));
+        var user = el("input", "borang-input");
+        user.placeholder = "username Telegram"; user.value = r.username;
+        user.autocapitalize = "off"; user.spellcheck = false;
+        user.setAttribute("aria-label", "Username Telegram PIC " + (i + 1));
+        user.addEventListener("input", function () {
+          user.value = user.value.replace(/^@+/, "").replace(/\s+/g, "");
+          r.username = user.value; markDirty(); syncLink();
+        });
+        at.appendChild(user);
+        var tg = el("a", "lg-pic-tg", "Telegram ↗");
+        tg.target = "_blank"; tg.rel = "noopener";
+        function syncLink() { tg.hidden = !/^[A-Za-z0-9_]{3,}$/.test(r.username); tg.href = "https://t.me/" + r.username; }
+        syncLink();
+        var del = button("lg-pic-del", "×", function () { rows.splice(i, 1); markDirty(); draw(); });
+        del.setAttribute("aria-label", "Buang PIC " + (r.nama || i + 1));
+        row.appendChild(nama); row.appendChild(at); row.appendChild(tg); row.appendChild(del);
+        list.appendChild(row);
+        if (focusLast && i === rows.length - 1) setTimeout(function () { nama.focus(); });
+      });
+    }
+    tools.appendChild(button("lg-add-btn", "+ Tambah PIC", function () {
+      rows.push({ nama: "", username: "" }); draw(true);
+    }));
+    draw();
+
+    var status = el("p", "borang-error-summary");
+    status.hidden = true;
+    var save = button("borang-submit lg-btn-sm", "Simpan PIC", function () {
+      if (!state.dirty.pic) { toast("Tiada perubahan untuk disimpan."); return; }
+      var bad = current().filter(function (r) { return r.username && !/^[A-Za-z0-9_]{3,40}$/.test(r.username); })[0];
+      if (bad) { status.hidden = false; status.textContent = "Username Telegram tidak sah: @" + bad.username; return; }
+      status.hidden = true;
+      save.disabled = true; save.textContent = "Menyimpan…";
+      post({ action: "savePic", cawangan: state.cawangan, sekolah: state.sekolah, pics: current() })
+        .then(function (d) {
+          orig = JSON.stringify(d.pic);
+          rows = d.pic.map(function (p) { return { nama: p.nama, username: p.username }; });
+          state.dirty.pic = false; badge.hidden = true;
+          draw();
+          toast("PIC Legality disimpan.", "ok");
+        })
+        .catch(function (e) { status.hidden = false; status.textContent = "Belum disimpan: " + (e.message || e); })
+        .then(function () { save.disabled = false; save.textContent = "Simpan PIC"; });
+    });
+    var actions = el("div", "lg-actions");
+    actions.appendChild(status);
+    actions.appendChild(save);
+    card.appendChild(actions);
+    return card;
+  }
+
   function progressCard(p) {
     var card = el("section", "borang-card lg-section");
     card.id = "sec-progress";

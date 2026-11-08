@@ -69,6 +69,10 @@ function doGet(e) {
     if (p.action === "cawangan") return json(listCawangan());
     if (p.action === "schools") return json(listSchools(p.cawangan));
     if (p.action === "school") return json(readSchool(p.cawangan, p.sekolah));
+    if (p.action === "reminder") {
+      if (role !== "admin") throw new Error("KOD_SALAH");
+      return json(legalityReminder(p.cawangan));
+    }
     if (p.action === "programs") {
       if (role !== "admin") throw new Error("KOD_SALAH");
       return json(listPrograms());
@@ -95,6 +99,11 @@ function doPost(e) {
     if (body.action === "saveAlumni") return json(saveAlumni(body));
     if (body.action === "uploadImage") return json(uploadImage(body));
     if (body.action === "saveProgram") return json(saveProgram(body));
+    if (body.action === "savePic") return json(savePic(body));
+    if (body.action === "sendReminder") {
+      if (checkKod(body.kod) !== "admin") throw new Error("KOD_SALAH");
+      return json(sendLegalityReminder(body));
+    }
     if (body.action === "deleteImage") return json(deleteImage(body));
     return json({ error: "Tindakan tidak dikenali: " + body.action });
   } catch (err) {
@@ -283,6 +292,7 @@ function readSchool(cawangan, sekolah) {
   };
   data.progress = { items: PROGRESS_ITEMS, values: readProgress(ss, sh.getName()) };
   data.images = listImages(ss, sh.getName());
+  data.pic = readPic(ss, sh.getName());
   return data;
 }
 
@@ -753,6 +763,188 @@ function listPrograms() {
   }
   out.sort(function (a, b) { return a.dihantar < b.dihantar ? 1 : a.dihantar > b.dihantar ? -1 : 0; });
   return { programs: out, sheetUrl: sh.getParent().getUrl(), generated: new Date().toISOString() };
+}
+
+// ---------- PIC Legality ----------
+
+// The Legality PIC(s) of each school, in a "PIC Legality" tab of the cawangan sheet:
+// Sekolah | Nama PIC | Username Telegram | Dikemas kini. A school can have more than one PIC.
+var PIC_TAB = "PIC Legality";
+
+function picSheet(ss, create) {
+  var sh = ss.getSheetByName(PIC_TAB);
+  if (sh || !create) return sh;
+  sh = ss.insertSheet(PIC_TAB);
+  var head = ["Sekolah", "Nama PIC", "Username Telegram", "Dikemas kini"];
+  sh.getRange(1, 1, 1, head.length).setValues([head]).setFontWeight("bold").setBackground("#1f1f1f").setFontColor("#ffc300");
+  sh.setFrozenRows(1);
+  sh.setColumnWidths(1, 3, 200);
+  sh.setColumnWidth(4, 150);
+  sh.getRange("D:D").setNumberFormat("d/m/yyyy h:mm");
+  return sh;
+}
+
+function readPic(ss, school) {
+  var sh = picSheet(ss, false);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues()
+    .filter(function (r) { return text(r[0]) === school && (text(r[1]) || text(r[2])); })
+    .map(function (r) { return { nama: text(r[1]), username: text(r[2]).replace(/^@+/, "") }; });
+}
+
+/** body: { cawangan, sekolah, pics: [{ nama, username }] } — replaces the school's PIC list. */
+function savePic(body) {
+  var ss = book(body.cawangan);
+  var school = text(body.sekolah);
+  if (schoolNames(ss).indexOf(school) < 0) throw new Error("Sekolah tidak dijumpai: " + body.sekolah);
+  var pics = (Array.isArray(body.pics) ? body.pics : []).slice(0, 10).map(function (p) {
+    return { nama: text(p && p.nama).slice(0, 100), username: text(p && p.username).replace(/^@+/, "").replace(/\s+/g, "").slice(0, 40) };
+  }).filter(function (p) { return p.nama || p.username; });
+  pics.forEach(function (p) {
+    if (p.username && !/^[A-Za-z0-9_]{3,40}$/.test(p.username)) throw new Error("Username Telegram tidak sah: @" + p.username);
+  });
+  var sh = picSheet(ss, true);
+  if (sh.getLastRow() > 1) {
+    var names = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues();
+    for (var i = names.length - 1; i >= 0; i--) if (text(names[i][0]) === school) sh.deleteRow(i + 2);
+  }
+  var now = new Date();
+  if (pics.length) {
+    sh.getRange(sh.getLastRow() + 1, 1, pics.length, 4).setValues(pics.map(function (p) {
+      return [school, safe(p.nama), p.username ? "@" + p.username : "", now];
+    }));
+  }
+  SpreadsheetApp.flush();
+  return { ok: true, pic: readPic(ss, school) };
+}
+
+// ---------- Bot semakan Legality (Legality Tds Tengah) ----------
+
+// Checks each school of a cawangan for sections still empty in the Checklist Legality sheet and posts one
+// message to the TDS group, tagging each school's PIC Legality (from the "PIC Legality" tab).
+// For now it checks Planning Legality and Peluang Lain Tahun Depan; add keys to BOT_CHECKS for more.
+//
+// Script Properties (Project Settings → Script properties):
+//   LEGALITY_BOT_TENGAH   token of the "Legality Tds Tengah" bot (from @BotFather)
+//   LEGALITY_BOT_CHAT    chat id of the group, e.g. -1001234567890   (t.me/c/1234567890/… → -1001234567890)
+//   LEGALITY_BOT_THREAD  optional topic id inside that group           (t.me/c/1234567890/25 → 25)
+var BOT_CAWANGAN = "TENGAH";
+var BOT_CHECKS = [
+  { key: "planning", label: "Planning Legality" },
+  { key: "peluang", label: "Peluang Lain Tahun Depan" }
+];
+var PORTAL_URL = "https://tdslkd.netlify.app/legality/database";
+
+// "*Tulis Timeline disini" and similar template hints do not count as filled in.
+function isPlaceholder(v) { return /^\*?\s*(tulis|isi)\b/i.test(text(v)); }
+function filledText(v) { return text(v) !== "" && v !== false && !isPlaceholder(v); }
+
+function sectionFilled(sh, key, m, ss, school) {
+  var rows = readSection(sh, key, m).rows;
+  if (key === "planning") {
+    var written = rows.some(function (row) { return !row.lock[1] && filledText(row.v[1]); });
+    return written || listImages(ss, school).some(function (im) { return im.section === "planning"; });
+  }
+  // Peluang: the "Peluang" column itself must be written. Permanfaatan alone often only holds the template
+  // example ("- Singgah Kopi, Printago, Wakaf Quran"), so it does not count.
+  return rows.some(function (row) { return filledText(row.v[0]); });
+}
+
+/** What each school still has to fill in: [{ sekolah, pics: [{nama, username}], missing: [labels] }] */
+function legalityGaps(cawangan) {
+  var ss = book(cawangan);
+  return schoolNames(ss).map(function (school) {
+    var sh = ss.getSheetByName(school);
+    var m = markers(sh);
+    var missing = BOT_CHECKS.filter(function (c) { return !sectionFilled(sh, c.key, m, ss, school); })
+      .map(function (c) { return c.label; });
+    return { sekolah: school, pics: readPic(ss, school), missing: missing };
+  }).filter(function (s) { return s.missing.length; });
+}
+
+function gapsMessage(cawangan, gaps) {
+  var c = text(cawangan).toUpperCase();
+  if (!gaps.length) return "";
+  var lines = [
+    "📋 SEMAKAN DATABASE LEGALITY · CAWANGAN " + c,
+    "",
+    "Bahagian berikut masih kosong. Mohon PIC Legality kemas kini 🙏",
+    ""
+  ];
+  gaps.forEach(function (g) {
+    var who = g.pics.filter(function (p) { return p.username; }).map(function (p) { return "@" + p.username; });
+    lines.push("🏫 " + g.sekolah + " — " + (who.length ? who.join(" ") : "(PIC belum ditetapkan)"));
+    g.missing.forEach(function (label) { lines.push("     ✕ " + label); });
+    lines.push("");
+  });
+  lines.push("Kemas kini di: " + PORTAL_URL + "#/" + encodeURIComponent(c));
+  return lines.join("\n");
+}
+
+function botConfig() {
+  var p = PropertiesService.getScriptProperties();
+  return { token: p.getProperty("LEGALITY_BOT_TENGAH"), chat: p.getProperty("LEGALITY_BOT_CHAT"), thread: p.getProperty("LEGALITY_BOT_THREAD") };
+}
+
+// Telegram allows 4096 characters per message; long lists are split between schools.
+function splitMessage(msg) {
+  var parts = [], cur = "";
+  msg.split("\n\n").forEach(function (block) {
+    var next = cur ? cur + "\n\n" + block : block;
+    if (next.length > 3800 && cur) { parts.push(cur); cur = block; } else cur = next;
+  });
+  if (cur) parts.push(cur);
+  return parts;
+}
+
+function sendBotMessage(textMsg) {
+  var cfg = botConfig();
+  if (!cfg.token || !cfg.chat) throw new Error("Bot belum disediakan: isi LEGALITY_BOT_TENGAH dan LEGALITY_BOT_CHAT dalam Script Properties.");
+  splitMessage(textMsg).forEach(function (part) {
+    var payload = { chat_id: cfg.chat, text: part, link_preview_options: { is_disabled: true } };
+    if (cfg.thread) payload.message_thread_id = Number(cfg.thread);
+    var res = UrlFetchApp.fetch("https://api.telegram.org/bot" + cfg.token + "/sendMessage", {
+      method: "post", contentType: "application/json", payload: JSON.stringify(payload), muteHttpExceptions: true
+    });
+    var body = JSON.parse(res.getContentText() || "{}");
+    if (!body.ok) throw new Error("Telegram: " + (body.description || res.getResponseCode()));
+  });
+}
+
+/** Admin preview (no message sent): { cawangan, gaps, text, ready } */
+function legalityReminder(cawangan) {
+  var c = text(cawangan || BOT_CAWANGAN).toUpperCase();
+  var gaps = legalityGaps(c);
+  var cfg = botConfig();
+  return { cawangan: c, checks: BOT_CHECKS.map(function (x) { return x.label; }), gaps: gaps,
+           text: gapsMessage(c, gaps), ready: !!(cfg.token && cfg.chat) };
+}
+
+/** Admin: send the reminder now. */
+function sendLegalityReminder(body) {
+  var r = legalityReminder(body.cawangan);
+  if (!r.text) return { ok: true, sent: false, reason: "Semua sekolah sudah lengkap." };
+  sendBotMessage(r.text);
+  return { ok: true, sent: true, schools: r.gaps.length };
+}
+
+/** For a time-driven trigger (Triggers → Add trigger → semakLegalityTengah). Sends only when something is empty. */
+function semakLegalityTengah() {
+  var r = legalityReminder(BOT_CAWANGAN);
+  if (r.text) sendBotMessage(r.text);
+  Logger.log(r.text || "Semua sekolah " + BOT_CAWANGAN + " sudah lengkap.");
+}
+
+/** Run once from the editor after setting the token: checks the bot can reach the group (sends nothing). */
+function semakBotLegality() {
+  var cfg = botConfig();
+  if (!cfg.token) throw new Error("LEGALITY_BOT_TENGAH belum diisi dalam Script Properties.");
+  var me = JSON.parse(UrlFetchApp.fetch("https://api.telegram.org/bot" + cfg.token + "/getMe", { muteHttpExceptions: true }).getContentText());
+  Logger.log("Bot: " + (me.ok ? "@" + me.result.username : me.description));
+  if (cfg.chat) {
+    var chat = JSON.parse(UrlFetchApp.fetch("https://api.telegram.org/bot" + cfg.token + "/getChat?chat_id=" + encodeURIComponent(cfg.chat), { muteHttpExceptions: true }).getContentText());
+    Logger.log("Group: " + (chat.ok ? chat.result.title : chat.description));
+  }
 }
 
 // ---------- Saving ----------

@@ -49,7 +49,7 @@ tdslkd/
 │       └── data/                kandungan statik (units.js, murabbi-reports.js)
 ├── backend/                     Google Apps Script (tidak dipublish ke Netlify)
 │   ├── legality/                Legality.gs + README (setup, kod akses, sheet cawangan, Program Sekolah)
-│   ├── program/                 hantar.mjs: fungsi Netlify yang hantar borang program ke group Telegram
+│   ├── program/                 fungsi Netlify: hantar.mjs (borang program → Telegram), semak-legality.mjs (bot Legality Tds Tengah)
 │   └── murabbi/                 Code.gs + README + senarai-murabbi.csv
 ├── dev-server.mjs               pelayan ujian tempatan (halaman + fungsi Telegram)
 ├── tools/                       skrip pembantu (import_murabbi.py)
