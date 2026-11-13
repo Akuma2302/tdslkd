@@ -1405,3 +1405,85 @@ html.ym-lock { overflow: hidden; }
   .lg-ov-num { font-size: 1.02rem; }
   .lg-ov-label, .lg-ov-small { font-size: 0.68rem; }
 }
+
+/* ---------- School page phase 2: floating save bar, autosave note, CRM tools ---------- */
+.lg-savebar {
+  position: fixed; left: 50%; bottom: 1rem; z-index: 60; display: flex; align-items: center; gap: 0.8rem;
+  width: min(720px, calc(100% - 24px)); padding: 0.7rem 0.8rem 0.7rem 1.1rem; border: 1px solid rgba(255, 195, 0, 0.45);
+  border-radius: 16px; background: rgba(22, 22, 22, 0.96); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+  transform: translate(-50%, 140%); opacity: 0; pointer-events: none; transition: transform 0.25s ease, opacity 0.25s ease;
+}
+.lg-savebar.is-on { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
+.lg-savebar-text { flex: 1; min-width: 0; font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lg-savebar-btns { display: flex; gap: 0.45rem; flex: none; }
+.lg-savebar-undo, .lg-savebar-save { padding: 0.55rem 1rem; border-radius: 999px; font-size: 0.82rem; font-weight: 700; cursor: pointer; }
+.lg-savebar-undo { border: 1px solid var(--line-2); background: transparent; color: var(--muted); }
+.lg-savebar-undo:hover { color: var(--text); }
+.lg-savebar-save { border: 0; background: var(--accent); color: #111; }
+body.has-savebar main { padding-bottom: 6rem; }
+@media (prefers-reduced-motion: reduce) { .lg-savebar { transition: none; } }
+@media (max-width: 480px) {
+  .lg-savebar { flex-wrap: wrap; bottom: 0.6rem; }
+  .lg-savebar-text { flex-basis: 100%; white-space: normal; }
+  .lg-savebar-btns { width: 100%; }
+  .lg-savebar-btns button { flex: 1; }
+}
+.lg-autosave { color: var(--muted); }
+
+.lg-crm-tools { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.4rem; }
+.lg-crm-search { flex: 1 1 14rem; min-width: 0; }
+.lg-crm-filter { display: flex; gap: 0.35rem; }
+.lg-crm-chip { padding: 0.45rem 0.85rem; border: 1px solid var(--line-2); border-radius: 999px; background: transparent; color: var(--muted); font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+.lg-crm-chip.is-on { border-color: var(--accent); background: rgba(255, 195, 0, 0.12); color: var(--accent); }
+.lg-crm-count { margin: 0.2rem 0 0; color: var(--muted); font-size: 0.75rem; }
+.lg-person-row { display: flex; align-items: stretch; gap: 0.4rem; margin-bottom: 0.5rem; }
+.lg-person-row[hidden], .lg-group[hidden] { display: none; }
+.lg-person-row .lg-person { flex: 1; min-width: 0; margin-bottom: 0; }
+.lg-person-wa {
+  flex: none; display: grid; place-items: center; padding: 0 0.85rem; border: 1px solid rgba(37, 211, 102, 0.4); border-radius: 14px;
+  color: #4ade80; font-size: 0.78rem; font-weight: 700; text-decoration: none; background: rgba(37, 211, 102, 0.08);
+}
+.lg-person-wa:hover { background: rgba(37, 211, 102, 0.18); }
+
+/* ---------- School page phase 3: calmer headings, stepper, bot tags, school navigation ---------- */
+body.lg-page .lg-section .borang-section {
+  font-size: 1.08rem; letter-spacing: 0; text-transform: none; color: var(--text);
+  display: inline-flex; align-items: center; gap: 0.55rem;
+}
+body.lg-page .lg-section .borang-section::before {
+  content: ""; width: 0.32rem; height: 1.05rem; border-radius: 3px; background: var(--accent); flex: none;
+}
+body.lg-page .lg-section .lg-section-title { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem 0.6rem; }
+.lg-bot-tag { padding: 0.15rem 0.55rem; border-radius: 999px; background: rgba(42, 171, 238, 0.12); color: #6cc4f3; font-size: 0.7rem; font-weight: 700; white-space: nowrap; cursor: help; }
+.lg-section-head .lg-bot-tag { margin-bottom: 0; }
+.lg-fold-head .lg-section-title .lg-bot-tag { margin: 0; }
+
+.lg-stepper { position: relative; display: flex; justify-content: space-between; align-items: center; margin: 0.4rem 0 0.5rem; }
+.lg-stepper::before, .lg-stepper-fill { content: ""; position: absolute; left: 0.95rem; top: 50%; height: 2px; transform: translateY(-50%); }
+.lg-stepper::before { right: 0.95rem; background: var(--line-2); }
+.lg-stepper-fill { width: calc((100% - 1.9rem) * var(--f, 0)); background: #40c070; transition: width 0.3s; }
+.lg-stepper-node {
+  position: relative; z-index: 1; flex: none; display: grid; place-items: center; width: 1.9rem; height: 1.9rem; border-radius: 50%;
+  border: 2px solid var(--line-2); background: var(--bg-2); color: var(--muted); font-size: 0.78rem; font-weight: 800;
+}
+.lg-stepper-node.is-done { border-color: #40c070; background: #40c070; color: #0b0b0b; }
+.lg-stepper-node.is-next { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 4px rgba(255, 195, 0, 0.15); }
+.lg-stepper-next { margin: 0 0 0.9rem; color: var(--accent); font-size: 0.85rem; font-weight: 600; }
+.lg-stepper-next.is-all { color: #5be08f; }
+
+.lg-ov-sheet { color: var(--muted); text-decoration: none; border-bottom: 1px dashed var(--line-2); }
+.lg-ov-sheet:hover { color: var(--accent); border-color: var(--accent); }
+
+.lg-schoolnav { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem; margin: 1.6rem 0 1rem; }
+.lg-schoolnav-back, .lg-schoolnav-link {
+  padding: 0.55rem 1rem; border: 1px solid var(--line-2); border-radius: 999px; color: var(--muted);
+  text-decoration: none; font-size: 0.85rem; font-weight: 700;
+}
+.lg-schoolnav-back:hover, .lg-schoolnav-link:hover { color: var(--accent); border-color: var(--accent); }
+.lg-schoolnav-pn { display: flex; gap: 0.5rem; }
+@media (max-width: 480px) {
+  .lg-schoolnav { justify-content: center; }
+  .lg-schoolnav-back { width: 100%; text-align: center; }
+  .lg-schoolnav-pn { width: 100%; }
+  .lg-schoolnav-link { flex: 1; text-align: center; }
+}

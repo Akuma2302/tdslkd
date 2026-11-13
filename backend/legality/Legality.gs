@@ -361,6 +361,7 @@ function readSchool(cawangan, sekolah) {
   data.images = listImages(ss, sh.getName());
   data.pic = readPic(ss, sh.getName());
   data.weekly = readWeekly(ss, sh.getName(), cawangan);
+  data.sheetUrl = ss.getUrl() + "#gid=" + sh.getSheetId();   // "Buka Google Sheet" on the school page
   return data;
 }
 

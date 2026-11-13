@@ -185,6 +185,7 @@
   // ---------- Step 2: schools ----------
 
   function showSchools() {
+    if (saveBar) { saveBar.remove(); saveBar = null; document.body.classList.remove("has-savebar"); }
     root.textContent = "";
     root.appendChild(el("p", "borang-status", "Memuatkan sekolah " + state.cawangan + "…"));
     get({ action: "schools", cawangan: state.cawangan }).then(function (d) {
@@ -302,9 +303,89 @@
       root.appendChild(foldable(picCard(d.pic || []), "pic"));
       SECTION_INFO.forEach(function (s) { root.appendChild(foldable(sectionCard(s), s.key)); });
 
+      // Parts the Legality bot checks (it tags the PIC when they are empty or out of date)
+      ["semasa", "planning", "peluang"].forEach(function (k) {
+        var t = document.querySelector("#sec-" + k + " .lg-section-title") || document.querySelector("#sec-" + k + " .lg-section-head");
+        if (!t) return;
+        var tag = el("span", "lg-bot-tag", "🤖 Disemak bot");
+        tag.title = k === "semasa" ? "Bot mengingatkan PIC jika tidak dikemas kini 7 hari atau lebih"
+                                   : "Bot tag PIC dalam group jika bahagian ini kosong";
+        t.appendChild(tag);
+      });
+      root.appendChild(schoolNav());
+
       buildNav(nav);
+      buildSaveBar();
       schoolChanged();
     }).catch(fail);
+  }
+
+  // ---------- Floating save bar: shown while any part has unsaved changes ----------
+  var SAVE_LABELS = { semasa: "Progress semasa", progress: "Checklist", pic: "PIC", crm: "CRM", alumni: "Alumni",
+                      program: "Program", analisa: "Analisa", planning: "Planning", modul: "Modul", peluang: "Peluang" };
+  var saveBar = null;
+  function dirtyKeys() { return Object.keys(state.dirty).filter(function (k) { return state.dirty[k]; }); }
+  function buildSaveBar() {
+    if (saveBar) saveBar.remove();
+    saveBar = el("div", "lg-savebar");
+    saveBar.setAttribute("role", "region");
+    saveBar.setAttribute("aria-label", "Perubahan belum disimpan");
+    var text = el("span", "lg-savebar-text");
+    var undo = button("lg-savebar-undo", "Buang", function () {
+      var keys = dirtyKeys();
+      if (!keys.length) return;
+      if (!window.confirm("Buang perubahan yang belum disimpan (" + keys.map(function (k) { return SAVE_LABELS[k] || k; }).join(", ") + ")?")) return;
+      state.dirty = {};
+      showSchool();
+    });
+    var all = button("lg-savebar-save", "Simpan semua", function () {
+      dirtyKeys().forEach(function (k) {
+        var b = document.querySelector("#sec-" + k + " .lg-actions .borang-submit");
+        if (b && !b.disabled) b.click();
+      });
+    });
+    var btns = el("div", "lg-savebar-btns");
+    btns.appendChild(undo);
+    btns.appendChild(all);
+    saveBar.appendChild(text);
+    saveBar.appendChild(btns);
+    saveBar.paint = function () {
+      var keys = dirtyKeys();
+      saveBar.classList.toggle("is-on", keys.length > 0);
+      document.body.classList.toggle("has-savebar", keys.length > 0);
+      text.textContent = keys.length + " bahagian belum disimpan · " + keys.map(function (k) { return SAVE_LABELS[k] || k; }).join(", ");
+    };
+    document.body.appendChild(saveBar);
+    saveBar.paint();
+  }
+  function paintSaveBar() { if (saveBar && document.body.contains(saveBar)) saveBar.paint(); }
+  document.addEventListener("input", function () { setTimeout(paintSaveBar); });
+  document.addEventListener("change", function () { setTimeout(paintSaveBar); });
+  document.addEventListener("click", function () { setTimeout(paintSaveBar, 50); });
+
+  // Bottom of the school page: back to the list, and the previous / next school of the same cawangan.
+  function schoolNav() {
+    var nav = el("nav", "lg-schoolnav");
+    nav.setAttribute("aria-label", "Sekolah lain");
+    var back = el("a", "lg-schoolnav-back", "← Semua sekolah " + state.cawangan);
+    back.href = "#/" + encodeURIComponent(state.cawangan);
+    nav.appendChild(back);
+    var pn = el("div", "lg-schoolnav-pn");
+    nav.appendChild(pn);
+    var here = state.sekolah, cw = state.cawangan;
+    get({ action: "schoolList", cawangan: cw }).then(function (d) {
+      if (state.sekolah !== here) return;
+      var list = d.schools || [];
+      var i = list.indexOf(here);
+      if (i < 0 || list.length < 2) return;
+      [[list[(i - 1 + list.length) % list.length], "‹ ", ""], [list[(i + 1) % list.length], "", " ›"]].forEach(function (x) {
+        var a = el("a", "lg-schoolnav-link", x[1] + x[0] + x[2]);
+        a.href = "#/" + encodeURIComponent(cw) + "/" + encodeURIComponent(x[0]);
+        a.addEventListener("click", function () { window.scrollTo(0, 0); });
+        pn.appendChild(a);
+      });
+    }).catch(function () {});
+    return nav;
   }
 
   function zoneLabel(title, hint) {
@@ -444,6 +525,12 @@
     var ni = noteInfo();
     meta.appendChild(el("span", "lg-ov-when" + (ni.stale ? " is-stale" : ""),
       ni.has ? "Progress dikemas kini " + agoText(n.updated) : "Progress belum pernah dikemas kini"));
+    if (d.sheetUrl) {
+      var sheet = el("a", "lg-ov-sheet", "Google Sheet ↗");
+      sheet.href = d.sheetUrl; sheet.target = "_blank"; sheet.rel = "noopener";
+      sheet.title = "Buka tab " + d.sekolah + " dalam sheet " + d.cawangan;
+      meta.appendChild(sheet);
+    }
     box.appendChild(meta);
 
     var stats = el("div", "lg-ov-stats");
@@ -533,6 +620,7 @@
   function paintNav() {
     if (!state.school) return;
     NAV.forEach(function (n) { n.dot.className = "lg-dot " + sectionStatus(n.key); });
+    paintSaveBar();
     document.querySelectorAll(".lg-fold").forEach(function (card) { if (card.paintFold) card.paintFold(); });
   }
   // Called after anything is saved on this page, so the summary, chips and folded lines stay current.
@@ -816,18 +904,37 @@
     }
     showWhen(note.updated);
     card.appendChild(when);
+    var origShowWhen = showWhen;
+    showWhen = function (iso) { origShowWhen(iso); if (typeof autoNote !== "undefined" && autoNote) when.appendChild(autoNote); };
 
     function markDirty() {
       var d = ta.value.trim() !== orig.text.trim();
       state.dirty.semasa = d;
       badge.hidden = !d;
     }
-    ta.addEventListener("input", markDirty);
+    // Saved automatically 2.5 s after the PIC stops typing (the button still works too).
+    var autoTimer = 0, auto = false;
+    var autoNote = el("span", "lg-autosave");
+    when.appendChild(autoNote);
+    ta.addEventListener("input", function () {
+      markDirty();
+      clearTimeout(autoTimer);
+      autoNote.textContent = state.dirty.semasa ? " · menunggu untuk simpan automatik…" : "";
+      if (state.dirty.semasa) autoTimer = setTimeout(function () {
+        if (!state.dirty.semasa || save.disabled || !ta.value.trim()) return;
+        auto = true;
+        save.click();
+      }, 2500);
+    });
 
     var status = el("p", "borang-error-summary");
     status.hidden = true;
     var save = button("borang-submit lg-btn-sm", "Simpan Progress Semasa", function () {
-      if (!state.dirty.semasa) { toast("Tiada perubahan untuk disimpan."); return; }
+      clearTimeout(autoTimer);
+      if (!state.dirty.semasa) { auto = false; toast("Tiada perubahan untuk disimpan."); return; }
+      var wasAuto = auto;
+      auto = false;
+      autoNote.textContent = " · menyimpan…";
       status.hidden = true;
       save.disabled = true; save.textContent = "Menyimpan…";
       post({ action: "saveProgressNote", cawangan: state.cawangan, sekolah: state.sekolah, note: ta.value, old: orig.text })
@@ -838,9 +945,14 @@
           state.dirty.semasa = false; badge.hidden = true;
           if (state.school.progress) state.school.progress.note = d.note;
           schoolChanged();
-          toast("Progress semasa disimpan.", "ok");
+          if (!when.contains(autoNote)) when.appendChild(autoNote);
+          autoNote.textContent = wasAuto ? " · disimpan automatik ✓" : "";
+          if (!wasAuto) toast("Progress semasa disimpan.", "ok");
         })
-        .catch(function (e) { status.hidden = false; status.textContent = "Belum disimpan: " + (e.message || e); })
+        .catch(function (e) {
+          autoNote.textContent = "";
+          status.hidden = false; status.textContent = "Belum disimpan: " + (e.message || e);
+        })
         .then(function () { save.disabled = false; save.textContent = "Simpan Progress Semasa"; });
     });
     var actions = el("div", "lg-actions");
@@ -984,11 +1096,36 @@
         li.classList.toggle("is-done", work[i]);
         li.querySelector(".lg-step-state").textContent = work[i] ? "Dah buat" : "Belum";
       });
+      paintStepper();
       var dirty = work.some(function (v, i) { return v !== orig[i]; });
       state.dirty.progress = dirty;
       badge.hidden = !dirty;
     }
+    // Stepper: 1 → 6, done in green, the next step to do highlighted
+    var stepper = el("div", "lg-stepper");
+    stepper.setAttribute("aria-hidden", "true");
+    var fill = el("span", "lg-stepper-fill");
+    stepper.appendChild(fill);
+    p.items.forEach(function (it, i) {
+      var node = el("span", "lg-stepper-node", String(i + 1));
+      node.title = it.label;
+      stepper.appendChild(node);
+    });
+    var next = el("p", "lg-stepper-next");
+    function paintStepper() {
+      var nxt = work.indexOf(false);
+      stepper.querySelectorAll(".lg-stepper-node").forEach(function (n, i) {
+        n.className = "lg-stepper-node" + (work[i] ? " is-done" : i === nxt ? " is-next" : "");
+      });
+      var lead = 0;
+      while (lead < work.length && work[lead]) lead++;
+      fill.style.setProperty("--f", work.length > 1 ? Math.max(0, lead - 1) / (work.length - 1) : 0);
+      next.textContent = nxt < 0 ? "✓ Semua langkah selesai" : "Langkah seterusnya: " + (nxt + 1) + ". " + p.items[nxt].label;
+      next.classList.toggle("is-all", nxt < 0);
+    }
     card.appendChild(count);
+    card.appendChild(stepper);
+    card.appendChild(next);
     card.appendChild(list);
 
     var status = el("p", "borang-error-summary");
@@ -1130,6 +1267,49 @@
       var visible = model.rows.filter(function (row) {
         return row.r == null || row.w[C.entiti] !== "" || hasContent(row.w, "crm");
       });
+
+      // Search by name / entiti / PIC, and filter by Ada (CRM aktif). Filtering hides rows without redrawing,
+      // so typing in the search box keeps its focus.
+      var crmF = state.crmFilter = state.crmFilter || { q: "", f: "all" };
+      var tools = el("div", "lg-crm-tools");
+      var search = el("input", "borang-input lg-crm-search");
+      search.type = "search"; search.placeholder = "Cari nama, entiti atau PIC";
+      search.setAttribute("aria-label", "Cari orang CRM");
+      search.value = crmF.q;
+      var chips = el("div", "lg-crm-filter");
+      chips.setAttribute("role", "group");
+      chips.setAttribute("aria-label", "Tapis CRM");
+      [["all", "Semua"], ["ada", "Aktif"], ["tiada", "Tiada"]].forEach(function (f) {
+        var b = button("lg-crm-chip" + (crmF.f === f[0] ? " is-on" : ""), f[1], function () {
+          crmF.f = f[0];
+          chips.querySelectorAll(".lg-crm-chip").forEach(function (x) { x.classList.toggle("is-on", x === b); x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+          applyFilter();
+        });
+        b.setAttribute("aria-pressed", crmF.f === f[0] ? "true" : "false");
+        chips.appendChild(b);
+      });
+      tools.appendChild(search);
+      tools.appendChild(chips);
+      body.appendChild(tools);
+      var countEl = el("p", "lg-crm-count");
+      body.appendChild(countEl);
+      search.addEventListener("input", function () { crmF.q = search.value; applyFilter(); });
+      function applyFilter() {
+        var q = crmF.q.trim().toLowerCase(), shownN = 0, total = 0;
+        body.querySelectorAll(".lg-person-row").forEach(function (rowEl) {
+          total++;
+          var ok = (!q || rowEl.dataset.search.indexOf(q) > -1) &&
+                   (crmF.f === "all" || (crmF.f === "ada") === (rowEl.dataset.ada === "1") || rowEl.dataset.isnew === "1");
+          rowEl.hidden = !ok;
+          if (ok) shownN++;
+        });
+        body.querySelectorAll(".lg-group").forEach(function (h) {
+          var any = false, n = h.nextElementSibling;
+          while (n && n.classList.contains("lg-person-row")) { if (!n.hidden) any = true; n = n.nextElementSibling; }
+          h.hidden = !any;
+        });
+        countEl.textContent = (q || crmF.f !== "all") ? shownN + " daripada " + total + " orang" : total + " orang";
+      }
       var groups = [["High", "High Priority"], ["Low", "Low Priority"], ["", "Baru"]];
       groups.forEach(function (g) {
         var rows = visible.filter(function (row) {
@@ -1139,6 +1319,7 @@
         body.appendChild(el("h3", "lg-group", g[1]));
         rows.forEach(function (row) { body.appendChild(personCard(row)); });
       });
+      setTimeout(applyFilter);
 
       var add = button("lg-add", "+ Tambah orang CRM", function () {
         var row = blankRow("crm");
@@ -1158,8 +1339,31 @@
         };
       }
 
+      // WhatsApp link from a Malaysian phone number ("012-345 6789" -> 60123456789)
+      function waLink(tel) {
+        var d = String(tel || "").replace(/\D/g, "");
+        if (d.length < 9) return "";
+        if (d.charAt(0) === "0") d = "6" + d;
+        return "https://wa.me/" + d;
+      }
+
       // One line per person in the list; tapping it opens the popup with all the details.
       function personCard(row) {
+        var wrap = el("div", "lg-person-row");
+        wrap.dataset.search = [row.w[C.nama], row.w[C.entiti], row.w[C.pic], row.w[C.phase]].join(" ").toLowerCase();
+        wrap.dataset.ada = row.w[C.ada] === true ? "1" : "0";
+        wrap.dataset.isnew = row.r == null ? "1" : "0";
+        wrap.appendChild(personButton(row));
+        var wa = waLink(row.w[C.tel]);
+        if (wa) {
+          var a = el("a", "lg-person-wa", "WhatsApp");
+          a.href = wa; a.target = "_blank"; a.rel = "noopener";
+          a.setAttribute("aria-label", "WhatsApp " + (row.w[C.nama] || ""));
+          wrap.appendChild(a);
+        }
+        return wrap;
+      }
+      function personButton(row) {
         var sm = summaryOf(row);
         var card = button("lg-person lg-person-btn", null, function () { openPerson(row, false); });
         var left = el("span", "lg-person-left");
