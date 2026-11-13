@@ -231,6 +231,14 @@
       draw();
       card.appendChild(grid);
       root.appendChild(card);
+      // Opened from the Program form's "+ Tambah sekolah": open the add form, with the typed name if any.
+      var want = new URLSearchParams(location.search).get("tambah");
+      if (want !== null) {
+        history.replaceState(null, "", location.pathname + location.hash);
+        addBtn.click();
+        if (want && want !== "1") addCard.querySelector("input").value = want.toUpperCase().slice(0, 40);
+        addCard.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
     }).catch(fail);
   }
 
@@ -275,25 +283,296 @@
     get({ action: "school", cawangan: state.cawangan, sekolah: state.sekolah }).then(function (d) {
       state.school = d;
       root.textContent = "";
+
+      // Sticky chips (with a status dot each), the summary card, then two zones:
+      // "Tindakan minggu ini" (open) and "Data sekolah" (each part folded to one line until opened).
       var nav = el("nav", "lg-sectnav");
       nav.setAttribute("aria-label", "Bahagian");
-      [{ key: "pic", short: "PIC" }, { key: "semasa", short: "Progress" }]
-        .concat(d.weekly ? [{ key: "mingguan", short: "Mingguan" }] : []).concat(SECTION_INFO).forEach(function (s) {
-        var a = el("a", "lg-chip", s.short);
-        a.href = "#sec-" + s.key;
-        a.addEventListener("click", function (e) {
-          e.preventDefault();
-          document.getElementById("sec-" + s.key).scrollIntoView({ behavior: "smooth", block: "start" });
-        });
-        nav.appendChild(a);
-      });
       root.appendChild(nav);
-      root.appendChild(picCard(d.pic || []));
-      if (d.progress) root.appendChild(noteCard(d.progress.note || { text: "", updated: "" }, d.progress.options));
+      var summary = el("section", "borang-card lg-overview");
+      summary.id = "sec-ringkasan";
+      root.appendChild(summary);
+
+      root.appendChild(zoneLabel("Tindakan minggu ini", "Dikemas kini setiap minggu"));
       if (d.weekly) root.appendChild(weeklyCard(d.weekly));
+      if (d.progress) root.appendChild(noteCard(d.progress.note || { text: "", updated: "" }));
       if (d.progress) root.appendChild(progressCard(d.progress));
-      SECTION_INFO.forEach(function (s) { root.appendChild(sectionCard(s)); });
+
+      root.appendChild(zoneLabel("Data sekolah", "Tekan untuk buka"));
+      root.appendChild(foldable(picCard(d.pic || []), "pic"));
+      SECTION_INFO.forEach(function (s) { root.appendChild(foldable(sectionCard(s), s.key)); });
+
+      buildNav(nav);
+      schoolChanged();
     }).catch(fail);
+  }
+
+  function zoneLabel(title, hint) {
+    var z = el("div", "lg-zone");
+    z.appendChild(el("span", "lg-zone-title", title));
+    z.appendChild(el("span", "lg-zone-hint", hint));
+    return z;
+  }
+
+  // ---------- School overview: what the PIC needs to know and do, at a glance ----------
+
+  function filled(v) { var t = String(v == null ? "" : v).trim(); return t !== "" && v !== false && !/^\*?\s*(tulis|isi)\b/i.test(t); }
+  function rowsOf(key) { return (state.school.sections[key] || { rows: [] }).rows; }
+  function countRows(key, col) { return rowsOf(key).filter(function (r) { return filled(r.v[col]); }).length; }
+  function crmCounts() {
+    var people = 0, aktif = 0;
+    rowsOf("crm").forEach(function (r) {
+      if (!filled(r.v[C.nama]) && r.v[C.ada] !== true) return;
+      people++;
+      if (r.v[C.ada] === true) aktif++;
+    });
+    return { people: people, aktif: aktif };
+  }
+  // Same rules as the Legality bot (backend sectionFilled): Planning needs a written row or a picture;
+  // Peluang needs its first column written.
+  function planningFilled() {
+    return rowsOf("planning").some(function (r) { return !r.lock[1] && filled(r.v[1]); }) ||
+      (state.school.images || []).some(function (im) { return im.section === "planning"; });
+  }
+  function peluangFilled() { return rowsOf("peluang").some(function (r) { return filled(r.v[0]); }); }
+  function daysSince(iso) { return iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : -1; }
+  function agoText(iso) {
+    var min = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+    return min < 60 ? "baru tadi" : min < 1440 ? Math.floor(min / 60) + " jam lepas" : Math.floor(min / 1440) + " hari lepas";
+  }
+  function noteInfo() {
+    var n = (state.school.progress && state.school.progress.note) || {};
+    var has = !!(n.text && n.updated);
+    var days = has ? daysSince(n.updated) : -1;
+    return { note: n, has: has, days: days, stale: !has || days >= 7 };
+  }
+  function weeklyDone() {
+    var w = state.school.weekly;
+    return !w || w.items.every(function (it) { return it.done; });
+  }
+
+  // Things the PIC should do now: [{ text, key, label }]
+  function todoList() {
+    var out = [];
+    var ni = noteInfo();
+    if (ni.stale) out.push({ key: "semasa", label: "Kemas kini",
+      text: ni.has ? "Progress semasa tidak dikemas kini " + ni.days + " hari" : "Progress semasa belum pernah ditulis" });
+    var w = state.school.weekly;
+    if (w) w.items.forEach(function (it) {
+      if (!it.done) out.push({ key: "mingguan", label: "Muat naik", text: it.label + " minggu ini belum ditanda" + (w.week.lastDay ? " (hari terakhir)" : "") });
+    });
+    if (!planningFilled()) out.push({ key: "planning", label: "Isi", text: "Planning Legality masih kosong" });
+    if (!peluangFilled()) out.push({ key: "peluang", label: "Isi", text: "Peluang Lain Tahun Depan masih kosong" });
+    if (!(state.school.pic || []).some(function (p) { return p.username; })) out.push({ key: "pic", label: "Tambah PIC", text: "PIC Legality belum ditetapkan" });
+    return out;
+  }
+
+  // Status dot of each chip: "ok" (done), "warn" (to do / not saved), "bad" (needs action), "" (empty, optional)
+  function sectionStatus(key) {
+    if (state.dirty[key]) return "warn";
+    switch (key) {
+      case "ringkasan": return todoList().length ? "bad" : "ok";
+      case "mingguan": return weeklyDone() ? "ok" : (state.school.weekly.week.lastDay ? "bad" : "warn");
+      case "semasa": return noteInfo().stale ? "bad" : "ok";
+      case "progress": return (state.school.progress.values || []).every(Boolean) ? "ok" : "warn";
+      case "pic": return (state.school.pic || []).some(function (p) { return p.username; }) ? "ok" : "bad";
+      case "crm": return crmCounts().people ? "ok" : "warn";
+      case "planning": return planningFilled() ? "ok" : "bad";
+      case "peluang": return peluangFilled() ? "ok" : "bad";
+      default: return countRows(key, 0) ? "ok" : "";
+    }
+  }
+  // One-line summary shown on a folded section
+  function sectionMeta(key) {
+    switch (key) {
+      case "pic":
+        var u = (state.school.pic || []).filter(function (p) { return p.username; }).map(function (p) { return "@" + p.username; });
+        return u.length ? u.join(" ") : "Belum ditetapkan";
+      case "crm": var c = crmCounts(); return c.people ? c.people + " orang · " + c.aktif + " aktif" : "Belum ada orang";
+      case "alumni": return countRows("alumni", 0) + " alumni";
+      case "program": return countRows("program", 0) + " program";
+      case "planning": return planningFilled() ? "Sudah diisi" : "Kosong · bot akan tag PIC";
+      case "peluang": return peluangFilled() ? countRows("peluang", 0) + " peluang" : "Kosong · bot akan tag PIC";
+      default: var n = countRows(key, 0); return n ? n + " baris" : "Kosong";
+    }
+  }
+
+  function goTo(key) {
+    var sec = document.getElementById("sec-" + key);
+    if (!sec) return;
+    if (sec.openFold) sec.openFold(true);
+    sec.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function renderSummary() {
+    var box = document.getElementById("sec-ringkasan");
+    if (!box) return;
+    var d = state.school;
+    box.textContent = "";
+
+    var top = el("div", "lg-ov-top");
+    var name = el("div");
+    name.appendChild(el("h2", "lg-ov-name", d.sekolah));
+    name.appendChild(el("p", "lg-ov-sub", "Cawangan " + d.cawangan));
+    top.appendChild(name);
+    var tags = el("div", "lg-ov-tags");
+    var n = (d.progress && d.progress.note) || {};
+    var st = n.status || "";
+    tags.appendChild(el("span", "lg-ov-tag is-jenis", n.jenis ? "Jenis " + n.jenis : "Jenis —"));
+    tags.appendChild(el("span", "lg-ov-tag " + (st === "Legal with B&W" ? "is-ok" : st === "Legal w/o B&W" ? "is-mid" : st === "Tidak Legal" ? "is-no" : "is-empty"), st || "Status belum ditetapkan"));
+    var lock = el("span", "lg-ov-lock", "🔒");
+    lock.title = "Jenis dan Status Legality ditetapkan oleh admin";
+    tags.appendChild(lock);
+    top.appendChild(tags);
+    box.appendChild(top);
+
+    var meta = el("div", "lg-ov-meta");
+    var picLine = el("span", "lg-ov-pic");
+    picLine.appendChild(document.createTextNode("PIC "));
+    var pics = (d.pic || []).filter(function (p) { return p.username; });
+    if (!pics.length) picLine.appendChild(el("span", "lg-ov-none", "belum ditetapkan"));
+    pics.forEach(function (p) {
+      var a = el("a", "lg-ov-tg", "@" + p.username);
+      a.href = "https://t.me/" + encodeURIComponent(p.username); a.target = "_blank"; a.rel = "noopener";
+      a.title = p.nama || "";
+      picLine.appendChild(a);
+    });
+    var editPic = button("lg-ov-edit", "✏️", function () { goTo("pic"); });
+    editPic.setAttribute("aria-label", "Ubah PIC Legality");
+    picLine.appendChild(editPic);
+    meta.appendChild(picLine);
+    var ni = noteInfo();
+    meta.appendChild(el("span", "lg-ov-when" + (ni.stale ? " is-stale" : ""),
+      ni.has ? "Progress dikemas kini " + agoText(n.updated) : "Progress belum pernah dikemas kini"));
+    box.appendChild(meta);
+
+    var stats = el("div", "lg-ov-stats");
+    var vals = (d.progress && d.progress.values) || [];
+    var done = vals.filter(Boolean).length;
+    var s1 = el("div", "lg-ov-stat");
+    s1.appendChild(el("span", "lg-ov-label", "Checklist legality"));
+    s1.appendChild(el("strong", "lg-ov-num", done + " / " + vals.length));
+    var bar = el("div", "lg-ov-steps");
+    vals.forEach(function (v) { bar.appendChild(el("i", v ? "is-done" : "")); });
+    s1.appendChild(bar);
+    stats.appendChild(s1);
+    if (d.weekly) {
+      var s2 = el("div", "lg-ov-stat");
+      s2.appendChild(el("span", "lg-ov-label", "Mingguan · " + d.weekly.week.label));
+      var wd = weeklyDone();
+      s2.appendChild(el("strong", "lg-ov-num " + (wd ? "is-ok" : "is-warn"), wd ? "✓ Selesai" : "Belum"));
+      s2.appendChild(el("span", "lg-ov-small", d.weekly.items.map(function (it) { return it.label; }).join(", ")));
+      stats.appendChild(s2);
+    }
+    var cc = crmCounts();
+    var s3 = el("div", "lg-ov-stat");
+    s3.appendChild(el("span", "lg-ov-label", "CRM"));
+    s3.appendChild(el("strong", "lg-ov-num", cc.people + " orang"));
+    s3.appendChild(el("span", "lg-ov-small", cc.aktif + " aktif"));
+    stats.appendChild(s3);
+    box.appendChild(stats);
+
+    var todo = todoList();
+    var act = el("div", "lg-ov-todo" + (todo.length ? "" : " is-clear"));
+    if (!todo.length) {
+      act.appendChild(el("p", "lg-ov-todo-title", "✓ Tiada tindakan tertunggak. Teruskan!"));
+    } else {
+      act.appendChild(el("p", "lg-ov-todo-title", "⚠️ Perlu tindakan (" + todo.length + ")"));
+      todo.forEach(function (t) {
+        var row = el("div", "lg-ov-todo-row");
+        row.appendChild(el("span", null, t.text));
+        row.appendChild(button("lg-ov-go", t.label, function () { goTo(t.key); }));
+        act.appendChild(row);
+      });
+    }
+    box.appendChild(act);
+  }
+
+  var NAV = [], navTimer = 0, navObserver = null;
+  function buildNav(nav) {
+    var items = [{ key: "ringkasan", short: "Ringkasan" }]
+      .concat(state.school.weekly ? [{ key: "mingguan", short: "Mingguan" }] : [])
+      .concat([{ key: "semasa", short: "Progress" }, { key: "progress", short: "Checklist" }, { key: "pic", short: "PIC" }])
+      .concat(SECTION_INFO);
+    NAV = items.map(function (s) {
+      var a = el("a", "lg-chip");
+      a.href = "#sec-" + s.key;
+      var dot = el("i", "lg-dot");
+      a.appendChild(dot);
+      a.appendChild(document.createTextNode(s.short));
+      a.addEventListener("click", function (e) { e.preventDefault(); goTo(s.key); });
+      nav.appendChild(a);
+      return { key: s.key, a: a, dot: dot };
+    });
+    // Keep the chips just under the site navbar, and mark the chip of the part being read.
+    var site = document.getElementById("siteNav");
+    function place() { nav.style.top = (site ? site.offsetHeight : 0) + "px"; }
+    place();
+    window.addEventListener("resize", place);
+    if ("IntersectionObserver" in window) {
+      var seen = {};
+      if (navObserver) navObserver.disconnect();
+      var io = navObserver = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) { seen[en.target.id] = en.isIntersecting ? en.boundingClientRect.top : null; });
+        var best = null;
+        Object.keys(seen).forEach(function (id) { if (seen[id] != null && (best == null || seen[id] < seen[best])) best = id; });
+        NAV.forEach(function (n) {
+          var on = "sec-" + n.key === best;
+          n.a.classList.toggle("is-current", on);
+          if (on && n.a.scrollIntoView && nav.scrollWidth > nav.clientWidth) {
+            nav.scrollTo({ left: n.a.offsetLeft - nav.clientWidth / 2 + n.a.offsetWidth / 2, behavior: "smooth" });
+          }
+        });
+      }, { rootMargin: "-120px 0px -55% 0px" });
+      NAV.forEach(function (n) { var s = document.getElementById("sec-" + n.key); if (s) io.observe(s); });
+    }
+    // Unsaved changes turn a chip yellow straight away.
+    clearInterval(navTimer);
+    navTimer = setInterval(paintNav, 1000);
+  }
+  function paintNav() {
+    if (!state.school) return;
+    NAV.forEach(function (n) { n.dot.className = "lg-dot " + sectionStatus(n.key); });
+    document.querySelectorAll(".lg-fold").forEach(function (card) { if (card.paintFold) card.paintFold(); });
+  }
+  // Called after anything is saved on this page, so the summary, chips and folded lines stay current.
+  function schoolChanged() { renderSummary(); paintNav(); }
+
+  // Folds a section card to its head plus a one-line summary; tapping the head opens it.
+  function foldable(card, key) {
+    var head = card.querySelector(".lg-section-head");
+    if (!head) return card;
+    card.classList.add("lg-fold");
+    var body = el("div", "lg-fold-body");
+    while (head.nextSibling) body.appendChild(head.nextSibling);
+    card.appendChild(body);
+    var meta = el("span", "lg-fold-meta");
+    var chev = el("span", "lg-fold-chev", "›");
+    var tools = head.querySelector(".lg-section-tools");
+    head.insertBefore(meta, tools || null);
+    head.appendChild(chev);
+    head.classList.add("lg-fold-head");
+    head.setAttribute("role", "button");
+    head.tabIndex = 0;
+    function set(open) {
+      card.classList.toggle("is-open", open);
+      head.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+    card.openFold = function () { set(true); };
+    card.paintFold = function () {
+      var st = sectionStatus(key);
+      meta.textContent = sectionMeta(key);
+      meta.className = "lg-fold-meta " + st;
+    };
+    head.addEventListener("click", function (e) {
+      if (e.target.closest("button, a, input, select, textarea")) return;
+      set(!card.classList.contains("is-open"));
+    });
+    head.addEventListener("keydown", function (e) {
+      if ((e.key === "Enter" || e.key === " ") && e.target === head) { e.preventDefault(); set(!card.classList.contains("is-open")); }
+    });
+    set(false);
+    return card;
   }
 
   function fail(e) {
@@ -366,7 +645,9 @@
              edits: payload.edits, adds: payload.adds })
         .then(function (d) {
           model = makeModel(info.key, d.data.rows);
+          state.school.sections[info.key].rows = d.data.rows;
           draw();
+          schoolChanged();
           toast(info.short + " disimpan.", "ok");
         })
         .catch(function (e) {
@@ -457,6 +738,8 @@
         .then(function (d) {
           orig = JSON.stringify(d.pic);
           rows = d.pic.map(function (p) { return { nama: p.nama, username: p.username }; });
+          state.school.pic = d.pic;
+          setTimeout(schoolChanged);
           state.dirty.pic = false; badge.hidden = true;
           draw();
           toast("PIC Legality disimpan.", "ok");
@@ -553,6 +836,8 @@
           ta.value = orig.text;
           showWhen(d.note.updated);
           state.dirty.semasa = false; badge.hidden = true;
+          if (state.school.progress) state.school.progress.note = d.note;
+          schoolChanged();
           toast("Progress semasa disimpan.", "ok");
         })
         .catch(function (e) { status.hidden = false; status.textContent = "Belum disimpan: " + (e.message || e); })
@@ -633,6 +918,8 @@
           .then(function (d) {
             var now = d.weekly.items;
             draw(now);
+            state.school.weekly = d.weekly;
+            schoolChanged();
             toast(it.label + " ditanda selesai. Menghantar ke group…", "ok");
             return sendPico().then(function (r) {
               if (r.ok && r.dryRun) { toast("Ditanda selesai. (Ujian: mesej tidak dihantar.)", "ok"); return; }
@@ -713,6 +1000,8 @@
       post({ action: "saveProgress", cawangan: state.cawangan, sekolah: state.sekolah, values: work, old: orig })
         .then(function (d) {
           orig = d.values.slice(); work = d.values.slice();
+          state.school.progress.values = d.values.slice();
+          setTimeout(schoolChanged);
           boxes.forEach(function (cb, i) { cb.checked = work[i]; });
           refresh();
           toast("Progress disimpan.", "ok");

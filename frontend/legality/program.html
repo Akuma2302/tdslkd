@@ -144,10 +144,16 @@
           <span class="field-label" id="cawanganLabel">Cawangan Sekolah</span>
           <div class="tiles tiles-6" id="cawanganTiles" role="radiogroup" aria-labelledby="cawanganLabel" data-for="cawangan"><button type="button" class="tile" role="radio" aria-checked="false" data-value="Tengah"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="9.5" r="2.5" fill="currentColor"/></svg><span>Tengah</span></button><button type="button" class="tile" role="radio" aria-checked="false" data-value="Utara"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="9.5" r="2.5" fill="currentColor"/></svg><span>Utara</span></button><button type="button" class="tile" role="radio" aria-checked="false" data-value="Pantai Timur"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="9.5" r="2.5" fill="currentColor"/></svg><span>Pantai Timur</span></button><button type="button" class="tile" role="radio" aria-checked="false" data-value="Borneo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="9.5" r="2.5" fill="currentColor"/></svg><span>Borneo</span></button><button type="button" class="tile" role="radio" aria-checked="false" data-value="Indonesia"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="9.5" r="2.5" fill="currentColor"/></svg><span>Indonesia</span></button><button type="button" class="tile" role="radio" aria-checked="false" data-value="MEA"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="9.5" r="2.5" fill="currentColor"/></svg><span>MEA</span></button></div>
           <input type="hidden" id="cawangan">
+          <p class="reveal-hint" id="asasHint">Pilih cawangan dahulu untuk mengisi maklumat sekolah dan program.</p>
         </div>
 
+        <!-- Shown once a cawangan is chosen (src/pages/program/app.js) -->
+        <div class="step-reveal" id="asasDetail" hidden>
         <div class="field">
-          <label for="sekolah">Nama Sekolah</label>
+          <div class="label-row">
+            <label for="sekolah">Nama Sekolah</label>
+            <a class="add-school" id="addSchool" href="/legality/database" target="_blank" rel="noopener">+ Tambah sekolah ↗</a>
+          </div>
           <div class="combo" id="sekolahCombo">
             <input id="sekolah" type="text" placeholder="Pilih atau taip nama sekolah" autocomplete="off" required
                    role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="sekolahList">
@@ -191,6 +197,7 @@
           <span class="field-label" id="jenisLabel">Jenis Program</span>
           <div class="tiles tiles-4" id="jenisTiles" role="radiogroup" aria-labelledby="jenisLabel" data-for="jenis"><button type="button" class="tile" role="radio" aria-checked="false" data-value="Kepimpinan"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4m0 0h11l-2 4 2 4H5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span>Kepimpinan</span></button><button type="button" class="tile" role="radio" aria-checked="false" data-value="Kerohanian"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 1 0 6 9 7 7 0 1 1-6-9Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m17 4 .7 1.6L19.3 6l-1.6.7L17 8.3l-.7-1.6L14.7 6l1.6-.4Z" fill="currentColor"/></svg><span>Kerohanian</span></button><button type="button" class="tile" role="radio" aria-checked="false" data-value="Akademik"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15ZM4 20.5A2.5 2.5 0 0 0 6.5 23H20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span>Akademik</span></button><button type="button" class="tile" role="radio" aria-checked="false" data-value="Lain-lain"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg><span>Lain-lain</span></button></div>
           <input type="hidden" id="jenis">
+        </div>
         </div>
       </section>
 

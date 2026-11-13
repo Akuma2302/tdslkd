@@ -680,3 +680,16 @@
 .pg .guru-row select { min-width: 0; }
 .pg .guru-row .guru-jawatan[readonly] { color: var(--accent); background: var(--card-2); cursor: default; }
 .pg .guru-row .guru-jawatan[readonly]:placeholder-shown { color: var(--muted); }
+
+/* Maklumat Asas: details open after a cawangan is chosen; "+ Tambah sekolah" link */
+.pg .reveal-hint { margin: .7rem 0 0; padding: .7rem .9rem; border: 1px dashed var(--line-2, rgba(255,255,255,.16)); border-radius: 12px; color: var(--muted); font-size: .85rem; text-align: center; }
+.pg .reveal-hint[hidden] { display: none; }
+.pg .step-reveal[hidden] { display: none; }
+.pg .step-reveal.is-revealing { animation: pgReveal .35s ease-out; }
+@keyframes pgReveal { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .pg .step-reveal.is-revealing { animation: none; } }
+.pg .label-row { display: flex; align-items: baseline; justify-content: space-between; gap: .75rem; }
+.pg .label-row label { margin-bottom: 0; }
+.pg .field .label-row { margin-bottom: .55rem; }
+.pg .add-school { flex: none; padding: .3rem .75rem; border: 1px solid rgba(255, 195, 0, .5); border-radius: 999px; color: var(--accent); font-size: .78rem; font-weight: 700; text-decoration: none; white-space: nowrap; }
+.pg .add-school:hover { background: rgba(255, 195, 0, .12); }

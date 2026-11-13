@@ -224,8 +224,22 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
 
   // Branding follows the selected cawangan
   const cawanganInput = $('cawangan');
+  // The rest of "Maklumat Asas" (sekolah, negeri, program) opens once a cawangan is chosen.
+  const asasDetail = $('asasDetail');
+  const asasHint = $('asasHint');
+  function syncAsas() {
+    const open = !!cawanganInput.value;
+    if (open && asasDetail.hidden) {
+      asasDetail.hidden = false;
+      asasDetail.classList.add('is-revealing');
+      setTimeout(() => asasDetail.classList.remove('is-revealing'), 400);
+    }
+    asasHint.hidden = open;
+  }
   if (initialBrand) setTile('cawangan', initialBrand, false);
+  syncAsas();
   cawanganInput.addEventListener('change', () => {
+    syncAsas();
     if (!cawanganInput.value) return;
     applyBrand(cawanganInput.value);
     rememberBrand(cawanganInput.value);
@@ -287,11 +301,34 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
     loadSchools();
     rest.reduce((p, code) => p.then(() => fetchSchools(code).catch(() => {})), Promise.resolve());
   }
+  // "+ Tambah sekolah" opens Database Legality on this cawangan's school list, with the add-school form open
+  // (and the name typed here filled in). Back on this tab, the list is fetched again so the new school shows up.
+  const addSchool = $('addSchool');
+  function syncAddSchool() {
+    const code = LEGALITY_CODE[cawanganInput.value];
+    const typed = sekolahInput.value.trim();
+    addSchool.href = '/legality/database?tambah=' + encodeURIComponent(typed || '1') + (code ? '#/' + encodeURIComponent(code) : '');
+    addSchool.title = code ? 'Tambah sekolah baru dalam Database Legality ' + cawanganInput.value : 'Tambah sekolah dalam Database Legality';
+  }
+  sekolahInput.addEventListener('input', syncAddSchool);
+  cawanganInput.addEventListener('change', syncAddSchool);
+  syncAddSchool();
+  let wentToAdd = false;
+  addSchool.addEventListener('click', () => { syncAddSchool(); wentToAdd = true; });
+  window.addEventListener('focus', () => {
+    if (!wentToAdd) return;
+    wentToAdd = false;
+    const code = LEGALITY_CODE[cawanganInput.value];
+    if (!code) return;
+    delete schoolCache[code];
+    fetchSchools(code).then(() => { if (LEGALITY_CODE[cawanganInput.value] === code) showHint(cawanganInput.value); }).catch(() => {});
+  });
+
   function showHint(cw) {
     schools = schoolCache[LEGALITY_CODE[cw]] || [];
     sekolahHint.textContent = schools.length
-      ? schools.length + ' sekolah dalam database Legality ' + cw + '. Tiada dalam senarai? Taip nama penuh sekolah.'
-      : 'Belum ada sekolah ' + cw + ' dalam database Legality. Taip nama sekolah.';
+      ? schools.length + ' sekolah dalam database Legality ' + cw + '. Tiada dalam senarai? Tekan "+ Tambah sekolah".'
+      : 'Belum ada sekolah ' + cw + ' dalam database Legality. Tekan "+ Tambah sekolah".';
     if (document.activeElement === sekolahInput) openList();
   }
 
