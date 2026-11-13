@@ -107,7 +107,8 @@ Bahagian lain boleh ditambah dalam `BOT_CHECKS` dalam `Legality.gs`.
 ## Reporting program (bot Program, `TELEGRAM_BOT_TOKEN`)
 
 - Untuk **program baru cawangan Tengah** (`REPORT_CAWANGAN`) yang berjaya dihantar dari borang Program. Lajur tambahan dalam sheet Program: Reporting · Link Canva · Reporting dikemas kini · Follow-up seterusnya · Komen reporting · Video program.
-- **2 jam selepas program tamat** → mesej dalam topik Reporting (t.me/c/2078197579/4523), tag Main PIC + PIC Legality (borang program): duplicate template Canva, tekan *Siap duplicate*, balas dengan link Canva.
+- **2 jam selepas program tamat** → mesej dalam topik Reporting (t.me/c/2078197579/4523), tag Main PIC + PIC Legality (borang program): duplicate template Canva, tekan *Siap duplicate*, balas dengan link Canva. Link mesti link Canva (canva.com / canva.link) dan bukan link template; jika tidak, bot tolak dan minta PIC hantar semula.
+- Semua mesej (peringatan, follow-up, belum, dihantar, lulus, perlu baiki) tag Main PIC + PIC Legality supaya mereka ambil maklum.
 - **Setiap 2 hari, 9 pagi** → "Report sudah siap?" [Sudah siap] [Belum].
 - *Sudah siap* → permohonan kelulusan ke group Program Tengah, topik 60 (t.me/c/4404368342/60): [Lulus] [Perlu baiki] (semua ahli boleh tekan). *Lulus* → status Lulus (selesai). *Perlu baiki* → admin balas komen → bot hantar ke topik Reporting, follow-up diteruskan.
 - Fungsi Netlify: `report-bot` (dipanggil oleh trigger `momReminderTick` bila ada mesej perlu dihantar) dan `telegram-webhook` (butang & balasan). Apps Script actions: `reportClaim`, `reportRelease`, `reportUpdate`.

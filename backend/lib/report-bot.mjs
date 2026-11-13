@@ -64,7 +64,24 @@ export function send(token, where, text, extra = {}) {
   });
 }
 
-const BULAN = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
+// The PIC's own Canva design: a canva.com / canva.link address that is not the template itself.
+// Returns "" when fine, else why it was refused.
+export function canvaProblem(url) {
+  let u;
+  try { u = new URL(url); } catch { return 'bukan link yang sah'; }
+  const host = u.hostname.toLowerCase();
+  if (!/(^|\.)canva\.(com|link)$/.test(host)) return 'bukan link Canva';
+  const bare = (x) => { const v = new URL(x); return (v.hostname.replace(/^www\./, '') + v.pathname).replace(/\/+$/, '').toLowerCase(); };
+  if (bare(url) === bare(TEMPLATE)) return 'ini link template, bukan link report anda';
+  return '';
+}
+
+// "@main @legality" of a programme (Main PIC + PIC Legality from the Program form), or "" when none has a username
+export const tags = (p) => (p.pics && p.pics.length ? p.pics.join(' ') : '');
+// Closing line that pings the PICs so they take note: "\n\n@a @b sila ambil maklum."
+export const notify = (p, what = 'sila ambil maklum.') => (tags(p) ? `\n\n${tags(p)} ${what}` : '');
+
+const BULAN =['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
 export function head(p) {
   const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(p.tamat || '');
   return `📌 ${p.nama}\n🏫 ${p.sekolah}${d ? ` · 📅 ${+d[3]} ${BULAN[+d[2] - 1]} ${d[1]}` : ''}\n👤 ${p.pics && p.pics.length ? p.pics.join(' ') : '(PIC tiada username)'}`;

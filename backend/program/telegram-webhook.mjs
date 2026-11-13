@@ -9,7 +9,7 @@
 //   rp:lulus  "Lulus"           → Reporting = Lulus, PIC told                  [Program Tengah]
 //   rp:baiki  "Perlu baiki"     → asks the admin what to fix (reply)          [Program Tengah]
 // Replies to the bot's questions carry a tag in the question: "#RP-LINK-<id>" (Canva link) or "#RP-FIX-<id>" (comment).
-import { api, tg, json, keyboard, send, head, webhookSecret, whereFor, APPROVAL, TEMPLATE } from '../lib/report-bot.mjs';
+import { api, tg, json, keyboard, send, head, notify, canvaProblem, webhookSecret, whereFor, APPROVAL, TEMPLATE } from '../lib/report-bot.mjs';
 
 const ID = '[A-Za-z0-9_-]{8,60}';
 const who = (u) => (u && u.username ? '@' + u.username : [u?.first_name, u?.last_name].filter(Boolean).join(' ') || 'seseorang');
@@ -47,8 +47,10 @@ async function onButton(token, kod, q) {
   }
 
   if (step === 'belum') {
+    const { program: p } = await api({ action: 'reportUpdate', kod, id, step: 'info' });
     await answer('Baik, saya akan tanya lagi 2 hari lagi.');
-    return send(token, where, `⏳ Noted, ${who(q.from)}. Saya akan follow-up lagi dalam 2 hari.`, { reply_to_message_id: q.message.message_id });
+    return send(token, where, `⏳ Noted, ${who(q.from)}. Report "${p.nama}" belum siap, saya akan follow-up lagi dalam 2 hari.${notify(p)}`,
+      { reply_to_message_id: q.message.message_id });
   }
 
   if (step === 'siap') {
@@ -65,7 +67,7 @@ async function onButton(token, kod, q) {
     await send(token, APPROVAL,
       `📋 KELULUSAN REPORT PROGRAM\n\n${head(p)}\n🔗 ${p.link}\n\nDihantar oleh ${who(q.from)}. Sila semak dan luluskan.`,
       { reply_markup: keyboard([[{ text: '✅ Lulus', data: `rp:lulus:${id}` }, { text: '✏️ Perlu baiki', data: `rp:baiki:${id}` }]]) });
-    return send(token, where, `📤 Report "${p.nama}" dihantar kepada admin untuk kelulusan.`);
+    return send(token, where, `📤 Report "${p.nama}" dihantar kepada admin untuk kelulusan.${notify(p, 'sila tunggu keputusan admin.')}`);
   }
 
   if (step === 'lulus') {
@@ -77,7 +79,7 @@ async function onButton(token, kod, q) {
       chat_id: q.message.chat.id, message_id: q.message.message_id,
       text: `${q.message.text}\n\n✅ Diluluskan oleh ${who(q.from)}`, link_preview_options: { is_disabled: true },
     }).catch(() => {});
-    return send(token, whereFor(id), `✅ REPORT DILULUSKAN\n\n${head(p)}\n\nTerima kasih! Reporting program ini sudah selesai.`);
+    return send(token, whereFor(id), `✅ REPORT DILULUSKAN\n\n${head(p)}\n\nTerima kasih! Reporting program ini sudah selesai.${notify(p)}`);
   }
 
   if (step === 'baiki') {
@@ -100,7 +102,13 @@ async function onReply(token, kod, msg) {
 
   if (kind === 'LINK') {
     const url = (text.match(/https?:\/\/\S+/) || [])[0];
-    if (!url) return send(token, where, '⚠️ Saya tidak jumpa link. Balas mesej saya tadi dengan link Canva (bermula dengan https://).', { reply_to_message_id: msg.message_id });
+    const problem = url ? canvaProblem(url) : 'tiada link dalam balasan';
+    if (problem) {
+      const { program: p0 } = await api({ action: 'reportUpdate', kod, id, step: 'info' });
+      return send(token, where,
+        `❌ Link ditolak (${problem}), ${who(msg.from)}.\n\nSila duplicate template dahulu: ${TEMPLATE}\nkemudian BALAS mesej ini dengan link Canva report anda sendiri (canva.com/design/…).\n\n${head(p0)}\n#RP-LINK-${id}`,
+        { reply_to_message_id: msg.message_id, reply_markup: { force_reply: true, selective: false, input_field_placeholder: 'https://www.canva.com/design/…' } });
+    }
     const r = await api({ action: 'reportUpdate', kod, id, step: 'link', url });
     const p = r.program;
     return send(token, where,
@@ -115,6 +123,6 @@ async function onReply(token, kod, msg) {
   if (!r.changed) return send(token, where, 'ℹ️ Report ini tidak lagi menunggu kelulusan.', { reply_to_message_id: msg.message_id });
   await send(token, where, `↩️ Komen dihantar kepada PIC "${p.nama}".`, { reply_to_message_id: msg.message_id });
   return send(token, whereFor(id),
-    `❌ REPORT BELUM DILULUSKAN\n\n${head(p)}\n🔗 ${p.link}\n\n✏️ Perlu baiki (${who(msg.from)}):\n${text}\n\nSila baiki dan tekan "Sudah siap" bila selesai.`,
+    `❌ REPORT BELUM DILULUSKAN\n\n${head(p)}\n🔗 ${p.link}\n\n✏️ Perlu baiki (${who(msg.from)}):\n${text}\n\nSila baiki dan tekan "Sudah siap" bila selesai.${notify(p, 'sila ambil maklum dan baiki.')}`,
     { reply_markup: keyboard([[{ text: '✅ Sudah siap', data: `rp:siap:${id}` }]]) });
 }

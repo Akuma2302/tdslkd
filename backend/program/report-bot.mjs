@@ -29,7 +29,7 @@ export default async (req) => {
   }
   if (body.test || body.testClear) {
     try {
-      const r = await api({ action: body.test ? 'reportTest' : 'reportTestClear', kod });
+      const r = await api({ action: body.test ? 'reportTest' : 'reportTestClear', kod, pics: body.pics });
       if (body.testClear) return json(200, r);
     } catch (e) { return json(403, { ok: false, error: e.message }); }
   }

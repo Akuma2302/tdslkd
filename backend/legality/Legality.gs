@@ -114,7 +114,7 @@ function doPost(e) {
     if (body.action === "reportTest" || body.action === "reportTestClear") {   // admin: test the reporting bot
       if (role !== "admin") throw new Error("KOD_SALAH");
       lock.waitLock(20000);
-      return json(body.action === "reportTest" ? reportTest() : reportTestClear());
+      return json(body.action === "reportTest" ? reportTest(body) : reportTestClear());
     }
     if (body.action === "picoClaim" || body.action === "picoRelease") {   // Netlify function pico (any valid code)
       if (body.demo && role !== "admin") throw new Error("KOD_SALAH");
@@ -1974,6 +1974,9 @@ function reportUpdate(body) {
   if (step === "link") {
     var url = text(body.url).slice(0, 400);
     if (!/^https?:\/\/\S+$/.test(url)) throw new Error("Link tidak sah.");
+    if (!/^https?:\/\/([a-z0-9-]+\.)*canva\.(com|link)\//i.test(url + "/")) throw new Error("Bukan link Canva.");
+    if (url.replace(/^https?:\/\/(www\.)?/i, "").replace(/[?#].*$/, "").replace(/\/+$/, "").toLowerCase() ===
+        REPORT_TEMPLATE.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/+$/, "").toLowerCase()) throw new Error("Ini link template.");
     if (p.status === RS.DONE || p.status === RS.REVIEW) return { ok: true, changed: false, program: p };
     set = [p.status === RS.FIX ? RS.FIX : RS.MAKING, url, now, reportNextFollowUp(now.getTime()), p.komen];
   } else if (step === "submit") {
@@ -2001,16 +2004,17 @@ function reportUpdate(body) {
   return { ok: true, changed: !!set, program: p };
 }
 
-/** Admin test: a test programme ("TEST-…", no PIC tags) whose reminder is due now. Its PIC messages go to the
- *  testing topic instead of the Reporting topic (Netlify report-bot). { id } */
-function reportTest() {
+/** Admin test: a test programme ("TEST-…") whose reminder is due now. Its PIC messages go to the testing topic
+ *  instead of the Reporting topic (Netlify report-bot). body.pics: up to 2 usernames used as Main PIC / PIC Legality. { id } */
+function reportTest(body) {
+  var tagged = (body && Array.isArray(body.pics) ? body.pics : []).map(handleOf).filter(Boolean);
   var sh = programSheet();
   ensureReportHeader(sh);
   var id = "TEST-" + Utilities.getUuid().slice(0, 8);
   var now = new Date();
   var row = [id, now, "TENGAH", "UJIAN", "Selangor", "UJIAN REPORTING (abaikan)", "Ujian",
              ymd(Utilities.formatDate(now, MOM_TZ, "yyyy-MM-dd")), ymd(Utilities.formatDate(now, MOM_TZ, "yyyy-MM-dd")),
-             "'08:00 – 10:00", "", 0, "", 0, 0, 0, "", "", "", "", "Ujian"];
+             "'08:00 – 10:00", "", 0, "", 0, 0, 0, "", tagged[0] || "", tagged[1] || tagged[0] || "", "", "Ujian"];
   sh.appendRow(row);
   var r = sh.getLastRow();
   sh.getRange(r, REPORT_COL, 1, 4).setValues([[RS.WAIT, "", now, now]]);
