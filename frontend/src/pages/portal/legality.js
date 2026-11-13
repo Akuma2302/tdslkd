@@ -503,7 +503,17 @@
     box.appendChild(ta);
     card.appendChild(box);
     var when = el("p", "lg-note-when");
-    function showWhen(iso) { when.textContent = iso ? "Dikemas kini " + fmtWhen(iso) : "Belum pernah dikemas kini."; }
+    // How long ago, e.g. "Dikemas kini 3 hari lepas"; 7+ days gets a warning (bot PICO reminds the PIC then).
+    function showWhen(iso) {
+      if (!iso) { when.textContent = "Belum pernah dikemas kini."; when.className = "lg-note-when is-stale"; return; }
+      var min = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+      var days = Math.floor(min / 1440);
+      when.textContent = (days >= 7 ? "⚠️ " : "") + "Dikemas kini " +
+        (min < 60 ? "baru tadi" : min < 1440 ? Math.floor(min / 60) + " jam lepas" : days + " hari lepas") +
+        (days >= 7 ? " — sila kemas kini (bot akan mengingatkan PIC)." : "");
+      when.title = fmtWhen(iso);
+      when.className = "lg-note-when" + (days >= 7 ? " is-stale" : "");
+    }
     showWhen(note.updated);
     card.appendChild(when);
 

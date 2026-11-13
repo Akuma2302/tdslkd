@@ -1448,6 +1448,9 @@ var PICO_HOUR = 8;          // daily reminder and Saturday summary go out from t
 var PICO_LAST_HOUR = 12;    // … until this hour (if the trigger was down at 8, they still go out that morning)
 var PICO_BOT_URL = "https://tdslkd.netlify.app/.netlify/functions/pico";
 var PICO_PENDING = "picoPending";   // cache flag: a screenshot is waiting to be posted
+// Progress Semasa: every Isnin at 8 pagi PICO posts a weekly reminder listing every school; on the other days it
+// posts an amaran (warning) for schools not updated for PROGRESS_STALE_DAYS or more (or never), until they update.
+var PROGRESS_STALE_DAYS = 7;
 
 function weeklyEnabled(c) { return WEEKLY_CAWANGAN.indexOf(text(c).toUpperCase()) >= 0; }
 
@@ -1579,6 +1582,61 @@ function picoSummaryText(c, w, status) {
   return lines.join("\n");
 }
 
+// "baru tadi", "5 jam lepas", "1 hari lepas", "12 hari lepas"
+function agoText(ms) {
+  var min = Math.floor(ms / 60000);
+  if (min < 60) return "baru tadi";
+  if (min < 1440) return Math.floor(min / 60) + " jam lepas";
+  return Math.floor(min / 1440) + " hari lepas";
+}
+
+// Every school of a cawangan with how long ago its Progress Semasa was updated, least recent first:
+// [{ sekolah, pics, days (-1 = never written), ago, stale (7+ days or never) }]
+function progressAges(ss) {
+  var updated = {};
+  var sh = ss.getSheetByName(PROGRESS_TAB);
+  if (sh && sh.getLastRow() >= 2 && sh.getMaxColumns() >= noteCol() + 1) {
+    sh.getRange(2, 1, sh.getLastRow() - 1, noteCol() + 1).getValues().forEach(function (r) {
+      var d = r[noteCol()];
+      if (text(r[0]) && text(r[noteCol() - 1]) && d instanceof Date) updated[text(r[0])] = d.getTime();
+    });
+  }
+  var now = Date.now();
+  return schoolNames(ss).map(function (school) {
+    var t = updated[school];
+    var days = t ? Math.floor((now - t) / 86400000) : -1;
+    return { sekolah: school, days: days, ago: t ? agoText(now - t) : "", stale: days < 0 || days >= PROGRESS_STALE_DAYS,
+             pics: readPic(ss, school).filter(function (p) { return p.username; }).map(function (p) { return "@" + p.username; }) };
+  }).sort(function (a, b) { return (b.days < 0 ? 1e9 : b.days) - (a.days < 0 ? 1e9 : a.days); });
+}
+
+function progressLine(s, mark) {
+  return (mark && s.stale ? "⚠️ " : "🏫 ") + s.sekolah + " — " + picoWho(s) + " · " +
+         (s.days < 0 ? "belum pernah dikemas kini" : "dikemas kini " + s.ago);
+}
+
+// Isnin: weekly reminder listing every school. Other days: amaran for schools not updated for 7+ days (or never).
+function picoProgressText(c, ages, w) {
+  var url = "Kemas kini Progress Semasa di: " + PORTAL_URL + "#/" + encodeURIComponent(c);
+  if (w.dow === 1) {
+    var lines = ["📝 REMINDER MINGGUAN · PROGRESS LEGALITY SEMASA · " + c,
+                 "Minggu " + weekLabel(w) + ". Mohon semua PIC kemas kini Progress Semasa sekolah masing-masing minggu ini 🙏", ""];
+    ages.forEach(function (s) { lines.push(progressLine(s, true)); });
+    if (ages.some(function (s) { return s.stale; })) {
+      lines.push("", "⚠️ = tidak dikemas kini " + PROGRESS_STALE_DAYS + " hari atau lebih — amaran akan dihantar setiap hari sehingga dikemas kini.");
+    }
+    lines.push("", url);
+    return lines.join("\n");
+  }
+  var stale = ages.filter(function (s) { return s.stale; });
+  if (!stale.length) return "";
+  var out = ["⚠️ AMARAN · PROGRESS LEGALITY SEMASA · " + c,
+             "Progress Semasa sekolah berikut tidak dikemas kini " + PROGRESS_STALE_DAYS + " hari atau lebih. Mohon PIC kemas kini hari ini 🙏", ""];
+  stale.forEach(function (s) { out.push(progressLine(s, false)); });
+  out.push("", "Amaran ini dihantar setiap hari sehingga Progress Semasa dikemas kini.", url);
+  return out.join("\n");
+}
+
 function picoCaption(r) {
   var at = r[6] instanceof Date ? r[6] : new Date();
   return "✅ " + text(r[2]) + " · " + text(r[1]) + "\n👤 " + (text(r[3]) || "(PIC belum ditetapkan)") + "\n🗓 " +
@@ -1596,8 +1654,10 @@ function picoClaim(body) {
   var inHours = w.hour >= PICO_HOUR && w.hour < PICO_LAST_HOUR;
   var dailyDue = inHours && w.dow <= 5 && props.getProperty("PICO_DAILY") !== w.today;
   var summaryDue = inHours && w.dow === 6 && props.getProperty("PICO_SUMMARY") !== w.today;
+  var progressDue = inHours && props.getProperty("PICO_PROGRESS") !== w.today;   // every day (Isnin: weekly list)
   if (body.peek) {
-    return { pending: (CacheService.getScriptCache().get(PICO_PENDING) ? 1 : 0) + (dailyDue ? 1 : 0) + (summaryDue ? 1 : 0) };
+    return { pending: (CacheService.getScriptCache().get(PICO_PENDING) ? 1 : 0) + (dailyDue ? 1 : 0) + (summaryDue ? 1 : 0) +
+                      (progressDue ? 1 : 0) };
   }
   if (body.demo) return picoDemo(w);
   var mark = !body.preview, jobs = [];
@@ -1618,6 +1678,10 @@ function picoClaim(body) {
       var t = picoDailyText(c, w, weeklyStatus(ss, w, 0));
       if (t) jobs.push({ type: "text", text: t, refs: [{ type: "prop", key: "PICO_DAILY", old: props.getProperty("PICO_DAILY") || "" }] });
     }
+    if (progressDue) {
+      var pt = picoProgressText(c, progressAges(ss), w);
+      if (pt) jobs.push({ type: "text", text: pt, refs: [{ type: "prop", key: "PICO_PROGRESS", old: props.getProperty("PICO_PROGRESS") || "" }] });
+    }
     if (summaryDue) {
       // Saturday: the week that just ended (Isnin–Jumaat); done after Jumaat 23:59 counts as failed.
       var fri = w.start.split("-");
@@ -1629,6 +1693,7 @@ function picoClaim(body) {
   if (mark) {
     if (dailyDue) props.setProperty("PICO_DAILY", w.today);
     if (summaryDue) props.setProperty("PICO_SUMMARY", w.today);
+    if (progressDue) props.setProperty("PICO_PROGRESS", w.today);
     CacheService.getScriptCache().remove(PICO_PENDING);
     SpreadsheetApp.flush();
   }
@@ -1643,6 +1708,11 @@ function picoDemo(w) {
     var daily = picoDailyText(c, w, weeklyStatus(ss, w, 0)) || "(Semua sekolah sudah selesai — tiada reminder.)";
     jobs.push({ type: "text", text: "🧪 DEMO — reminder harian (Isnin–Jumaat 8 pagi)\n\n" + daily, refs: [] });
     jobs.push({ type: "text", text: "🧪 DEMO — ringkasan (Sabtu 8 pagi)\n\n" + picoSummaryText(c, w, weeklyStatus(ss, w, 0)), refs: [] });
+    var ages = progressAges(ss);
+    var mon = { start: w.start, end: w.end, dow: 1 }, other = { start: w.start, end: w.end, dow: 2 };
+    jobs.push({ type: "text", text: "🧪 DEMO — reminder mingguan Progress (setiap Isnin 8 pagi)\n\n" + picoProgressText(c, ages, mon), refs: [] });
+    jobs.push({ type: "text", text: "🧪 DEMO — amaran Progress (setiap hari 8 pagi, selagi belum dikemas kini)\n\n" +
+               (picoProgressText(c, ages, other) || "(Tiada — semua sekolah dikemas kini dalam 7 hari.)"), refs: [] });
   });
   return { jobs: jobs };
 }
@@ -1652,7 +1722,7 @@ function picoRelease(body) {
   var props = PropertiesService.getScriptProperties();
   (Array.isArray(body.refs) ? body.refs : []).forEach(function (x) {
     if (!x) return;
-    if (x.type === "prop" && /^PICO_(DAILY|SUMMARY)$/.test(text(x.key))) {
+    if (x.type === "prop" && /^PICO_(DAILY|SUMMARY|PROGRESS)$/.test(text(x.key))) {
       if (text(x.old)) props.setProperty(x.key, text(x.old)); else props.deleteProperty(x.key);
     }
     if (x.type === "photo" && weeklyEnabled(x.cawangan)) {

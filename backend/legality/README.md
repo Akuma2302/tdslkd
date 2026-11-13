@@ -95,6 +95,8 @@ Bahagian lain boleh ditambah dalam `BOT_CHECKS` dalam `Legality.gs`.
   - **Sabtu 8 pagi**: ringkasan minggu itu — selesai / gagal (gagal = belum ditanda sebelum Jumaat 23:59).
 - Dijalankan oleh trigger sedia ada `momReminderTick` (setiap minit). Jika trigger terlepas pukul 8, mesej masih dihantar sehingga 12 tengah hari. Script Properties `PICO_DAILY` / `PICO_SUMMARY` mencatat tarikh terakhir dihantar.
 - PIC yang ditag datang daripada tab **PIC Legality**; sekolah tanpa PIC ditulis "(PIC belum ditetapkan)".
+- **Reminder Progress Semasa** (mesej berasingan, 8 pagi): **setiap Isnin** — reminder mingguan menyenaraikan **semua sekolah** dengan PIC dan tempoh kemas kini terakhir (⚠️ jika 7 hari atau lebih); **setiap hari lain (termasuk Sabtu & Ahad)** — ⚠️ **amaran** untuk sekolah yang tidak dikemas kini **7 hari atau lebih** (`PROGRESS_STALE_DAYS`) atau belum pernah, sehingga ia dikemas kini. Script Property `PICO_PROGRESS` mencatat tarikh terakhir dihantar.
+- Admin dan halaman sekolah memaparkan tempoh sejak kemas kini terakhir (cth. "Dikemas kini 1 hari lepas"); 7 hari atau lebih ditanda ⚠️.
 
 ## Gambar Planning
 

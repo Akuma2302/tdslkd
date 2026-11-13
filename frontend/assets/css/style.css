@@ -1297,3 +1297,4 @@ html.ym-lock { overflow: hidden; }
   .lgd-prog-pic { white-space: normal; }
   .lgd-prog-note { min-width: 0; }
 }
+.lg-note-when.is-stale { color: #f0b429; }

@@ -262,8 +262,15 @@
   }
 
   // Progress Legality Sekolah: Sekolah · PIC (opens their Telegram) · Progress semasa written on the school page.
-  // Most recently updated first; schools without a note at the end. A note older than 14 days is flagged.
-  var STALE_DAYS = 14;
+  // Most recently updated first; schools without a note at the end. Shows how long ago it was updated;
+  // 7+ days is flagged (bot PICO also reminds the PIC then).
+  var STALE_DAYS = 7;
+  function ago(isoStr) {
+    var min = Math.floor((Date.now() - new Date(isoStr).getTime()) / 60000);
+    if (min < 60) return "baru tadi";
+    if (min < 1440) return Math.floor(min / 60) + " jam lepas";
+    return Math.floor(min / 1440) + " hari lepas";
+  }
   function progressWidget(rows, branch) {
     var w = widget("w-4", "Progress Legality Sekolah", rows.length + " sekolah");
     if (!rows.length) { w.appendChild(el("p", "empty-text", "Belum ada sekolah untuk paparan ini.")); return w; }
@@ -306,9 +313,9 @@
         noteTd.appendChild(el("p", "lgd-prog-text", note.text));
         if (note.updated) {
           var days = Math.floor((now - new Date(note.updated).getTime()) / 86400000);
-          var when = el("small", "lgd-prog-when" + (days > STALE_DAYS ? " is-stale" : ""),
-            "Dikemas kini " + new Date(note.updated).toLocaleString("ms-MY", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) +
-            (days > STALE_DAYS ? " · " + days + " hari lalu" : ""));
+          var when = el("small", "lgd-prog-when" + (days >= STALE_DAYS ? " is-stale" : ""),
+            (days >= STALE_DAYS ? "⚠️ " : "") + "Dikemas kini " + ago(note.updated));
+          when.title = new Date(note.updated).toLocaleString("ms-MY", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
           noteTd.appendChild(when);
         }
       } else {
