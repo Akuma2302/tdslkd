@@ -106,6 +106,16 @@ function doPost(e) {
       lock.waitLock(20000);
       return json(body.action === "saveMomItem" ? saveMomItem(body) : deleteMomItem(body));
     }
+    if (body.action === "reportClaim" || body.action === "reportRelease" || body.action === "reportUpdate") {   // Netlify report-bot / telegram-webhook
+      if (role !== "tengah" && role !== "admin") throw new Error("KOD_SALAH");
+      lock.waitLock(20000);
+      return json(body.action === "reportClaim" ? reportClaim(body) : body.action === "reportRelease" ? reportRelease(body) : reportUpdate(body));
+    }
+    if (body.action === "reportTest" || body.action === "reportTestClear") {   // admin: test the reporting bot
+      if (role !== "admin") throw new Error("KOD_SALAH");
+      lock.waitLock(20000);
+      return json(body.action === "reportTest" ? reportTest() : reportTestClear());
+    }
     if (body.action === "picoClaim" || body.action === "picoRelease") {   // Netlify function pico (any valid code)
       if (body.demo && role !== "admin") throw new Error("KOD_SALAH");
       lock.waitLock(20000);
@@ -928,6 +938,7 @@ function saveProgram(body) {
     r = sh.getLastRow();
   }
   sh.getRange(r, 1, 1, row.length).setVerticalAlignment("top").setWrap(true);
+  startReporting(sh, r, row[2], body.telegram, row);   // reporting reminders (Tengah, new programmes)
   CacheService.getScriptCache().remove("programs");
   return { ok: true, id: id };
 }
@@ -938,8 +949,9 @@ function iso2(v) { return v instanceof Date ? iso(v) : text(v); }
 function listPrograms() {
   var sh = programSheet();
   var out = [];
+  var width = Math.min(sh.getMaxColumns(), PROGRAM_HEAD.length + REPORT_HEAD.length);
   if (sh.getLastRow() > 1) {
-    sh.getRange(2, 1, sh.getLastRow() - 1, PROGRAM_HEAD.length).getValues().forEach(function (r) {
+    sh.getRange(2, 1, sh.getLastRow() - 1, width).getValues().forEach(function (r) {
       if (!text(r[0]) && !text(r[3])) return;
       out.push({
         id: text(r[0]), dihantar: r[1] instanceof Date ? r[1].toISOString() : text(r[1]),
@@ -947,7 +959,10 @@ function listPrograms() {
         mula: iso2(r[7]), tamat: iso2(r[8]), masa: text(r[9]),
         guru: text(r[10]), bilGuru: Number(r[11]) || 0, pelajar: text(r[12]), jumlahPelajar: Number(r[13]) || 0,
         manpower: Number(r[14]) || 0, tambahan: Number(r[15]) || 0, sheet: text(r[16]),
-        mainPic: text(r[17]), legality: text(r[18]), virality: text(r[19]), telegram: text(r[20])
+        mainPic: text(r[17]), legality: text(r[18]), virality: text(r[19]), telegram: text(r[20]),
+        reporting: { status: text(r[21]), link: text(r[22]), updated: r[23] instanceof Date ? r[23].toISOString() : "",
+                     next: r[24] instanceof Date ? r[24].toISOString() : "", komen: text(r[25]) },
+        video: text(r[26])
       });
     });
   }
@@ -1456,6 +1471,7 @@ function momReminderTick() {
     Logger.log(res.getResponseCode() + " " + res.getContentText());
   }
   try { picoTick(kod); } catch (e) { Logger.log("pico: " + e); }   // Checklist Mingguan (bot PICO)
+  try { reportTick(kod); } catch (e) { Logger.log("report: " + e); }   // Reporting program (bot Program)
 }
 
 /** body: { refs: [{ id, key }] } — messages Telegram refused; they go back in the queue. */
@@ -1794,6 +1810,249 @@ function picoTick(kod) {
     method: "post", contentType: "application/json", payload: JSON.stringify({ kod: kod }), muteHttpExceptions: true
   });
   Logger.log("pico " + res.getResponseCode() + " " + res.getContentText());
+}
+
+// ---------- Reporting program (bot TELEGRAM_BOT_TOKEN) ----------
+//
+// After a programme of a cawangan in REPORT_CAWANGAN ends, the Program bot (token TELEGRAM_BOT_TOKEN in Netlify)
+// chases its report in the Reporting topic (t.me/c/2078197579/4523), tagging the Main PIC and PIC Legality of the
+// Program form:
+//   program tamat + 2 jam → duplicate the Canva template, tap "Siap duplicate", reply with the Canva link
+//   every 2 days, 9 pagi  → "Report sudah siap?" [Sudah siap] [Belum]
+//   Sudah siap            → approval request in Program Tengah, topic 60: [Lulus] [Perlu baiki]
+//   Lulus                 → Reporting = Lulus (ticked); Perlu baiki → the admin's comment goes back to the topic
+//                           and the follow-ups continue until it is approved.
+// Only programmes sent after this was added are chased (their Reporting column is filled when they are saved).
+// Kept in extra columns of the Program sheet (REPORT_HEAD, after "Telegram"). Netlify functions report-bot (sends
+// what is due, called by the every-minute trigger) and telegram-webhook (buttons and replies) use the actions
+// reportClaim / reportRelease / reportUpdate below.
+var REPORT_CAWANGAN = ["TENGAH"];
+var REPORT_HEAD = ["Reporting", "Link Canva", "Reporting dikemas kini", "Follow-up seterusnya", "Komen reporting", "Video program"];
+var REPORT_COL = PROGRAM_HEAD.length + 1;   // first reporting column
+var REPORT_TEMPLATE = "https://canva.link/m38sc8m51fkhgjq";
+var REPORT_AFTER_HOURS = 2;
+var REPORT_EVERY_DAYS = 2;
+var REPORT_HOUR = 9;
+var REPORT_NEXT = "reportNextAt";   // cache: when the next reporting message is due (ms)
+var RS = { WAIT: "Menunggu program tamat", TEMPLATE: "Template", MAKING: "Sedang dibuat", REVIEW: "Menunggu kelulusan",
+           FIX: "Perlu baiki", DONE: "Lulus" };
+
+function ensureReportHeader(sh) {
+  if (sh.getMaxColumns() < REPORT_COL + REPORT_HEAD.length - 1) {
+    sh.insertColumnsAfter(sh.getMaxColumns(), REPORT_COL + REPORT_HEAD.length - 1 - sh.getMaxColumns());
+  }
+  if (text(sh.getRange(1, REPORT_COL).getValue()) === REPORT_HEAD[0]) return;
+  sh.getRange(1, REPORT_COL, 1, REPORT_HEAD.length).setValues([REPORT_HEAD])
+    .setFontWeight("bold").setBackground("#1f1f1f").setFontColor("#ffc300").setVerticalAlignment("middle");
+  sh.setColumnWidth(REPORT_COL, 150);
+  sh.setColumnWidth(REPORT_COL + 1, 240);
+  sh.getRange(1, REPORT_COL + 2, sh.getMaxRows(), 2).setNumberFormat("d/m/yyyy h:mm");
+}
+
+// "@ali (Alumni · Kader Tengah)" -> "@ali"
+function handleOf(v) { var m = text(v).match(/@[A-Za-z0-9_]{3,40}/); return m ? m[0] : ""; }
+// The next REPORT_HOUR o'clock, REPORT_EVERY_DAYS days from now (Malaysia time)
+function reportNextFollowUp(fromMs) {
+  var day = Utilities.formatDate(new Date((fromMs || Date.now()) + REPORT_EVERY_DAYS * 86400000), MOM_TZ, "yyyy-MM-dd");
+  return Utilities.parseDate(day + " " + ("0" + REPORT_HOUR).slice(-2) + ":00", MOM_TZ, "yyyy-MM-dd HH:mm");
+}
+// End of the programme: Tarikh tamat + end time from "08:00 – 17:00" (17:00 if none), Malaysia time
+function programEnd(tamat, masa) {
+  var day = tamat instanceof Date ? Utilities.formatDate(tamat, Session.getScriptTimeZone(), "yyyy-MM-dd") : text(tamat);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
+  var m = text(masa).match(/(\d{1,2}):(\d{2})\s*$/);
+  return Utilities.parseDate(day + " " + (m ? ("0" + m[1]).slice(-2) + ":" + m[2] : "17:00"), MOM_TZ, "yyyy-MM-dd HH:mm");
+}
+
+/** Called by saveProgram for a NEW programme row: starts its reporting if the cawangan takes part. */
+function startReporting(sh, r, cawangan, telegram, row) {
+  if (REPORT_CAWANGAN.indexOf(cawangan) < 0 || !/^Berjaya/.test(text(telegram))) return;
+  ensureReportHeader(sh);
+  if (text(sh.getRange(r, REPORT_COL).getValue())) return;
+  var end = programEnd(row[8], row[9]);
+  var due = end ? new Date(end.getTime() + REPORT_AFTER_HOURS * 3600000) : new Date();
+  sh.getRange(r, REPORT_COL, 1, 4).setValues([[RS.WAIT, "", new Date(), due]]);
+  CacheService.getScriptCache().remove(REPORT_NEXT);
+}
+
+function reportRow(r) {
+  var c = REPORT_COL - 1;
+  return {
+    id: text(r[0]), cawangan: text(r[2]), sekolah: text(r[3]), nama: text(r[5]),
+    tamat: r[8] instanceof Date ? Utilities.formatDate(r[8], Session.getScriptTimeZone(), "yyyy-MM-dd") : text(r[8]),
+    pics: momUniq([handleOf(r[17]), handleOf(r[18])]),
+    status: text(r[c]), link: text(r[c + 1]), next: r[c + 3] instanceof Date ? r[c + 3].getTime() : 0, komen: text(r[c + 4])
+  };
+}
+function reportRows(sh) {
+  if (sh.getLastRow() < 2 || sh.getMaxColumns() < REPORT_COL + REPORT_HEAD.length - 1) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, REPORT_COL + REPORT_HEAD.length - 1).getValues();
+}
+function reportFind(sh, id) {
+  var rows = reportRows(sh);
+  for (var i = 0; i < rows.length; i++) if (text(rows[i][0]) === id) return { row: i + 2, p: reportRow(rows[i]) };
+  return null;
+}
+function reportHead(p) {
+  return "📌 " + p.nama + "\n🏫 " + p.sekolah + (p.tamat ? " · 📅 " + momFmtDate(p.tamat) : "") +
+         "\n👤 " + (p.pics.length ? p.pics.join(" ") : "(PIC tiada username)");
+}
+
+/**
+ * Reporting messages that are due now (marked as sent at once; body.peek only counts them):
+ * { jobs: [{ id, kind: "start" | "link" | "ask", text, buttons: [[{ text, data }]] }] }
+ */
+function reportClaim(body) {
+  var sh = programSheet();
+  var rows = reportRows(sh);
+  var now = Date.now(), jobs = [], earliest = 0;
+  rows.forEach(function (r, i) {
+    var p = reportRow(r);
+    if (!p.id || [RS.WAIT, RS.TEMPLATE, RS.MAKING, RS.FIX].indexOf(p.status) < 0 || !p.next) return;
+    if (p.next > now) { if (!earliest || p.next < earliest) earliest = p.next; return; }
+    var job = { id: p.id };
+    if (p.status === RS.WAIT) {
+      job.kind = "start";
+      job.text = "📝 REPORTING PROGRAM\n\n" + reportHead(p) + "\n\nProgram telah tamat. Sila sediakan report program:\n" +
+                 "1️⃣ Duplicate template ini: " + REPORT_TEMPLATE + "\n2️⃣ Tekan \"✅ Siap duplicate\" dan balas dengan link Canva anda.";
+      job.buttons = [[{ text: "✅ Siap duplicate", data: "rp:dup:" + p.id }]];
+    } else if (p.status === RS.TEMPLATE) {
+      job.kind = "link";
+      job.text = "⏰ PERINGATAN REPORTING\n\n" + reportHead(p) + "\n\nLink Canva report belum dihantar.\n" +
+                 "Duplicate template: " + REPORT_TEMPLATE + "\nkemudian tekan \"✅ Siap duplicate\".";
+      job.buttons = [[{ text: "✅ Siap duplicate", data: "rp:dup:" + p.id }]];
+    } else {
+      job.kind = "ask";
+      job.text = (p.status === RS.FIX ? "⏰ FOLLOW-UP REPORTING (perlu baiki)\n\n" : "⏰ FOLLOW-UP REPORTING\n\n") + reportHead(p) +
+                 (p.link ? "\n🔗 " + p.link : "") + (p.status === RS.FIX && p.komen ? "\n✏️ Perlu baiki: " + p.komen : "") +
+                 "\n\nReport sudah siap?";
+      job.buttons = [[{ text: "✅ Sudah siap", data: "rp:siap:" + p.id }, { text: "⏳ Belum", data: "rp:belum:" + p.id }]];
+    }
+    jobs.push(job);
+    if (!body.peek) {
+      var next = reportNextFollowUp(now);
+      sh.getRange(i + 2, REPORT_COL, 1, 4).setValues([[p.status === RS.WAIT ? RS.TEMPLATE : p.status, p.link, new Date(), next]]);
+      if (!earliest || next.getTime() < earliest) earliest = next.getTime();
+    }
+  });
+  if (!body.peek) {
+    SpreadsheetApp.flush();
+    CacheService.getScriptCache().put(REPORT_NEXT, String(earliest || now + 6 * 3600000), 21600);
+    CacheService.getScriptCache().remove("programs");
+  }
+  return { jobs: jobs };
+}
+
+/** body: { ids } — messages Telegram refused: try again in 5 minutes. */
+function reportRelease(body) {
+  var sh = programSheet();
+  (Array.isArray(body.ids) ? body.ids : []).forEach(function (id) {
+    var f = reportFind(sh, text(id));
+    if (!f) return;
+    sh.getRange(f.row, REPORT_COL + 3).setValue(new Date(Date.now() + 5 * 60000));
+  });
+  CacheService.getScriptCache().remove(REPORT_NEXT);
+  return { ok: true };
+}
+
+/**
+ * Buttons and replies from Telegram (Netlify telegram-webhook). body: { id, step, url?, note?, by? }
+ *   info   → the programme (no change)
+ *   link   → Canva link received                          → Sedang dibuat
+ *   submit → PIC says the report is ready                 → Menunggu kelulusan
+ *   approve→ approved in Program Tengah                   → Lulus (stops)
+ *   reject → needs changes (note = what to fix)           → Perlu baiki, follow-up again in 2 days
+ * Returns { ok, program, changed } — changed is false when the step no longer applies (e.g. already approved).
+ */
+function reportUpdate(body) {
+  var sh = programSheet();
+  ensureReportHeader(sh);
+  var f = reportFind(sh, text(body.id));
+  if (!f || !f.p.status) throw new Error("Program ini tiada dalam senarai reporting.");
+  var p = f.p, step = text(body.step), now = new Date();
+  var set = null;
+  if (step === "link") {
+    var url = text(body.url).slice(0, 400);
+    if (!/^https?:\/\/\S+$/.test(url)) throw new Error("Link tidak sah.");
+    if (p.status === RS.DONE || p.status === RS.REVIEW) return { ok: true, changed: false, program: p };
+    set = [p.status === RS.FIX ? RS.FIX : RS.MAKING, url, now, reportNextFollowUp(now.getTime()), p.komen];
+  } else if (step === "submit") {
+    if ([RS.MAKING, RS.FIX, RS.TEMPLATE].indexOf(p.status) < 0) return { ok: true, changed: false, program: p };
+    if (!p.link) return { ok: true, changed: false, needLink: true, program: p };
+    set = [RS.REVIEW, p.link, now, "", p.komen];
+  } else if (step === "approve") {
+    if (p.status !== RS.REVIEW) return { ok: true, changed: false, program: p };
+    set = [RS.DONE, p.link, now, "", "Diluluskan oleh " + text(body.by).slice(0, 60)];
+  } else if (step === "reject") {
+    if (p.status !== RS.REVIEW) return { ok: true, changed: false, program: p };
+    var note = text(body.note).slice(0, 1000);
+    if (!note) throw new Error("Komen kosong.");
+    set = [RS.FIX, p.link, now, reportNextFollowUp(now.getTime()), safe(note)];
+  } else if (step !== "info") {
+    throw new Error("Langkah tidak dikenali: " + step);
+  }
+  if (set) {
+    sh.getRange(f.row, REPORT_COL, 1, 5).setValues([set]);
+    SpreadsheetApp.flush();
+    CacheService.getScriptCache().remove(REPORT_NEXT);
+    CacheService.getScriptCache().remove("programs");
+    p = reportFind(sh, p.id).p;
+  }
+  return { ok: true, changed: !!set, program: p };
+}
+
+/** Admin test: a test programme ("TEST-…", no PIC tags) whose reminder is due now. Its PIC messages go to the
+ *  testing topic instead of the Reporting topic (Netlify report-bot). { id } */
+function reportTest() {
+  var sh = programSheet();
+  ensureReportHeader(sh);
+  var id = "TEST-" + Utilities.getUuid().slice(0, 8);
+  var now = new Date();
+  var row = [id, now, "TENGAH", "UJIAN", "Selangor", "UJIAN REPORTING (abaikan)", "Ujian",
+             ymd(Utilities.formatDate(now, MOM_TZ, "yyyy-MM-dd")), ymd(Utilities.formatDate(now, MOM_TZ, "yyyy-MM-dd")),
+             "'08:00 – 10:00", "", 0, "", 0, 0, 0, "", "", "", "", "Ujian"];
+  sh.appendRow(row);
+  var r = sh.getLastRow();
+  sh.getRange(r, REPORT_COL, 1, 4).setValues([[RS.WAIT, "", now, now]]);
+  SpreadsheetApp.flush();
+  CacheService.getScriptCache().remove(REPORT_NEXT);
+  CacheService.getScriptCache().remove("programs");
+  return { ok: true, id: id };
+}
+/** Admin: removes the test programmes (ID "TEST-…"). */
+function reportTestClear() {
+  var sh = programSheet();
+  var n = 0;
+  if (sh.getLastRow() > 1) {
+    var ids = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues();
+    for (var i = ids.length - 1; i >= 0; i--) if (/^TEST-/.test(text(ids[i][0]))) { sh.deleteRow(i + 2); n++; }
+  }
+  CacheService.getScriptCache().remove(REPORT_NEXT);
+  CacheService.getScriptCache().remove("programs");
+  return { ok: true, removed: n };
+}
+
+// Every-minute trigger (momReminderTick): ask the Netlify bot to post when a reporting message is due.
+var REPORT_BOT_URL = "https://tdslkd.netlify.app/.netlify/functions/report-bot";
+function reportTick(kod) {
+  var at = +(CacheService.getScriptCache().get(REPORT_NEXT) || 0);
+  if (at && Date.now() < at) return;
+  if (!at) {   // nothing cached: look once, and remember when the next one is due
+    var due = reportClaim({ peek: true }).jobs.length;
+    if (!due) {
+      var earliest = 0;
+      reportRows(programSheet()).forEach(function (r) {
+        var p = reportRow(r);
+        if ([RS.WAIT, RS.TEMPLATE, RS.MAKING, RS.FIX].indexOf(p.status) > -1 && p.next && (!earliest || p.next < earliest)) earliest = p.next;
+      });
+      CacheService.getScriptCache().put(REPORT_NEXT, String(earliest || Date.now() + 6 * 3600000), 21600);
+      return;
+    }
+  }
+  var res = UrlFetchApp.fetch(REPORT_BOT_URL, {
+    method: "post", contentType: "application/json", payload: JSON.stringify({ kod: kod }), muteHttpExceptions: true
+  });
+  Logger.log("report " + res.getResponseCode() + " " + res.getContentText());
 }
 
 // ---------- Saving ----------

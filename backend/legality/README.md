@@ -104,6 +104,16 @@ Bahagian lain boleh ditambah dalam `BOT_CHECKS` dalam `Legality.gs`.
 - Disimpan dalam tab **Progress** sheet cawangan: PROGRESS SEMASA | Catatan dikemas kini | JENIS LEGALITY | STATUS LEGALITY (dua lajur terakhir dibuat automatik, dengan dropdown). Pilihan ada dalam `LEGALITY_JENIS` dan `LEGALITY_STATUS`.
 - Dashboard admin **Progress dan Status Legality Sekolah**: Sekolah · Jenis · Status (dropdown, disimpan terus; hijau / kuning / merah) · PIC · Progress semasa.
 
+## Reporting program (bot Program, `TELEGRAM_BOT_TOKEN`)
+
+- Untuk **program baru cawangan Tengah** (`REPORT_CAWANGAN`) yang berjaya dihantar dari borang Program. Lajur tambahan dalam sheet Program: Reporting · Link Canva · Reporting dikemas kini · Follow-up seterusnya · Komen reporting · Video program.
+- **2 jam selepas program tamat** → mesej dalam topik Reporting (t.me/c/2078197579/4523), tag Main PIC + PIC Legality (borang program): duplicate template Canva, tekan *Siap duplicate*, balas dengan link Canva.
+- **Setiap 2 hari, 9 pagi** → "Report sudah siap?" [Sudah siap] [Belum].
+- *Sudah siap* → permohonan kelulusan ke group Program Tengah, topik 60 (t.me/c/4404368342/60): [Lulus] [Perlu baiki] (semua ahli boleh tekan). *Lulus* → status Lulus (selesai). *Perlu baiki* → admin balas komen → bot hantar ke topik Reporting, follow-up diteruskan.
+- Fungsi Netlify: `report-bot` (dipanggil oleh trigger `momReminderTick` bila ada mesej perlu dihantar) dan `telegram-webhook` (butang & balasan). Apps Script actions: `reportClaim`, `reportRelease`, `reportUpdate`.
+- **Persediaan sekali:** (1) Netlify env `KOD_TENGAH` = kod Tengah; (2) masukkan bot Program ke group Program Tengah dan group topik Reporting; (3) pasang webhook: POST `/.netlify/functions/report-bot` dengan `{ "kod": "<kod admin>", "setup": true }`.
+- Dashboard admin: lajur **Reporting** (status + pautan Canva + komen) dan **Video program** (belum digunakan).
+
 ## Gambar Planning
 
 Bahagian **Planning** boleh muat naik gambar. Fail disimpan dalam Google Drive (folder *Yosh Legality – Gambar* / cawangan / sekolah, id folder dalam Script Property `GAMBAR_FOLDER`) dan dikongsi "sesiapa yang ada pautan boleh lihat" supaya portal dapat memaparkannya. Senarai gambar direkod dalam tab **Gambar** sheet cawangan. Gambar yang dibuang masuk ke Bin Drive (boleh dipulihkan).

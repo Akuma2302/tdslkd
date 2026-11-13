@@ -1487,3 +1487,12 @@ body.lg-page .lg-section .lg-section-title { display: flex; align-items: center;
   .lg-schoolnav-pn { width: 100%; }
   .lg-schoolnav-link { flex: 1; text-align: center; }
 }
+
+/* Admin: Reporting program and Video program columns */
+.lgd-rep { white-space: nowrap; vertical-align: top; }
+.lgd-tg.is-wait { background: rgba(255, 255, 255, 0.08); color: var(--muted); }
+.lgd-tg.is-review { background: rgba(240, 180, 41, 0.16); color: #f0b429; }
+.lgd-rep-link { display: block; margin-top: 0.3rem; color: var(--accent); font-size: 0.75rem; font-weight: 700; text-decoration: none; }
+.lgd-rep-link:hover { text-decoration: underline; }
+.lgd-rep-note { display: block; max-width: 14rem; margin-top: 0.3rem; color: #ff8c8c; font-size: 0.72rem; white-space: normal; }
+.lgd-rep-none { color: var(--muted); }

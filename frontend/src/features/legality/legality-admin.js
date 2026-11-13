@@ -518,7 +518,7 @@
     var wrap = el("div", "tbl-wrap");
     var t = el("table", "mtable lgd-prog-table");
     var hr = el("tr");
-    ["Tarikh", "Sekolah", "Program", "Pelajar", "Manpower", "PIC", "Telegram", "Dihantar"].forEach(function (h, i) {
+    ["Tarikh", "Sekolah", "Program", "Pelajar", "Manpower", "PIC", "Telegram", "Dihantar", "Reporting", "Video program"].forEach(function (h, i) {
       hr.appendChild(el("th", i === 3 || i === 4 ? "num" : null, h));
     });
     var th = el("thead"); th.appendChild(hr); t.appendChild(th);
@@ -559,10 +559,34 @@
         if (!ok && p.telegram) badge.title = p.telegram;
         tg.appendChild(badge); r.appendChild(tg);
         r.appendChild(el("td", "lgd-prog-sent", p.dihantar ? new Date(p.dihantar).toLocaleString("ms-MY", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—"));
+        // Reporting program (bot): status, Canva link, admin comment; programmes before the bot show "—"
+        var rep = p.reporting || {};
+        var rtd = el("td", "lgd-rep");
+        if (!rep.status) rtd.appendChild(el("span", "lgd-rep-none", "—"));
+        else {
+          var tone = rep.status === "Lulus" ? "is-ok" : rep.status === "Perlu baiki" ? "is-fail" : rep.status === "Menunggu kelulusan" ? "is-review" : "is-wait";
+          var rb = el("span", "lgd-tg " + tone, rep.status === "Lulus" ? "✓ Lulus" : rep.status);
+          rb.title = (rep.komen ? rep.komen + " · " : "") + (rep.next ? "Follow-up seterusnya: " + new Date(rep.next).toLocaleString("ms-MY", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false }) : "");
+          rtd.appendChild(rb);
+          if (rep.link) {
+            var rl = el("a", "lgd-rep-link", "Canva ↗");
+            rl.href = rep.link; rl.target = "_blank"; rl.rel = "noopener";
+            rtd.appendChild(rl);
+          }
+          if (rep.status === "Perlu baiki" && rep.komen) rtd.appendChild(el("small", "lgd-rep-note", rep.komen));
+        }
+        r.appendChild(rtd);
+        var vtd = el("td", "lgd-rep");
+        if (p.video && /^https?:/.test(p.video)) {
+          var vl = el("a", "lgd-rep-link", "Video ↗");
+          vl.href = p.video; vl.target = "_blank"; vl.rel = "noopener";
+          vtd.appendChild(vl);
+        } else vtd.appendChild(el("span", "lgd-rep-none", p.video || "—"));
+        r.appendChild(vtd);
         tb.appendChild(r);
       });
       if (!tb.children.length) {
-        var er = el("tr"); var ec = el("td", "empty-text", "Tiada program sepadan."); ec.colSpan = 8; er.appendChild(ec); tb.appendChild(er);
+        var er = el("tr"); var ec = el("td", "empty-text", "Tiada program sepadan."); ec.colSpan = 10; er.appendChild(ec); tb.appendChild(er);
       }
     }
     search.addEventListener("input", draw);
