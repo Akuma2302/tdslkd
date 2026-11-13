@@ -277,7 +277,8 @@
       root.textContent = "";
       var nav = el("nav", "lg-sectnav");
       nav.setAttribute("aria-label", "Bahagian");
-      [{ key: "pic", short: "PIC" }, { key: "semasa", short: "Progress" }].concat(SECTION_INFO).forEach(function (s) {
+      [{ key: "pic", short: "PIC" }, { key: "semasa", short: "Progress" }]
+        .concat(d.weekly ? [{ key: "mingguan", short: "Mingguan" }] : []).concat(SECTION_INFO).forEach(function (s) {
         var a = el("a", "lg-chip", s.short);
         a.href = "#sec-" + s.key;
         a.addEventListener("click", function (e) {
@@ -288,7 +289,9 @@
       });
       root.appendChild(nav);
       root.appendChild(picCard(d.pic || []));
-      if (d.progress) { root.appendChild(noteCard(d.progress.note || { text: "", updated: "" })); root.appendChild(progressCard(d.progress)); }
+      if (d.progress) root.appendChild(noteCard(d.progress.note || { text: "", updated: "" }));
+      if (d.weekly) root.appendChild(weeklyCard(d.weekly));
+      if (d.progress) root.appendChild(progressCard(d.progress));
       SECTION_INFO.forEach(function (s) { root.appendChild(sectionCard(s)); });
     }).catch(fail);
   }
@@ -471,7 +474,7 @@
   // Progress Semasa Legality: a short note on where things stand with the school, with when it was last updated.
   function fmtWhen(isoStr) {
     if (!isoStr) return "";
-    return new Date(isoStr).toLocaleString("ms-MY", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    return new Date(isoStr).toLocaleString("ms-MY", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
   }
   function noteCard(note) {
     var card = el("section", "borang-card lg-section");
@@ -530,6 +533,98 @@
     actions.appendChild(status);
     actions.appendChild(save);
     card.appendChild(actions);
+    return card;
+  }
+
+  // Checklist Mingguan: this week's items (Isnin–Ahad, empty again every Monday). An item is ticked by uploading a
+  // screenshot as proof; bot PICO (Netlify function pico) then posts it to the Program Tengah group, reminds the
+  // PIC every weekday at 8 pagi while it is not done, and posts the week's summary on Saturday.
+  function sendPico() {
+    return fetch("/.netlify/functions/pico", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kod: getKod() })
+    }).then(function (r) { return r.json().catch(function () { return { ok: false }; }); })
+      .catch(function () { return { ok: false }; });
+  }
+
+  function weeklyCard(wk) {
+    var card = el("section", "borang-card lg-section");
+    card.id = "sec-mingguan";
+    var head = el("div", "lg-section-head");
+    var titleWrap = el("div", "lg-section-title");
+    titleWrap.appendChild(el("h2", "borang-section", "Checklist Mingguan"));
+    head.appendChild(titleWrap);
+    head.appendChild(el("span", "lg-wk-week", "Minggu " + wk.week.label));
+    card.appendChild(head);
+    card.appendChild(el("p", "lg-lead", "Selesaikan sebelum Jumaat 11:59 malam. Muat naik screenshot sebagai bukti; bot PICO akan menghantarnya ke group Program Tengah."));
+    var list = el("div", "lg-wk-list");
+    card.appendChild(list);
+
+    function draw(items) {
+      list.textContent = "";
+      items.forEach(function (it) { list.appendChild(itemEl(it, items)); });
+    }
+
+    function itemEl(it, items) {
+      var row = el("div", "lg-wk-item" + (it.done ? " is-done" : ""));
+      row.appendChild(el("span", "lg-wk-box", it.done ? "✓" : ""));
+      var main = el("div", "lg-wk-main");
+      main.appendChild(el("span", "lg-wk-label", it.label));
+      main.appendChild(el("span", "lg-wk-meta", it.done
+        ? "Selesai " + fmtWhen(it.at) + (it.pic ? " · " + it.pic : "") + (it.posted ? " · dihantar ke group" : "")
+        : (wk.week.lastDay ? "Belum · hari terakhir hari ini (Jumaat)" : "Belum · perlu screenshot sebagai bukti")));
+      row.appendChild(main);
+
+      if (it.done) {
+        if (it.shot) {
+          var a = el("a", "lg-wk-shot");
+          a.href = it.shot.url; a.target = "_blank"; a.rel = "noopener";
+          a.setAttribute("aria-label", "Lihat screenshot " + it.label);
+          var img = el("img");
+          img.src = it.shot.thumb; img.alt = ""; img.loading = "lazy";
+          a.appendChild(img);
+          row.appendChild(a);
+        }
+        row.appendChild(el("span", "lg-wk-state", "Dah buat"));
+        return row;
+      }
+
+      var input = el("input");
+      input.type = "file"; input.accept = "image/*"; input.hidden = true;
+      var up = button("lg-wk-up", "📷 Muat naik screenshot", function () { input.click(); });
+      input.addEventListener("change", function () {
+        var f = input.files && input.files[0];
+        input.value = "";
+        if (!f) return;
+        up.disabled = true; up.textContent = "Memuat naik…";
+        shrinkImage(f)
+          .then(function (img) {
+            return post({ action: "saveWeekly", cawangan: state.cawangan, sekolah: state.sekolah, item: it.key,
+                          mime: img.mime, data: img.data, name: img.name });
+          })
+          .then(function (d) {
+            var now = d.weekly.items;
+            draw(now);
+            toast(it.label + " ditanda selesai. Menghantar ke group…", "ok");
+            return sendPico().then(function (r) {
+              if (r.ok && r.dryRun) { toast("Ditanda selesai. (Ujian: mesej tidak dihantar.)", "ok"); return; }
+              if (!r.ok) { toast("Ditanda selesai, tetapi Telegram gagal. Bot akan cuba lagi dalam seminit.", "warn"); return; }
+              now.forEach(function (x) { if (x.key === it.key) x.posted = true; });
+              draw(now);
+              toast("Ditanda selesai dan screenshot dihantar ke group.", "ok");
+            });
+          })
+          .catch(function (e) {
+            if (e && e.kod) return askKod(true);
+            up.disabled = false; up.textContent = "📷 Muat naik screenshot";
+            toast("Belum ditanda: " + ((e && e.message) || e), "warn");
+          });
+      });
+      row.appendChild(input);
+      row.appendChild(up);
+      return row;
+    }
+
+    draw(wk.items);
     return card;
   }
 

@@ -106,6 +106,11 @@ function doPost(e) {
       lock.waitLock(20000);
       return json(body.action === "saveMomItem" ? saveMomItem(body) : deleteMomItem(body));
     }
+    if (body.action === "picoClaim" || body.action === "picoRelease") {   // Netlify function pico (any valid code)
+      if (body.demo && role !== "admin") throw new Error("KOD_SALAH");
+      lock.waitLock(20000);
+      return json(body.action === "picoClaim" ? picoClaim(body) : picoRelease(body));
+    }
     if (body.action === "momClaim" || body.action === "momRelease") {   // Netlify bot functions (mom-hantar, mom-reminder)
       if (role !== "tengah" && role !== "admin") throw new Error("KOD_SALAH");
       lock.waitLock(20000);
@@ -119,6 +124,7 @@ function doPost(e) {
     if (body.action === "saveProgressNote") return json(saveProgressNote(body));
     if (body.action === "saveAlumni") return json(saveAlumni(body));
     if (body.action === "uploadImage") return json(uploadImage(body));
+    if (body.action === "saveWeekly") return json(saveWeekly(body));
     if (body.action === "saveProgram") return json(saveProgram(body));
     if (body.action === "savePic") return json(savePic(body));
     if (body.action === "sendReminder") {
@@ -349,6 +355,7 @@ function readSchool(cawangan, sekolah) {
   data.progress = { items: PROGRESS_ITEMS, values: readProgress(ss, sh.getName()), note: readProgressNote(ss, sh.getName()) };
   data.images = listImages(ss, sh.getName());
   data.pic = readPic(ss, sh.getName());
+  data.weekly = readWeekly(ss, sh.getName(), cawangan);
   return data;
 }
 
@@ -591,7 +598,7 @@ function saveAlumni(body) {
 //  - each school tab is read once (one getValues, markers found from that same block);
 //  - the result is cached for 6 hours and returned at once; after any save it is only marked out of date
 //    ("stale": true) and the admin page fetches a fresh copy in the background.
-var SUMMARY_KEY = "summary", SUMMARY_STALE = "summaryStale";
+var SUMMARY_KEY = "summary2", SUMMARY_STALE = "summaryStale";
 function markSummaryStale() { CacheService.getScriptCache().put(SUMMARY_STALE, "1", 21600); }
 
 function summaryMarkers(a) {
@@ -631,6 +638,15 @@ function summary(fresh) {
           updated: r[PROGRESS_ITEMS.length + 3] instanceof Date ? r[PROGRESS_ITEMS.length + 3].toISOString() : "" };
       });
     }
+    var pics = {};
+    var pk = picSheet(ss, false);
+    if (pk && pk.getLastRow() >= 2) {
+      pk.getRange(2, 1, pk.getLastRow() - 1, 3).getValues().forEach(function (r) {
+        var u = text(r[2]).replace(/^@+/, "");
+        if (!text(r[0]) || !(u || text(r[1]))) return;
+        (pics[text(r[0])] = pics[text(r[0])] || []).push({ nama: text(r[1]), username: u });
+      });
+    }
     var schools = [];
     schoolNames(ss).forEach(function (n) {
       var sh = ss.getSheetByName(n);
@@ -658,7 +674,7 @@ function summary(fresh) {
       schools.push({
         name: n, people: people, aktif: aktif, phase: phase, kategori: kategori, checks: checks,
         programs: programs, progress: prog[n] || PROGRESS_ITEMS.map(function () { return false; }),
-        note: note[n] || { text: "", updated: "" }
+        note: note[n] || { text: "", updated: "" }, pic: pics[n] || []
       });
     });
     out.cawangan.push({ id: c, ready: true, url: ss.getUrl(), schools: schools });
@@ -1383,13 +1399,16 @@ function momClaim(body) {
 // called only when something is waiting, so most runs end after one quick read of the MOM tab.
 var MOM_BOT_URL = "https://tdslkd.netlify.app/.netlify/functions/mom-hantar";
 function momReminderTick() {
-  if (!momClaim({ peek: true }).jobs.length) return;
-  var kod = PropertiesService.getScriptProperties().getProperty("KOD_TENGAH");
+  var props = PropertiesService.getScriptProperties();
+  var kod = props.getProperty("KOD_TENGAH") || props.getProperty("KOD_ADMIN");
   if (!kod) { Logger.log("KOD_TENGAH belum diisi dalam Script Properties."); return; }
-  var res = UrlFetchApp.fetch(MOM_BOT_URL, {
-    method: "post", contentType: "application/json", payload: JSON.stringify({ kod: kod }), muteHttpExceptions: true
-  });
-  Logger.log(res.getResponseCode() + " " + res.getContentText());
+  if (momClaim({ peek: true }).jobs.length) {
+    var res = UrlFetchApp.fetch(MOM_BOT_URL, {
+      method: "post", contentType: "application/json", payload: JSON.stringify({ kod: kod }), muteHttpExceptions: true
+    });
+    Logger.log(res.getResponseCode() + " " + res.getContentText());
+  }
+  try { picoTick(kod); } catch (e) { Logger.log("pico: " + e); }   // Checklist Mingguan (bot PICO)
 }
 
 /** body: { refs: [{ id, key }] } — messages Telegram refused; they go back in the queue. */
@@ -1406,6 +1425,254 @@ function momRelease(body) {
     sh.getRange(i + 2, 10).setValue(momList(r[9]).filter(function (s) { return keys.indexOf(s) < 0; }).join(", "));
   });
   return { ok: true };
+}
+
+// ---------- Checklist Mingguan + bot PICO ----------
+//
+// A weekly checklist on each school page (cawangan in WEEKLY_CAWANGAN). A week runs Isnin–Ahad (Malaysia time)
+// and starts empty every Monday. An item is ticked by uploading a screenshot as proof (one per school per week).
+// Kept in a "Checklist Mingguan" tab of the cawangan sheet: Minggu | Sekolah | Item | PIC | Screenshot | File ID |
+// Masa | Telegram. Screenshots go to the same Drive folder as the Planning pictures.
+//
+// Bot PICO (token LEGALITY_BOT_TENGAH in Netlify; group Program Tengah) posts through the Netlify function pico:
+//  - each new screenshot, right after it is uploaded (the page calls pico; the trigger retries if that failed);
+//  - Isnin–Jumaat from 8:00 pagi: tags the PIC of schools that have not done the week's checklist;
+//  - Sabtu from 8:00 pagi: summary of the week (failed = not done by Jumaat 23:59).
+// picoClaim() hands out what is due and marks it as sent, so nothing goes out twice; picoRelease() puts back what
+// Telegram refused. The every-minute trigger momReminderTick also asks pico to run when something is waiting.
+var WEEKLY_TAB = "Checklist Mingguan";
+var WEEKLY_HEAD = ["Minggu", "Sekolah", "Item", "PIC", "Screenshot", "File ID", "Masa", "Telegram"];
+var WEEKLY_ITEMS = [{ key: "pm", label: "PM cikgu" }];
+var WEEKLY_CAWANGAN = ["TENGAH"];
+var PICO_HOUR = 8;          // daily reminder and Saturday summary go out from this hour …
+var PICO_LAST_HOUR = 12;    // … until this hour (if the trigger was down at 8, they still go out that morning)
+var PICO_BOT_URL = "https://tdslkd.netlify.app/.netlify/functions/pico";
+var PICO_PENDING = "picoPending";   // cache flag: a screenshot is waiting to be posted
+
+function weeklyEnabled(c) { return WEEKLY_CAWANGAN.indexOf(text(c).toUpperCase()) >= 0; }
+
+function picoYmd(ms) { return new Date(ms).toISOString().slice(0, 10); }
+// The week of a moment, in Malaysia time: { start (Isnin), end (Ahad), today, dow (1 = Isnin … 7 = Ahad), hour }
+function weekInfo(date) {
+  var d = date || new Date();
+  var today = Utilities.formatDate(d, MOM_TZ, "yyyy-MM-dd");
+  var dow = +Utilities.formatDate(d, MOM_TZ, "u");
+  var p = today.split("-"), base = Date.UTC(+p[0], +p[1] - 1, +p[2]);
+  var mon = base - (dow - 1) * 86400000;
+  return { start: picoYmd(mon), end: picoYmd(mon + 6 * 86400000), today: today, dow: dow,
+           hour: +Utilities.formatDate(d, MOM_TZ, "H") };
+}
+function weekLabel(w) {
+  var a = w.start.split("-"), b = w.end.split("-");
+  return +a[2] + (a[1] === b[1] ? "" : " " + MOM_BULAN[+a[1] - 1]) + "–" + +b[2] + " " + MOM_BULAN[+b[1] - 1] + " " + b[0];
+}
+
+function weeklySheet(ss, create) {
+  var sh = ss.getSheetByName(WEEKLY_TAB);
+  if (sh || !create) return sh;
+  sh = ss.insertSheet(WEEKLY_TAB);
+  sh.getRange(1, 1, 1, WEEKLY_HEAD.length).setValues([WEEKLY_HEAD])
+    .setFontWeight("bold").setBackground("#1f1f1f").setFontColor("#ffc300");
+  sh.setFrozenRows(1);
+  [100, 160, 120, 200, 300, 120, 140, 140].forEach(function (w, i) { sh.setColumnWidth(i + 1, w); });
+  sh.getRange("A:A").setNumberFormat("@");
+  sh.getRange("G:G").setNumberFormat("d/m/yyyy h:mm");
+  sh.getRange("F:F").setFontColor("#999999");
+  sh.getRange("H:H").setFontColor("#999999");
+  return sh;
+}
+function weeklyRows(sh) {
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, WEEKLY_HEAD.length).getValues();
+}
+
+/** This week's checklist of one school, for the school page (null when the cawangan has none). */
+function readWeekly(ss, school, cawangan) {
+  if (!weeklyEnabled(cawangan)) return null;
+  var w = weekInfo();
+  var rows = weeklyRows(weeklySheet(ss, false)).filter(function (r) { return text(r[0]) === w.start && text(r[1]) === school; });
+  return {
+    week: { start: w.start, end: w.end, label: weekLabel(w), lastDay: w.dow >= 5 },
+    items: WEEKLY_ITEMS.map(function (it) {
+      var r = rows.filter(function (x) { return text(x[2]) === it.label; })[0];
+      return { key: it.key, label: it.label, done: !!r, pic: r ? text(r[3]) : "",
+               shot: r && text(r[5]) ? imageView(text(r[5])) : null,
+               at: r && r[6] instanceof Date ? r[6].toISOString() : "", posted: !!(r && text(r[7])) };
+    })
+  };
+}
+
+/** body: { cawangan, sekolah, item, mime, data (base64), name } — ticks one item with its screenshot. */
+function saveWeekly(body) {
+  if (!weeklyEnabled(body.cawangan)) throw new Error("Checklist Mingguan belum dibuka untuk cawangan ini.");
+  var item = WEEKLY_ITEMS.filter(function (x) { return x.key === text(body.item); })[0];
+  if (!item) throw new Error("Item checklist tidak dikenali.");
+  var mime = text(body.mime);
+  if (!/^image\/(jpeg|png|webp|gif)$/.test(mime)) throw new Error("Screenshot mesti gambar JPG, PNG, WEBP atau GIF.");
+  var bytes = Utilities.base64Decode(String(body.data || ""));
+  if (!bytes.length) throw new Error("Screenshot kosong.");
+  if (bytes.length > IMAGE_MAX_BYTES) throw new Error("Screenshot terlalu besar (had 8 MB).");
+  var ss = book(body.cawangan);
+  var school = text(body.sekolah);
+  if (schoolNames(ss).indexOf(school) < 0) throw new Error("Sekolah tidak dijumpai: " + body.sekolah);
+  var cawangan = text(body.cawangan).toUpperCase();
+  var w = weekInfo();
+  var sh = weeklySheet(ss, true);
+  var done = weeklyRows(sh).some(function (r) { return text(r[0]) === w.start && text(r[1]) === school && text(r[2]) === item.label; });
+  if (done) throw new Error(item.label + " sudah ditanda untuk minggu ini.");
+  var name = item.label + " " + school + " " + w.today + (mime === "image/png" ? ".png" : ".jpg");
+  var file = imageFolder(cawangan, school).createFile(Utilities.newBlob(bytes, mime, name));
+  try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
+  var pics = readPic(ss, school).filter(function (p) { return p.username; }).map(function (p) { return "@" + p.username; });
+  var row = sh.getLastRow() + 1;
+  sh.getRange(row, 1).setNumberFormat("@");
+  sh.getRange(row, 1, 1, WEEKLY_HEAD.length).setValues([[w.start, school, item.label, pics.join(" "),
+    imageView(file.getId()).url, file.getId(), new Date(), ""]]);
+  SpreadsheetApp.flush();
+  CacheService.getScriptCache().put(PICO_PENDING, "1", 21600);
+  return { ok: true, weekly: readWeekly(ss, school, cawangan) };
+}
+
+// Which schools of a cawangan have not done the week's items: [{ sekolah, pics: ["@a"], missing: [labels], late }]
+function weeklyStatus(ss, w, deadlineMs) {
+  var rows = weeklyRows(weeklySheet(ss, false)).filter(function (r) { return text(r[0]) === w.start; });
+  return schoolNames(ss).map(function (school) {
+    var missing = [], late = false;
+    WEEKLY_ITEMS.forEach(function (it) {
+      var r = rows.filter(function (x) { return text(x[1]) === school && text(x[2]) === it.label; })[0];
+      if (!r) missing.push(it.label);
+      else if (deadlineMs && r[6] instanceof Date && r[6].getTime() > deadlineMs) { missing.push(it.label); late = true; }
+    });
+    var pics = readPic(ss, school).filter(function (p) { return p.username; }).map(function (p) { return "@" + p.username; });
+    return { sekolah: school, pics: pics, missing: missing, late: late };
+  });
+}
+function picoWho(s) { return s.pics.length ? s.pics.join(" ") : "(PIC belum ditetapkan)"; }
+function picoItems() { return WEEKLY_ITEMS.map(function (x) { return x.label; }).join(", "); }
+
+function picoDailyText(c, w, status) {
+  var todo = status.filter(function (s) { return s.missing.length; });
+  if (!todo.length) return "";
+  var lines = ["📋 CHECKLIST MINGGUAN · " + c, "Minggu " + weekLabel(w) + " · " + picoItems(),
+               w.dow >= 5 ? "⚠️ Hari ini hari terakhir (Jumaat)." : "Tinggal " + (6 - w.dow) + " hari (sehingga Jumaat).", "",
+               "Belum selesai:"];
+  todo.forEach(function (s) {
+    lines.push("🏫 " + s.sekolah + " — " + picoWho(s) + (WEEKLY_ITEMS.length > 1 ? "\n     ✕ " + s.missing.join(", ") : ""));
+  });
+  lines.push("", "Tanda dan muat naik screenshot di: " + PORTAL_URL + "#/" + encodeURIComponent(c));
+  return lines.join("\n");
+}
+
+function picoSummaryText(c, w, status) {
+  var done = status.filter(function (s) { return !s.missing.length; });
+  var failed = status.filter(function (s) { return s.missing.length; });
+  var lines = ["📊 RINGKASAN CHECKLIST MINGGUAN · " + c, "Minggu " + weekLabel(w) + " · " + picoItems(), "",
+               "✅ Selesai (" + done.length + ")"];
+  done.forEach(function (s) { lines.push("• " + s.sekolah + " — " + picoWho(s)); });
+  if (!done.length) lines.push("• Tiada");
+  lines.push("", "❌ Gagal (" + failed.length + ")");
+  failed.forEach(function (s) {
+    lines.push("• " + s.sekolah + " — " + picoWho(s) + (s.late ? " (lewat)" : "") +
+               (WEEKLY_ITEMS.length > 1 ? " · " + s.missing.join(", ") : ""));
+  });
+  if (!failed.length) lines.push("• Tiada. Tahniah semua! 🎉");
+  return lines.join("\n");
+}
+
+function picoCaption(r) {
+  var at = r[6] instanceof Date ? r[6] : new Date();
+  return "✅ " + text(r[2]) + " · " + text(r[1]) + "\n👤 " + (text(r[3]) || "(PIC belum ditetapkan)") + "\n🗓 " +
+         momFmtDate(Utilities.formatDate(at, MOM_TZ, "yyyy-MM-dd")) + ", " + Utilities.formatDate(at, MOM_TZ, "HH:mm");
+}
+
+/**
+ * What PICO should post now. body.peek: only { pending: n } (quick; used by the every-minute trigger).
+ * body.preview: the messages without marking them (dry run). Otherwise the messages are marked as sent:
+ * { jobs: [{ type: "text", text } | { type: "photo", caption, mime, data (base64), name }, refs: [...]] }
+ */
+function picoClaim(body) {
+  var props = PropertiesService.getScriptProperties();
+  var w = weekInfo();
+  var inHours = w.hour >= PICO_HOUR && w.hour < PICO_LAST_HOUR;
+  var dailyDue = inHours && w.dow <= 5 && props.getProperty("PICO_DAILY") !== w.today;
+  var summaryDue = inHours && w.dow === 6 && props.getProperty("PICO_SUMMARY") !== w.today;
+  if (body.peek) {
+    return { pending: (CacheService.getScriptCache().get(PICO_PENDING) ? 1 : 0) + (dailyDue ? 1 : 0) + (summaryDue ? 1 : 0) };
+  }
+  if (body.demo) return picoDemo(w);
+  var mark = !body.preview, jobs = [];
+  WEEKLY_CAWANGAN.forEach(function (c) {
+    var ss = book(c), sh = weeklySheet(ss, false);
+    weeklyRows(sh).forEach(function (r, i) {
+      if (!text(r[5]) || text(r[7])) return;
+      var job = { type: "photo", caption: picoCaption(r), name: text(r[2]) + ".jpg",
+                  refs: [{ type: "photo", cawangan: c, row: i + 2, file: text(r[5]) }] };
+      if (mark) {
+        var blob = DriveApp.getFileById(text(r[5])).getBlob();
+        job.mime = blob.getContentType(); job.data = Utilities.base64Encode(blob.getBytes());
+        sh.getRange(i + 2, 8).setValue("Dihantar " + Utilities.formatDate(new Date(), MOM_TZ, "d/M HH:mm"));
+      }
+      jobs.push(job);
+    });
+    if (dailyDue) {
+      var t = picoDailyText(c, w, weeklyStatus(ss, w, 0));
+      if (t) jobs.push({ type: "text", text: t, refs: [{ type: "prop", key: "PICO_DAILY", old: props.getProperty("PICO_DAILY") || "" }] });
+    }
+    if (summaryDue) {
+      // Saturday: the week that just ended (Isnin–Jumaat); done after Jumaat 23:59 counts as failed.
+      var fri = w.start.split("-");
+      var deadline = Utilities.parseDate(picoYmd(Date.UTC(+fri[0], +fri[1] - 1, +fri[2]) + 4 * 86400000) + " 23:59:59", MOM_TZ, "yyyy-MM-dd HH:mm:ss").getTime();
+      jobs.push({ type: "text", text: picoSummaryText(c, w, weeklyStatus(ss, w, deadline)),
+                  refs: [{ type: "prop", key: "PICO_SUMMARY", old: props.getProperty("PICO_SUMMARY") || "" }] });
+    }
+  });
+  if (mark) {
+    if (dailyDue) props.setProperty("PICO_DAILY", w.today);
+    if (summaryDue) props.setProperty("PICO_SUMMARY", w.today);
+    CacheService.getScriptCache().remove(PICO_PENDING);
+    SpreadsheetApp.flush();
+  }
+  return { jobs: jobs };
+}
+
+// Admin demo: this week's daily reminder and summary as they would look now, marked DEMO; nothing is marked as sent.
+function picoDemo(w) {
+  var jobs = [];
+  WEEKLY_CAWANGAN.forEach(function (c) {
+    var ss = book(c);
+    var daily = picoDailyText(c, w, weeklyStatus(ss, w, 0)) || "(Semua sekolah sudah selesai — tiada reminder.)";
+    jobs.push({ type: "text", text: "🧪 DEMO — reminder harian (Isnin–Jumaat 8 pagi)\n\n" + daily, refs: [] });
+    jobs.push({ type: "text", text: "🧪 DEMO — ringkasan (Sabtu 8 pagi)\n\n" + picoSummaryText(c, w, weeklyStatus(ss, w, 0)), refs: [] });
+  });
+  return { jobs: jobs };
+}
+
+/** body: { refs } — what Telegram refused goes back in the queue (tried again within a minute). */
+function picoRelease(body) {
+  var props = PropertiesService.getScriptProperties();
+  (Array.isArray(body.refs) ? body.refs : []).forEach(function (x) {
+    if (!x) return;
+    if (x.type === "prop" && /^PICO_(DAILY|SUMMARY)$/.test(text(x.key))) {
+      if (text(x.old)) props.setProperty(x.key, text(x.old)); else props.deleteProperty(x.key);
+    }
+    if (x.type === "photo" && weeklyEnabled(x.cawangan)) {
+      var sh = weeklySheet(book(x.cawangan), false);
+      var row = +x.row;
+      if (sh && row >= 2 && row <= sh.getLastRow() && text(sh.getRange(row, 6).getValue()) === text(x.file)) {
+        sh.getRange(row, 8).setValue("");
+        CacheService.getScriptCache().put(PICO_PENDING, "1", 21600);
+      }
+    }
+  });
+  return { ok: true };
+}
+
+function picoTick(kod) {
+  if (!picoClaim({ peek: true }).pending) return;
+  var res = UrlFetchApp.fetch(PICO_BOT_URL, {
+    method: "post", contentType: "application/json", payload: JSON.stringify({ kod: kod }), muteHttpExceptions: true
+  });
+  Logger.log("pico " + res.getResponseCode() + " " + res.getContentText());
 }
 
 // ---------- Saving ----------

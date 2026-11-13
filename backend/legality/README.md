@@ -85,6 +85,17 @@ Guna: **Admin → Legality → Bot semakan Legality** → *Semak sekarang* (prat
 
 Bahagian lain boleh ditambah dalam `BOT_CHECKS` dalam `Legality.gs`.
 
+## Checklist Mingguan + bot PICO
+
+- Halaman sekolah (cawangan dalam `WEEKLY_CAWANGAN`, buat masa ini TENGAH) ada section **Checklist Mingguan** di atas Checklist Progress. Minggu = Isnin–Ahad (waktu Malaysia); kosong semula setiap Isnin.
+- Item dalam `WEEKLY_ITEMS` (sekarang: **PM cikgu**). PIC tanda dengan memuat naik **screenshot** sebagai bukti — satu setiap sekolah seminggu. Rekod dalam tab **Checklist Mingguan** sheet cawangan (Minggu, Sekolah, Item, PIC, Screenshot, File ID, Masa, Telegram); gambar dalam folder Drive Gambar.
+- Bot **PICO** = bot `LEGALITY_BOT_TENGAH` (token dalam Netlify), group **Program Tengah**, melalui fungsi Netlify `pico`:
+  - screenshot baru dihantar ke group sebaik dimuat naik;
+  - **Isnin–Jumaat 8 pagi**: tag PIC sekolah yang belum selesai (tiada mesej jika semua sudah);
+  - **Sabtu 8 pagi**: ringkasan minggu itu — selesai / gagal (gagal = belum ditanda sebelum Jumaat 23:59).
+- Dijalankan oleh trigger sedia ada `momReminderTick` (setiap minit). Jika trigger terlepas pukul 8, mesej masih dihantar sehingga 12 tengah hari. Script Properties `PICO_DAILY` / `PICO_SUMMARY` mencatat tarikh terakhir dihantar.
+- PIC yang ditag datang daripada tab **PIC Legality**; sekolah tanpa PIC ditulis "(PIC belum ditetapkan)".
+
 ## Gambar Planning
 
 Bahagian **Planning** boleh muat naik gambar. Fail disimpan dalam Google Drive (folder *Yosh Legality – Gambar* / cawangan / sekolah, id folder dalam Script Property `GAMBAR_FOLDER`) dan dikongsi "sesiapa yang ada pautan boleh lihat" supaya portal dapat memaparkannya. Senarai gambar direkod dalam tab **Gambar** sheet cawangan. Gambar yang dibuang masuk ke Bin Drive (boleh dipulihkan).

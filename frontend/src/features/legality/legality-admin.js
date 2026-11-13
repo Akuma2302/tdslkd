@@ -213,15 +213,15 @@
       grid.appendChild(bw);
     }
 
-    // Progress matrix (like the Progress Legality Sekolah table)
-    var mw = widget("w-4", "Progress Legality Sekolah", n + " sekolah");
+    // Checklist Legality Semasa: the 6 steps of each school (green = done)
+    var mw = widget("w-4", "Checklist Legality Semasa", n + " sekolah");
     if (!n) {
       mw.appendChild(el("p", "empty-text", "Belum ada sekolah untuk paparan ini."));
     } else {
       var mwrap = el("div", "lgd-matrix-wrap");
       var m = el("table", "lgd-matrix");
       var mh = el("tr");
-      mh.appendChild(el("th", null, "Sekolah · progress semasa"));
+      mh.appendChild(el("th", null, "Sekolah"));
       items.forEach(function (it) { mh.appendChild(el("th", null, it.label)).title = it.label; });
       mh.appendChild(el("th", null, "Jumlah"));
       var mhead = el("thead"); mhead.appendChild(mh); m.appendChild(mhead);
@@ -231,13 +231,6 @@
         var name = el("td", "lgd-school", x.s.name);
         if (branch === ALL) name.appendChild(el("small", null, x.cawangan));
         name.title = x.s.people + " orang CRM · " + x.s.programs + " program";
-        // Progress semasa written by the PIC on the school page
-        var note = x.s.note && x.s.note.text;
-        if (note) {
-          var nEl = el("span", "lgd-note", note);
-          nEl.title = note + (x.s.note.updated ? "\n\nDikemas kini " + new Date(x.s.note.updated).toLocaleString("ms-MY", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "");
-          name.appendChild(nEl);
-        }
         r.appendChild(name);
         x.s.progress.forEach(function (v, i) {
           var td = el("td", v ? "is-yes" : "is-no");
@@ -261,10 +254,73 @@
       mw.appendChild(leg);
     }
     grid.appendChild(mw);
+    grid.appendChild(progressWidget(rows, branch));
 
     grid.appendChild(programWidget(branch));
     grid.appendChild(botWidget());
     body.appendChild(grid);
+  }
+
+  // Progress Legality Sekolah: Sekolah · PIC (opens their Telegram) · Progress semasa written on the school page.
+  // Most recently updated first; schools without a note at the end. A note older than 14 days is flagged.
+  var STALE_DAYS = 14;
+  function progressWidget(rows, branch) {
+    var w = widget("w-4", "Progress Legality Sekolah", rows.length + " sekolah");
+    if (!rows.length) { w.appendChild(el("p", "empty-text", "Belum ada sekolah untuk paparan ini.")); return w; }
+    var sorted = rows.slice().sort(function (a, b) {
+      var ua = (a.s.note && a.s.note.text && a.s.note.updated) || "", ub = (b.s.note && b.s.note.text && b.s.note.updated) || "";
+      return ub < ua ? -1 : ub > ua ? 1 : 0;
+    });
+    var wrap = el("div", "tbl-wrap");
+    var t = el("table", "mtable lgd-prog-table");
+    var hr = el("tr");
+    ["Sekolah", "PIC", "Progress semasa"].forEach(function (h) { hr.appendChild(el("th", null, h)); });
+    var th = el("thead"); th.appendChild(hr); t.appendChild(th);
+    var tb = el("tbody");
+    var now = Date.now();
+    sorted.forEach(function (x) {
+      var r = el("tr");
+      var school = el("td", "lgd-prog-school", x.s.name);
+      if (branch === ALL) school.appendChild(el("small", null, x.cawangan));
+      r.appendChild(school);
+
+      var picTd = el("td", "lgd-prog-pic");
+      var pics = x.s.pic || [];
+      if (!pics.length) picTd.appendChild(el("span", "lgd-prog-empty", "Belum ada PIC"));
+      pics.forEach(function (p) {
+        if (p.username) {
+          var a = el("a", "lgd-pic-link", "@" + p.username);
+          a.href = "https://t.me/" + encodeURIComponent(p.username);
+          a.target = "_blank"; a.rel = "noopener";
+          a.title = (p.nama ? p.nama + " · " : "") + "Buka Telegram";
+          picTd.appendChild(a);
+        } else {
+          picTd.appendChild(el("span", "lgd-pic-name", p.nama));
+        }
+      });
+      r.appendChild(picTd);
+
+      var noteTd = el("td", "lgd-prog-note");
+      var note = x.s.note || {};
+      if (note.text) {
+        noteTd.appendChild(el("p", "lgd-prog-text", note.text));
+        if (note.updated) {
+          var days = Math.floor((now - new Date(note.updated).getTime()) / 86400000);
+          var when = el("small", "lgd-prog-when" + (days > STALE_DAYS ? " is-stale" : ""),
+            "Dikemas kini " + new Date(note.updated).toLocaleString("ms-MY", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) +
+            (days > STALE_DAYS ? " · " + days + " hari lalu" : ""));
+          noteTd.appendChild(when);
+        }
+      } else {
+        noteTd.appendChild(el("span", "lgd-prog-empty is-missing", "Belum ada catatan"));
+      }
+      r.appendChild(noteTd);
+      tb.appendChild(r);
+    });
+    t.appendChild(tb);
+    wrap.appendChild(t);
+    w.appendChild(wrap);
+    return w;
   }
 
   function fmtDate(isoDate) {

@@ -1243,3 +1243,57 @@ html.ym-lock { overflow: hidden; }
   }
   .mom-pop, .mom-rem .mom-pop { left: 0; right: 0; width: auto; max-width: none; }
 }
+
+/* Checklist Mingguan (school page) */
+.lg-wk-week { padding: 0.25rem 0.7rem; border: 1px solid rgba(255, 195, 0, 0.35); border-radius: 999px; color: var(--accent); font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
+.lg-wk-list { display: grid; gap: 0.55rem; }
+.lg-wk-item {
+  display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line); border-radius: 14px; background: var(--bg-2);
+}
+.lg-wk-item.is-done { border-color: rgba(64, 192, 112, 0.45); background: rgba(64, 192, 112, 0.07); }
+.lg-wk-box {
+  flex: none; display: grid; place-items: center; width: 1.5rem; height: 1.5rem; border: 2px solid var(--line-2); border-radius: 6px;
+  color: #111; font-weight: 900; font-size: 0.85rem;
+}
+.lg-wk-item.is-done .lg-wk-box { border-color: #40c070; background: #40c070; }
+.lg-wk-main { flex: 1 1 12rem; display: grid; gap: 0.15rem; min-width: 0; }
+.lg-wk-label { font-weight: 700; }
+.lg-wk-meta { color: var(--muted); font-size: 0.8rem; line-height: 1.4; }
+.lg-wk-shot { flex: none; display: block; width: 3.2rem; height: 3.2rem; border: 1px solid var(--line-2); border-radius: 10px; overflow: hidden; }
+.lg-wk-shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lg-wk-up {
+  flex: none; padding: 0.55rem 1rem; border: 1px solid rgba(255, 195, 0, 0.55); border-radius: 999px; background: rgba(255, 195, 0, 0.1);
+  color: var(--accent); font-size: 0.82rem; font-weight: 700; cursor: pointer;
+}
+.lg-wk-up:hover { background: rgba(255, 195, 0, 0.18); }
+.lg-wk-up:disabled { opacity: 0.6; cursor: progress; }
+@media (max-width: 480px) { .lg-wk-up { width: 100%; } }
+.lg-wk-state { flex: none; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.72rem; font-weight: 700; background: rgba(52, 211, 113, 0.16); color: #5be08f; }
+
+/* Admin Legality: Progress Legality Sekolah (Sekolah · PIC · Progress semasa) */
+.lgd-prog-table td { vertical-align: top; }
+.lgd-prog-school { font-weight: 700; white-space: nowrap; }
+.lgd-prog-school small { display: block; margin-top: 0.15rem; color: var(--muted); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; }
+.lgd-prog-pic { white-space: nowrap; }
+.lgd-pic-link {
+  display: inline-block; margin: 0 0.3rem 0.3rem 0; padding: 0.2rem 0.6rem; border-radius: 999px;
+  background: rgba(42, 171, 238, 0.14); color: #6cc4f3; font-size: 0.8rem; font-weight: 700; text-decoration: none;
+}
+.lgd-pic-link:hover { background: rgba(42, 171, 238, 0.26); }
+.lgd-pic-name { display: inline-block; margin: 0 0.3rem 0.3rem 0; font-size: 0.85rem; }
+.lgd-prog-note { min-width: 16rem; }
+.lgd-prog-text { margin: 0; white-space: pre-wrap; line-height: 1.5; font-size: 0.88rem; }
+.lgd-prog-when { display: block; margin-top: 0.3rem; color: var(--muted); font-size: 0.72rem; }
+.lgd-prog-when.is-stale { color: #f0b429; }
+.lgd-prog-empty { color: var(--muted); font-size: 0.82rem; }
+.lgd-prog-empty.is-missing { color: #ff8c8c; }
+@media (max-width: 900px) {
+  .lgd-prog-table thead { display: none; }
+  .lgd-prog-table, .lgd-prog-table tbody, .lgd-prog-table tr, .lgd-prog-table td { display: block; width: auto; min-width: 0; }
+  .lgd-prog-table tr { padding: 0.75rem 0; border-bottom: 1px solid var(--line); }
+  .lgd-prog-table td { padding: 0.15rem 0; border: 0; }
+  .lgd-prog-school small { display: inline; margin-left: 0.4rem; }
+  .lgd-prog-pic { white-space: normal; }
+  .lgd-prog-note { min-width: 0; }
+}
