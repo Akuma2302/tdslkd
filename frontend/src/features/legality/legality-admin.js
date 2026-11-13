@@ -271,8 +271,54 @@
     if (min < 1440) return Math.floor(min / 60) + " jam lepas";
     return Math.floor(min / 1440) + " hari lepas";
   }
+  var LEGALITY_JENIS = ["A", "B", "C"];
+  var LEGALITY_STATUS = ["Legal with B&W", "Legal w/o B&W", "Tidak Legal"];
+  var refreshTimer = 0;
+  function statusTone(v) { return v === "Legal with B&W" ? "is-ok" : v === "Legal w/o B&W" ? "is-mid" : v === "Tidak Legal" ? "is-no" : ""; }
+  function legalitySelects(x, jenisTd, statusTd) {
+    var info = x.s.note = x.s.note || { text: "", updated: "" };
+    function make(choices, value, label, cls) {
+      var s = el("select", "lgd-sel " + cls);
+      s.setAttribute("aria-label", label + " " + x.s.name);
+      s.appendChild(new Option("—", ""));
+      choices.forEach(function (c) { s.appendChild(new Option(c, c)); });
+      s.value = value || "";
+      return s;
+    }
+    var j = make(LEGALITY_JENIS, info.jenis, "Jenis Legality", "is-jenis");
+    var st = make(LEGALITY_STATUS, info.status, "Status Legality", "is-status " + statusTone(info.status));
+    var msg = el("small", "lgd-sel-msg");
+    function save() {
+      var prev = { jenis: info.jenis || "", status: info.status || "" };
+      j.disabled = st.disabled = true;
+      msg.textContent = "Menyimpan…"; msg.className = "lgd-sel-msg";
+      Api.post({ action: "saveLegalityStatus", cawangan: x.cawangan, sekolah: x.s.name, jenis: j.value, status: st.value })
+        .then(function (d) {
+          info.jenis = d.note.jenis || ""; info.status = d.note.status || "";
+          try { localStorage.setItem(SAVED, JSON.stringify(state.data)); } catch (e) {}
+          msg.textContent = "✓ Disimpan"; msg.className = "lgd-sel-msg is-ok";
+          // A summary fetched before this save may still arrive and show the old value; fetch a fresh one after it.
+          clearTimeout(refreshTimer);
+          refreshTimer = setTimeout(function () { load(true, true); }, 1500);
+        })
+        .catch(function (e) {
+          j.value = prev.jenis; st.value = prev.status;
+          msg.textContent = "Tidak disimpan: " + (e.message || e); msg.className = "lgd-sel-msg is-no";
+        })
+        .then(function () {
+          j.disabled = st.disabled = false;
+          st.className = "lgd-sel is-status " + statusTone(st.value);
+        });
+    }
+    j.addEventListener("change", save);
+    st.addEventListener("change", save);
+    jenisTd.appendChild(j);
+    statusTd.appendChild(st);
+    statusTd.appendChild(msg);
+  }
+
   function progressWidget(rows, branch) {
-    var w = widget("w-4", "Progress Legality Sekolah", rows.length + " sekolah");
+    var w = widget("w-4", "Progress dan Status Legality Sekolah", rows.length + " sekolah");
     if (!rows.length) { w.appendChild(el("p", "empty-text", "Belum ada sekolah untuk paparan ini.")); return w; }
     var sorted = rows.slice().sort(function (a, b) {
       var ua = (a.s.note && a.s.note.text && a.s.note.updated) || "", ub = (b.s.note && b.s.note.text && b.s.note.updated) || "";
@@ -281,7 +327,7 @@
     var wrap = el("div", "tbl-wrap");
     var t = el("table", "mtable lgd-prog-table");
     var hr = el("tr");
-    ["Sekolah", "PIC", "Progress semasa"].forEach(function (h) { hr.appendChild(el("th", null, h)); });
+    ["Sekolah", "Jenis Legality", "Status Legality", "PIC", "Progress semasa"].forEach(function (h) { hr.appendChild(el("th", null, h)); });
     var th = el("thead"); th.appendChild(hr); t.appendChild(th);
     var tb = el("tbody");
     var now = Date.now();
@@ -290,6 +336,13 @@
       var school = el("td", "lgd-prog-school", x.s.name);
       if (branch === ALL) school.appendChild(el("small", null, x.cawangan));
       r.appendChild(school);
+
+      // Jenis Legality (A/B/C) and Status Legality: set here by admin only, saved as soon as they change
+      var jenisTd = el("td", "lgd-prog-jenis");
+      var statusTd = el("td", "lgd-prog-status");
+      legalitySelects(x, jenisTd, statusTd);
+      r.appendChild(jenisTd);
+      r.appendChild(statusTd);
 
       var picTd = el("td", "lgd-prog-pic");
       var pics = x.s.pic || [];

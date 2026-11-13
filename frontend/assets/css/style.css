@@ -1298,3 +1298,37 @@ html.ym-lock { overflow: hidden; }
   .lgd-prog-note { min-width: 0; }
 }
 .lg-note-when.is-stale { color: #f0b429; }
+.lg-status-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 0.9rem; }
+.lg-status-row .lg-field { margin: 0; }
+@media (max-width: 480px) { .lg-status-row { grid-template-columns: 1fr; } }
+.lgd-prog-jenis, .lgd-prog-status { white-space: nowrap; }
+.lgd-jenis { display: inline-grid; place-items: center; min-width: 1.7rem; height: 1.7rem; padding: 0 0.4rem; border-radius: 8px; background: rgba(255, 195, 0, 0.14); color: var(--accent); font-weight: 800; font-size: 0.85rem; }
+.lgd-status { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.76rem; font-weight: 700; background: rgba(255, 255, 255, 0.08); }
+.lgd-status.is-ok { background: rgba(52, 211, 113, 0.16); color: #5be08f; }
+.lgd-status.is-mid { background: rgba(240, 180, 41, 0.16); color: #f0b429; }
+.lgd-status.is-no { background: rgba(255, 107, 107, 0.16); color: #ff8c8c; }
+@media (max-width: 900px) {
+  .lgd-prog-table td.lgd-prog-jenis, .lgd-prog-table td.lgd-prog-status { display: inline-block; margin-right: 0.4rem; }
+}
+
+/* Jenis / Status Legality: read-only on the school page, dropdowns for admin */
+.lg-status-val { display: inline-flex; align-items: center; min-height: 2.6rem; padding: 0 0.9rem; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-2); font-weight: 700; }
+.lg-status-val.is-jenis { color: var(--accent); }
+.lg-status-val.is-ok { color: #5be08f; border-color: rgba(52, 211, 113, 0.4); }
+.lg-status-val.is-mid { color: #f0b429; border-color: rgba(240, 180, 41, 0.4); }
+.lg-status-val.is-no { color: #ff8c8c; border-color: rgba(255, 107, 107, 0.4); }
+.lg-status-val.is-empty { color: var(--muted); font-weight: 500; }
+.lg-status-note { margin: -0.4rem 0 0.9rem; color: var(--muted); font-size: 0.75rem; }
+.lgd-sel {
+  padding: 0.35rem 0.55rem; border: 1px solid var(--line-2); border-radius: 10px; background: var(--bg-2);
+  color: inherit; font: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer;
+}
+.lgd-sel.is-jenis { color: var(--accent); }
+.lgd-sel.is-ok { color: #5be08f; border-color: rgba(52, 211, 113, 0.45); }
+.lgd-sel.is-mid { color: #f0b429; border-color: rgba(240, 180, 41, 0.45); }
+.lgd-sel.is-no { color: #ff8c8c; border-color: rgba(255, 107, 107, 0.45); }
+.lgd-sel:disabled { opacity: 0.6; cursor: progress; }
+.lgd-sel-msg { display: block; margin-top: 0.25rem; color: var(--muted); font-size: 0.7rem; }
+.lgd-sel-msg.is-ok { color: #5be08f; }
+.lgd-sel-msg.is-no { color: #ff8c8c; white-space: normal; }
+.lgd-sel-msg:empty { display: none; }

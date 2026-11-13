@@ -98,6 +98,12 @@ Bahagian lain boleh ditambah dalam `BOT_CHECKS` dalam `Legality.gs`.
 - **Reminder Progress Semasa** (mesej berasingan, 8 pagi): **setiap Isnin** — reminder mingguan menyenaraikan **semua sekolah** dengan PIC dan tempoh kemas kini terakhir (⚠️ jika 7 hari atau lebih); **setiap hari lain (termasuk Sabtu & Ahad)** — ⚠️ **amaran** untuk sekolah yang tidak dikemas kini **7 hari atau lebih** (`PROGRESS_STALE_DAYS`) atau belum pernah, sehingga ia dikemas kini. Script Property `PICO_PROGRESS` mencatat tarikh terakhir dihantar.
 - Admin dan halaman sekolah memaparkan tempoh sejak kemas kini terakhir (cth. "Dikemas kini 1 hari lepas"); 7 hari atau lebih ditanda ⚠️.
 
+## Progress dan Status Legality Semasa
+
+- **Jenis Legality** (A / B / C) dan **Status Legality** (Legal with B&W / Legal w/o B&W / Tidak Legal) **hanya boleh ditukar oleh admin**, melalui dropdown dalam jadual dashboard admin (action `saveLegalityStatus`, kod admin sahaja; tidak mengubah tarikh Progress semasa). Halaman sekolah hanya memaparkannya; PIC mengemas kini catatan **Progress semasa** sahaja.
+- Disimpan dalam tab **Progress** sheet cawangan: PROGRESS SEMASA | Catatan dikemas kini | JENIS LEGALITY | STATUS LEGALITY (dua lajur terakhir dibuat automatik, dengan dropdown). Pilihan ada dalam `LEGALITY_JENIS` dan `LEGALITY_STATUS`.
+- Dashboard admin **Progress dan Status Legality Sekolah**: Sekolah · Jenis · Status (dropdown, disimpan terus; hijau / kuning / merah) · PIC · Progress semasa.
+
 ## Gambar Planning
 
 Bahagian **Planning** boleh muat naik gambar. Fail disimpan dalam Google Drive (folder *Yosh Legality – Gambar* / cawangan / sekolah, id folder dalam Script Property `GAMBAR_FOLDER`) dan dikongsi "sesiapa yang ada pautan boleh lihat" supaya portal dapat memaparkannya. Senarai gambar direkod dalam tab **Gambar** sheet cawangan. Gambar yang dibuang masuk ke Bin Drive (boleh dipulihkan).

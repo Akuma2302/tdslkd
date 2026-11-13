@@ -122,6 +122,10 @@ function doPost(e) {
     if (body.action === "addSchool") return json(addSchool(body.cawangan, body.sekolah));
     if (body.action === "saveProgress") return json(saveProgress(body));
     if (body.action === "saveProgressNote") return json(saveProgressNote(body));
+    if (body.action === "saveLegalityStatus") {
+      if (role !== "admin") throw new Error("Jenis dan Status Legality hanya boleh diubah oleh admin.");
+      return json(saveLegalityStatus(body));
+    }
     if (body.action === "saveAlumni") return json(saveAlumni(body));
     if (body.action === "uploadImage") return json(uploadImage(body));
     if (body.action === "saveWeekly") return json(saveWeekly(body));
@@ -352,7 +356,8 @@ function readSchool(cawangan, sekolah) {
     level: listOptions(sh.getRange(3, COL.KPI + 2)),
     entiti: Object.keys(entitiOpts)
   };
-  data.progress = { items: PROGRESS_ITEMS, values: readProgress(ss, sh.getName()), note: readProgressNote(ss, sh.getName()) };
+  data.progress = { items: PROGRESS_ITEMS, values: readProgress(ss, sh.getName()), note: readProgressNote(ss, sh.getName()),
+                    options: { jenis: LEGALITY_JENIS, status: LEGALITY_STATUS } };
   data.images = listImages(ss, sh.getName());
   data.pic = readPic(ss, sh.getName());
   data.weekly = readWeekly(ss, sh.getName(), cawangan);
@@ -430,13 +435,30 @@ function ensureNoteHeader(sh) {
     sh.getRange(2, c + 1, 300, 1).setNumberFormat("d mmm yyyy h:mm").setFontColor("#666666");
   }
 }
+// Jenis Legality and Status Legality of each school: two more columns after "Catatan dikemas kini", with dropdowns.
+var LEGALITY_JENIS = ["A", "B", "C"];
+var LEGALITY_STATUS = ["Legal with B&W", "Legal w/o B&W", "Tidak Legal"];
+function ensureStatusHeader(sh) {
+  var c = noteCol() + 2;
+  if (sh.getMaxColumns() < c + 1) sh.insertColumnsAfter(sh.getMaxColumns(), c + 1 - sh.getMaxColumns());
+  if (text(sh.getRange(1, c).getValue()) !== "") return;
+  sh.getRange(1, c, 1, 2).setValues([["JENIS LEGALITY", "STATUS LEGALITY"]])
+    .setBackground("#0b47a1").setFontColor("#ffffff").setFontWeight("bold").setFontSize(10).setWrap(true).setVerticalAlignment("top");
+  sh.setColumnWidth(c, 110);
+  sh.setColumnWidth(c + 1, 150);
+  sh.getRange(2, c, 300, 1).setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(LEGALITY_JENIS, true).setAllowInvalid(false).build());
+  sh.getRange(2, c + 1, 300, 1).setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(LEGALITY_STATUS, true).setAllowInvalid(false).build());
+}
 function readProgressNote(ss, school) {
   var p = progressRow(ss, school, false);
-  if (!p.r) return { text: "", updated: "" };
-  var v = p.sh.getRange(p.r, noteCol(), 1, 2).getValues()[0];
-  return { text: text(v[0]), updated: v[1] instanceof Date ? v[1].toISOString() : "" };
+  if (!p.r) return { text: "", updated: "", jenis: "", status: "" };
+  var n = Math.min(4, p.sh.getMaxColumns() - noteCol() + 1);
+  if (n < 2) return { text: "", updated: "", jenis: "", status: "" };
+  var v = p.sh.getRange(p.r, noteCol(), 1, n).getValues()[0];
+  return { text: text(v[0]), updated: v[1] instanceof Date ? v[1].toISOString() : "",
+           jenis: text(v[2]), status: text(v[3]) };
 }
-/** body: { cawangan, sekolah, note, old } — old is the note as it was when the page loaded. */
+/** body: { cawangan, sekolah, note, old } — old is the note as it was when the page loaded. (PIC; Jenis/Status are admin-only.) */
 function saveProgressNote(body) {
   var ss = book(body.cawangan);
   var school = text(body.sekolah);
@@ -451,6 +473,23 @@ function saveProgressNote(body) {
     cell.setValues([[safe(note), new Date()]]);
     markSummaryStale();
   }
+  return { ok: true, note: readProgressNote(ss, school) };
+}
+
+/** Admin only. body: { cawangan, sekolah, jenis, status } — does not change the Progress semasa date. */
+function saveLegalityStatus(body) {
+  var ss = book(body.cawangan);
+  var school = text(body.sekolah);
+  if (schoolNames(ss).indexOf(school) < 0) throw new Error("Sekolah tidak dijumpai: " + school);
+  var jenis = text(body.jenis), status = text(body.status);
+  if (jenis && LEGALITY_JENIS.indexOf(jenis) < 0) throw new Error("Jenis Legality tidak sah: " + jenis);
+  if (status && LEGALITY_STATUS.indexOf(status) < 0) throw new Error("Status Legality tidak sah: " + status);
+  var p = progressRow(ss, school, true);
+  ensureNoteHeader(p.sh);
+  ensureStatusHeader(p.sh);
+  p.sh.getRange(p.r, noteCol() + 2, 1, 2).setValues([[jenis, status]]);
+  SpreadsheetApp.flush();
+  markSummaryStale();
   return { ok: true, note: readProgressNote(ss, school) };
 }
 
@@ -598,8 +637,9 @@ function saveAlumni(body) {
 //  - each school tab is read once (one getValues, markers found from that same block);
 //  - the result is cached for 6 hours and returned at once; after any save it is only marked out of date
 //    ("stale": true) and the admin page fetches a fresh copy in the background.
-var SUMMARY_KEY = "summary2", SUMMARY_STALE = "summaryStale";
-function markSummaryStale() { CacheService.getScriptCache().put(SUMMARY_STALE, "1", 21600); }
+var SUMMARY_KEY = "summary3", SUMMARY_STALE = "summaryStale";
+// The flag holds the time of the last save, so a summary that was already being built before that save does not clear it.
+function markSummaryStale() { CacheService.getScriptCache().put(SUMMARY_STALE, String(Date.now()), 21600); }
 
 function summaryMarkers(a) {
   function find(prefix, from) {
@@ -619,10 +659,11 @@ function summary(fresh) {
     var hit = cache.get(SUMMARY_KEY);
     if (hit) {
       var cached = JSON.parse(hit);
-      cached.stale = cache.get(SUMMARY_STALE) === "1";
+      cached.stale = !!cache.get(SUMMARY_STALE);
       return cached;
     }
   }
+  var startedAt = Date.now();
   var map = sheetMap();
   var out = { items: PROGRESS_ITEMS, generated: new Date().toISOString(), cawangan: [] };
   CAWANGAN.forEach(function (c) {
@@ -631,11 +672,12 @@ function summary(fresh) {
     var prog = {}, note = {};
     var psh = ss.getSheetByName(PROGRESS_TAB);
     if (psh && psh.getLastRow() >= 2) {
-      psh.getRange(2, 1, psh.getLastRow() - 1, PROGRESS_ITEMS.length + 4).getValues().forEach(function (r) {
+      var N = PROGRESS_ITEMS.length;
+      psh.getRange(2, 1, psh.getLastRow() - 1, Math.min(psh.getMaxColumns(), N + 6)).getValues().forEach(function (r) {
         if (!text(r[0])) return;
-        prog[text(r[0])] = r.slice(1, PROGRESS_ITEMS.length + 1).map(function (v) { return v === true; });
-        note[text(r[0])] = { text: text(r[PROGRESS_ITEMS.length + 2]),
-          updated: r[PROGRESS_ITEMS.length + 3] instanceof Date ? r[PROGRESS_ITEMS.length + 3].toISOString() : "" };
+        prog[text(r[0])] = r.slice(1, N + 1).map(function (v) { return v === true; });
+        note[text(r[0])] = { text: text(r[N + 2]), updated: r[N + 3] instanceof Date ? r[N + 3].toISOString() : "",
+                             jenis: text(r[N + 4]), status: text(r[N + 5]) };
       });
     }
     var pics = {};
@@ -679,7 +721,11 @@ function summary(fresh) {
     });
     out.cawangan.push({ id: c, ready: true, url: ss.getUrl(), schools: schools });
   });
-  try { cache.put(SUMMARY_KEY, JSON.stringify(out), 21600); cache.remove(SUMMARY_STALE); } catch (e) {}
+  try {
+    cache.put(SUMMARY_KEY, JSON.stringify(out), 21600);
+    var savedAt = +(cache.get(SUMMARY_STALE) || 0);
+    if (savedAt < startedAt) cache.remove(SUMMARY_STALE);   // a save during the build keeps it marked out of date
+  } catch (e) {}
   out.stale = false;
   return out;
 }
@@ -1700,14 +1746,18 @@ function picoClaim(body) {
   return { jobs: jobs };
 }
 
-// Admin demo: this week's daily reminder and summary as they would look now, marked DEMO; nothing is marked as sent.
+// Admin demo: the messages as they would look now, marked DEMO; nothing is marked as sent.
+// PICO_DEMO picks which: "progress" (Progress Legality Sekolah only) or "all" (also the Checklist Mingguan ones).
+var PICO_DEMO = "progress";
 function picoDemo(w) {
   var jobs = [];
   WEEKLY_CAWANGAN.forEach(function (c) {
     var ss = book(c);
-    var daily = picoDailyText(c, w, weeklyStatus(ss, w, 0)) || "(Semua sekolah sudah selesai — tiada reminder.)";
-    jobs.push({ type: "text", text: "🧪 DEMO — reminder harian (Isnin–Jumaat 8 pagi)\n\n" + daily, refs: [] });
-    jobs.push({ type: "text", text: "🧪 DEMO — ringkasan (Sabtu 8 pagi)\n\n" + picoSummaryText(c, w, weeklyStatus(ss, w, 0)), refs: [] });
+    if (PICO_DEMO === "all") {
+      var daily = picoDailyText(c, w, weeklyStatus(ss, w, 0)) || "(Semua sekolah sudah selesai — tiada reminder.)";
+      jobs.push({ type: "text", text: "🧪 DEMO — reminder harian (Isnin–Jumaat 8 pagi)\n\n" + daily, refs: [] });
+      jobs.push({ type: "text", text: "🧪 DEMO — ringkasan (Sabtu 8 pagi)\n\n" + picoSummaryText(c, w, weeklyStatus(ss, w, 0)), refs: [] });
+    }
     var ages = progressAges(ss);
     var mon = { start: w.start, end: w.end, dow: 1 }, other = { start: w.start, end: w.end, dow: 2 };
     jobs.push({ type: "text", text: "🧪 DEMO — reminder mingguan Progress (setiap Isnin 8 pagi)\n\n" + picoProgressText(c, ages, mon), refs: [] });
