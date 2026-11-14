@@ -9,11 +9,11 @@ Backend: `backend/legality/Legality.gs`, dipasang sebagai projek Apps Script ber
 | Cawangan | Sheet |
 |---|---|
 | TENGAH | https://docs.google.com/spreadsheets/d/1xrAVOswvIrRmmrmPaywzdKPEijJXYUiGkQujr9TfFUs |
-| UTARA | https://docs.google.com/spreadsheets/d/1F2AjjajCZuP_WJn7pfnx8Sz_rcEvw2pZDI3jxyzN8pQ |
-| PT | https://docs.google.com/spreadsheets/d/1Cskf9vo-nTtGOpM7C2C8pjKiBA_ILCt2hKT-JHgDwhE |
-| INDONESIA | https://docs.google.com/spreadsheets/d/1i0koio9dQV79MlFFp0890DP0yEaiOzpCtulSSBC0-hU |
-| BORNEO | https://docs.google.com/spreadsheets/d/1RVxHQzdP66Ne38i6TNfxgr-1OKsmJFOAOYcuRdjX71I |
-| MEA | https://docs.google.com/spreadsheets/d/168_tRkIJCW6Pd2H_iJ9wBrRXYhiMqh7SteTh39ExBp4 |
+| UTARA | https://docs.google.com/spreadsheets/d/14mHT2GwPpOlyBV8NYbahXrLOSIKB_InqD3M4dRvyRaE |
+| PT | https://docs.google.com/spreadsheets/d/1Q0EKt6vyCbasyeut2EA0JsEPa7veEpWQ8apPEVNXgBg |
+| INDONESIA | https://docs.google.com/spreadsheets/d/1l7pW05yDTXCnxwaO6IIFW_eln0wuPglpvCvK-aLA69I |
+| BORNEO | https://docs.google.com/spreadsheets/d/1cv-fnk08JV4Eo4AJ0hfTr1aQyyEH0vNkKo2x2QBdLgE |
+| MEA | https://docs.google.com/spreadsheets/d/1rl9w-8HA0ZoCpm8PxEcdIx5b3wyo6KiPZd8CXb6WawQ |
 
 Sheet selain TENGAH dibuat oleh `setupCawanganSheets()` sebagai salinan TENGAH tanpa sekolah. Senarai ini disimpan dalam Script Properties (`SHEETS`); jalankan `showCawanganSheets()` untuk melihatnya.
 

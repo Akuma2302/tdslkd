@@ -2273,11 +2273,16 @@ function setupCawanganSheets() {
     if (map[c]) { log.push(c + ": sedia ada " + map[c]); return; }
     var copy = src.makeCopy("Checklist Legality - " + c);
     var ss = SpreadsheetApp.openById(copy.getId());
-    schoolNames(ss).forEach(function (n) { ss.deleteSheet(ss.getSheetByName(n)); });
+    // Keep only the school list and the template: every other tab is TENGAH's own data (schools, MOM, Progress,
+    // Gambar, PIC, manual CRM tabs …). The tabs the system needs are made again, empty, when first needed.
+    ss.getSheets().forEach(function (s) {
+      if (s.getName() !== LIST_TAB && s.getName() !== TEMPLATE) ss.deleteSheet(s);
+    });
     var list = ss.getSheetByName(LIST_TAB);
-    if (list.getLastRow() > 1) list.getRange(2, 1, list.getLastRow() - 1, 1).clearContent();
+    // Empty every row under the heading (all columns, so a new school lands on row 2)
+    if (list.getLastRow() > 1) list.getRange(2, 1, list.getLastRow() - 1, Math.max(list.getLastColumn(), 1)).clearContent();
     map[c] = copy.getId();
-    log.push(c + ": dibuat " + copy.getUrl());
+    log.push(c + ": dibuat " + copy.getUrl() + " (tab: " + ss.getSheets().map(function (s) { return s.getName(); }).join(", ") + ")");
   });
   props.setProperty("SHEETS", JSON.stringify(map));
   Logger.log(log.join("\n"));
