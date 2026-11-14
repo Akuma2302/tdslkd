@@ -2053,6 +2053,43 @@ function reportTestDemo() {
   Logger.log(JSON.stringify(r));
   return r;
 }
+/** Programmes of a REPORT_CAWANGAN that have already ended but never had reporting started (made before the
+ *  reporting bot existed). apply = true starts them, one minute apart, so they are posted to the Reporting topic. */
+function reportBackfill(apply) {
+  var sh = programSheet();
+  ensureReportHeader(sh);
+  if (sh.getLastRow() < 2) return [];
+  var rows = sh.getRange(2, 1, sh.getLastRow() - 1, REPORT_COL).getValues();
+  var now = Date.now(), out = [];
+  rows.forEach(function (r, i) {
+    var id = text(r[0]);
+    if (!id || /^TEST-/.test(id) || REPORT_CAWANGAN.indexOf(text(r[2])) < 0 || text(r[REPORT_COL - 1])) return;
+    var end = programEnd(r[8], r[9]);
+    if (!end || end.getTime() + REPORT_AFTER_HOURS * 3600000 > now) return;
+    out.push({ row: i + 2, id: id, nama: text(r[5]), sekolah: text(r[3]), tamat: Utilities.formatDate(end, MOM_TZ, "yyyy-MM-dd") });
+  });
+  if (apply) {
+    out.forEach(function (x, k) {
+      sh.getRange(x.row, REPORT_COL, 1, 4).setValues([[RS.WAIT, "", new Date(), new Date(now + k * 60000)]]);
+    });
+    SpreadsheetApp.flush();
+    CacheService.getScriptCache().remove(REPORT_NEXT);
+    CacheService.getScriptCache().remove("programs");
+  }
+  return out;
+}
+/** Run from the editor: lists what reportBackfillRun would start (see the execution log). */
+function reportBackfillPreview() {
+  var list = reportBackfill(false);
+  Logger.log(list.length + " program:\n" + list.map(function (x) { return x.tamat + " · " + x.sekolah + " · " + x.nama; }).join("\n"));
+  return list.length;
+}
+/** Run from the editor: starts reporting for every programme reportBackfillPreview lists. */
+function reportBackfillRun() {
+  var list = reportBackfill(true);
+  Logger.log(list.length + " program dimulakan.");
+  return list.length;
+}
 /** Admin: removes the test programmes (ID "TEST-…"). */
 function reportTestClear() {
   var sh = programSheet();
