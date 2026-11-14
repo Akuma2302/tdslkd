@@ -15,7 +15,7 @@
 //   LEGALITY_BOT_CHAT     group chat id (optional; default: Program Tengah)
 //   LEGALITY_BOT_THREAD   topic id inside that group (optional)
 
-const LEGALITY_API = 'https://script.google.com/macros/s/AKfycbwSbdXQNM_xci-P1L_9ivhKzxOEf_aHhBiTvQLQ6YrpwcqDI730b7LXTEZiiJDQlIvh/exec';
+const LEGALITY_API = 'https://script.google.com/macros/s/AKfycbw2jxiYTQ0bu0C1c9-EvOQh7BW8SgD5fP3tjFjxu-UcWeBCuykc3pZeu4e3F1S86UH3iw/exec';
 const DEFAULT_CHAT = '-1004404368342'; // "Program Tengah" (supergroup; was -5212609665 before the upgrade)
 
 const json = (status, body) =>

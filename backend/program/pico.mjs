@@ -15,7 +15,7 @@
 //   LEGALITY_BOT_THREAD   topic id inside that group (optional; default: 3348, t.me/c/2078197579/3348)
 //   DRY_RUN=1             show the messages, send and mark nothing
 
-const LEGALITY_API = 'https://script.google.com/macros/s/AKfycbwSbdXQNM_xci-P1L_9ivhKzxOEf_aHhBiTvQLQ6YrpwcqDI730b7LXTEZiiJDQlIvh/exec';
+const LEGALITY_API = 'https://script.google.com/macros/s/AKfycbw2jxiYTQ0bu0C1c9-EvOQh7BW8SgD5fP3tjFjxu-UcWeBCuykc3pZeu4e3F1S86UH3iw/exec';
 const DEFAULT_CHAT = '-1002078197579'; // "Mas'ulah & PIC Legality TDS Tengah"
 const DEFAULT_THREAD = 3348;            // its topic for PICO (t.me/c/2078197579/3348)
 

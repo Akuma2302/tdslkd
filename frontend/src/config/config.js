@@ -6,5 +6,5 @@
 // Setup steps: backend/legality/README.md
 window.YOSH_CONFIG = {
   murabbiApi: "",
-  legalityApi: "https://script.google.com/macros/s/AKfycbwSbdXQNM_xci-P1L_9ivhKzxOEf_aHhBiTvQLQ6YrpwcqDI730b7LXTEZiiJDQlIvh/exec"
+  legalityApi: "https://script.google.com/macros/s/AKfycbw2jxiYTQ0bu0C1c9-EvOQh7BW8SgD5fP3tjFjxu-UcWeBCuykc3pZeu4e3F1S86UH3iw/exec"
 };

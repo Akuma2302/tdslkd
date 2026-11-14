@@ -10,7 +10,7 @@
 //   REPORT_CHAT / REPORT_THREAD, APPROVAL_CHAT / APPROVAL_THREAD   (optional overrides of the groups below)
 import { createHash } from 'node:crypto';
 
-export const LEGALITY_API = 'https://script.google.com/macros/s/AKfycbwSbdXQNM_xci-P1L_9ivhKzxOEf_aHhBiTvQLQ6YrpwcqDI730b7LXTEZiiJDQlIvh/exec';
+export const LEGALITY_API = 'https://script.google.com/macros/s/AKfycbw2jxiYTQ0bu0C1c9-EvOQh7BW8SgD5fP3tjFjxu-UcWeBCuykc3pZeu4e3F1S86UH3iw/exec';
 export const TEMPLATE = 'https://canva.link/m38sc8m51fkhgjq';
 export const REPORT = {
   chat: process.env.REPORT_CHAT || '-1002078197579',

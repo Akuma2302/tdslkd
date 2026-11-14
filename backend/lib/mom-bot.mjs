@@ -11,7 +11,7 @@
 //   SU_BOT_TENGAH   token of the SU Tengah bot                         (required)
 //   SU_BOT_CHAT     group chat id (optional; default: SU Tengah group)
 
-const LEGALITY_API = 'https://script.google.com/macros/s/AKfycbwSbdXQNM_xci-P1L_9ivhKzxOEf_aHhBiTvQLQ6YrpwcqDI730b7LXTEZiiJDQlIvh/exec';
+const LEGALITY_API = 'https://script.google.com/macros/s/AKfycbw2jxiYTQ0bu0C1c9-EvOQh7BW8SgD5fP3tjFjxu-UcWeBCuykc3pZeu4e3F1S86UH3iw/exec';
 const DEFAULT_CHAT = '-1001790355836'; // SU Tengah group (t.me/c/1790355836)
 
 async function api(body) {
