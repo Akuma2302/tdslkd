@@ -107,14 +107,18 @@ async function onButton(token, kod, q) {
   if (step === 'baiki') {
     const { program: p } = await api({ action: 'reportUpdate', kod, id, step: 'info' });
     if (p.status !== 'Menunggu kelulusan') return answer('Report ini tidak menunggu kelulusan.', true);
-    await answer('Balas dengan apa yang perlu dibaiki.');
-    return send(token, where, `✏️ ${who(q.from)}, balas mesej ini dengan apa yang perlu dibaiki.\n\n📌 ${p.nama} · ${p.sekolah}\n#RP-FIX-${id}`,
+    // Remember who pressed it: their next message in this topic (no reply needed) is the comment.
+    await api({ action: 'reportUpdate', kod, id, step: 'wait', waitKey: fixKeyOf(q.message.chat.id, q.from) });
+    await answer('Tulis apa yang perlu dibaiki dalam chat.');
+    return send(token, where, `✏️ ${who(q.from)}, tulis apa yang perlu dibaiki dalam chat ini (terus hantar, tak perlu reply).\n\n📌 ${p.nama} · ${p.sekolah}\n#RP-FIX-${id}`,
       { reply_markup: { force_reply: true, selective: true }, reply_to_message_id: q.message.message_id });
   }
 }
 
 // "<chat>:<user id>" — whose link the bot is waiting for after "Siap duplicate"
 const waitKeyOf = (chat, user) => `${chat}:${user && user.id}`;
+// "<chat>:<user id>:fix" — whose "Perlu baiki" comment the bot is waiting for
+const fixKeyOf = (chat, user) => `${chat}:${user && user.id}:fix`;
 
 // A message in the group: a reply to one of the bot's questions, or a plain message with a link from someone who
 // just pressed "Siap duplicate" (so the PIC can paste the link without replying).
@@ -123,7 +127,13 @@ async function onMessage(token, kod, msg) {
   const text = (msg.text || msg.caption || '').trim();
   const asked = msg.reply_to_message;
   const tag = asked && asked.from && asked.from.is_bot ? new RegExp(`#RP-(LINK|FIX)-(${ID})`).exec(asked.text || '') : null;
-  if (tag && tag[1] === 'FIX') return onFix(token, kod, msg, tag[2], text);
+  const fixKey = fixKeyOf(msg.chat.id, msg.from);
+  if (tag && tag[1] === 'FIX') return onFix(token, kod, msg, tag[2], text, fixKey);
+  // In the approval topic, a plain message from the admin who pressed "Perlu baiki" is the comment.
+  if (!tag && text && String(msg.chat.id) === String(APPROVAL.chat) && Number(msg.message_thread_id || 0) === APPROVAL.thread) {
+    const f = await api({ action: 'reportUpdate', kod, waitKey: fixKey, step: 'info' });
+    if (!f.none && f.program) return onFix(token, kod, msg, f.program.id, text, fixKey);
+  }
   const waitKey = waitKeyOf(msg.chat.id, msg.from);
   if (tag) return onLink(token, kod, msg, tag[2], text, waitKey);
   if (!/https?:\/\//i.test(text)) return;            // ordinary chat: nothing to do (no Apps Script call)
@@ -150,10 +160,10 @@ async function onLink(token, kod, msg, id, text, waitKey) {
 }
 
 // An admin's comment (reply to "Perlu baiki") on a report that needs changes
-async function onFix(token, kod, msg, id, text) {
+async function onFix(token, kod, msg, id, text, fixKey) {
   const where = { chat: msg.chat.id, thread: msg.message_thread_id };
   if (!text) return;
-  const r = await api({ action: 'reportUpdate', kod, id, step: 'reject', note: text, by: who(msg.from) });
+  const r = await api({ action: 'reportUpdate', kod, id, step: 'reject', note: text, by: who(msg.from), waitKey: fixKey });
   const p = r.program;
   if (!r.changed) return send(token, where, 'ℹ️ Report ini tidak lagi menunggu kelulusan.', { reply_to_message_id: msg.message_id });
   await send(token, where, `↩️ Komen dihantar kepada PIC "${p.nama}".`, { reply_to_message_id: msg.message_id });

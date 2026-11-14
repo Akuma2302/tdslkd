@@ -2011,6 +2011,7 @@ function reportUpdate(body) {
     var note = text(body.note).slice(0, 1000);
     if (!note) throw new Error("Komen kosong.");
     set = [RS.FIX, p.link, now, reportNextFollowUp(now.getTime()), safe(note)];
+    if (waitKey) cache.remove(waitKey);
   } else if (step !== "info") {
     throw new Error("Langkah tidak dikenali: " + step);
   }
