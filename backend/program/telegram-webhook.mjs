@@ -40,7 +40,19 @@ async function onButton(token, kod, q) {
   const where = { chat: q.message.chat.id, thread: q.message.message_thread_id };
   const answer = (text, alert) => tg(token, 'answerCallbackQuery', { callback_query_id: q.id, text, show_alert: !!alert }).catch(() => {});
   if (!kod) return answer('Bot belum disediakan (KOD_TENGAH tiada dalam Netlify).', true);
+  // One click only: the buttons disappear as soon as one is pressed (put back if something goes wrong).
+  const markup = (reply_markup) => tg(token, 'editMessageReplyMarkup', { chat_id: q.message.chat.id, message_id: q.message.message_id, reply_markup }).catch(() => {});
+  await markup({ inline_keyboard: [] });
+  try {
+    return await onStep(token, kod, q, step, id, where, answer);
+  } catch (e) {
+    if (q.message.reply_markup) await markup(q.message.reply_markup);
+    await answer('Ralat, sila cuba lagi.', true);
+    throw e;
+  }
+}
 
+async function onStep(token, kod, q, step, id, where, answer) {
   // 1st question "Adakah program … berjalan?"
   if (step === 'ya' || step === 'batal') {
     const r = await api({ action: 'reportUpdate', kod, id, step: step === 'ya' ? 'ran' : 'cancel', by: who(q.from) });
@@ -53,7 +65,7 @@ async function onButton(token, kod, q) {
     if (step === 'batal') return answer('Ditanda Dibatalkan. Tiada tindakan lanjut.');
     await answer('Baik, sila sediakan report.');
     return send(token, where,
-      `📝 REPORTING PROGRAM\n\n${head(p)}\n\nSila sediakan report program:\n1️⃣ Duplicate template ini: ${TEMPLATE}\n2️⃣ Tekan "✅ Siap duplicate" dan balas dengan link Canva anda.`,
+      `📝 REPORTING PROGRAM\n\n${head(p)}\n\nSila sediakan report program:\n1️⃣ Duplicate template ini: ${TEMPLATE}\n2️⃣ Tekan "✅ Siap duplicate" dan tampal link Canva anda.`,
       { reply_markup: keyboard([[{ text: '✅ Siap duplicate', data: `rp:dup:${id}` }]]) });
   }
 
@@ -85,7 +97,6 @@ async function onButton(token, kod, q) {
     }
     if (!r.changed) return answer(p.status === 'Lulus' ? 'Report ini sudah diluluskan.' : 'Report ini sedang menunggu kelulusan.', true);
     await answer('Dihantar untuk kelulusan.');
-    await tg(token, 'editMessageReplyMarkup', { chat_id: q.message.chat.id, message_id: q.message.message_id, reply_markup: { inline_keyboard: [] } }).catch(() => {});
     await send(token, APPROVAL,
       `📋 KELULUSAN REPORT PROGRAM\n\n${head(p)}\n🔗 ${p.link}\n\nDihantar oleh ${who(q.from)}. Sila semak dan luluskan.`,
       { reply_markup: keyboard([[{ text: '✅ Lulus', data: `rp:lulus:${id}` }, { text: '✏️ Perlu baiki', data: `rp:baiki:${id}` }]]) });
