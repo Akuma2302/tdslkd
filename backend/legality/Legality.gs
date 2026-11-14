@@ -1968,6 +1968,14 @@ function reportRelease(body) {
  * Returns { ok, program, changed } — changed is false when the step no longer applies (e.g. already approved).
  */
 function reportUpdate(body) {
+  // "Siap duplicate" remembers (1 hour) which programme a person is sending a link for, so a plain message with the
+  // link works too (no reply needed): body.waitKey = "<chat>:<user>"; without body.id the remembered one is used.
+  var cache = CacheService.getScriptCache(), waitKey = text(body.waitKey) ? "rpwait:" + text(body.waitKey) : "";
+  if (!text(body.id) && waitKey) {
+    var wid = cache.get(waitKey);
+    if (!wid) return { ok: true, none: true };
+    body.id = wid;
+  }
   var sh = programSheet();
   ensureReportHeader(sh);
   var f = reportFind(sh, text(body.id));
@@ -1982,6 +1990,9 @@ function reportUpdate(body) {
         REPORT_TEMPLATE.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/+$/, "").toLowerCase()) throw new Error("Ini link template.");
     if (p.status === RS.DONE || p.status === RS.REVIEW) return { ok: true, changed: false, program: p };
     set = [p.status === RS.FIX ? RS.FIX : RS.MAKING, url, now, reportNextFollowUp(now.getTime()), p.komen];
+    if (waitKey) cache.remove(waitKey);
+  } else if (step === "wait") {     // "Siap duplicate" pressed: the next link from this person is for this programme
+    if (waitKey) cache.put(waitKey, p.id, 3600);
   } else if (step === "ran") {      // the programme ran → the PIC duplicates the template
     if ([RS.WAIT, RS.CONFIRM].indexOf(p.status) < 0) return { ok: true, changed: false, program: p };
     set = [RS.TEMPLATE, "", now, reportNextFollowUp(now.getTime()), ""];

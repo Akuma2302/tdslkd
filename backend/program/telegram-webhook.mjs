@@ -11,6 +11,7 @@
 //   rp:lulus  "Lulus"           → Reporting = Lulus, PIC told                  [Program Tengah]
 //   rp:baiki  "Perlu baiki"     → asks the admin what to fix (reply)          [Program Tengah]
 // Replies to the bot's questions carry a tag in the question: "#RP-LINK-<id>" (Canva link) or "#RP-FIX-<id>" (comment).
+// After "Siap duplicate" the PIC can also just paste the link as a normal message (remembered for 1 hour per person).
 import { api, tg, json, keyboard, send, head, notify, canvaProblem, webhookSecret, whereFor, APPROVAL, TEMPLATE } from '../lib/report-bot.mjs';
 
 const ID = '[A-Za-z0-9_-]{8,60}';
@@ -25,7 +26,7 @@ export default async (req) => {
   const kod = process.env.KOD_TENGAH || '';
   try {
     if (update.callback_query) await onButton(token, kod, update.callback_query);
-    else if (update.message && update.message.reply_to_message) await onReply(token, kod, update.message);
+    else if (update.message) await onMessage(token, kod, update.message);
   } catch (e) {
     console.error('telegram-webhook', e);
   }
@@ -57,11 +58,13 @@ async function onButton(token, kod, q) {
   }
 
   if (step === 'dup') {
-    const { program: p } = await api({ action: 'reportUpdate', kod, id, step: 'info' });
-    await answer('Balas dengan link Canva anda.');
+    // Remember who pressed it: their next message with a link (no reply needed) is for this programme.
+    const { program: p } = await api({ action: 'reportUpdate', kod, id, step: 'wait', waitKey: waitKeyOf(q.message.chat.id, q.from) });
+    await answer('Tampal link Canva anda dalam chat.');
     return send(token, where,
-      `🔗 Balas mesej ini dengan link Canva report anda.\n\n${head(p)}\n\n(Template: ${TEMPLATE})\n#RP-LINK-${id}`,
-      { reply_markup: { force_reply: true, selective: false, input_field_placeholder: 'https://www.canva.com/design/…' } });
+      `🔗 ${who(q.from)}, tampal link Canva report anda dalam chat ini (terus hantar, tak perlu reply).\n\n${head(p)}\n\n(Template: ${TEMPLATE})\n#RP-LINK-${id}`,
+      { reply_markup: { force_reply: true, selective: true, input_field_placeholder: 'https://www.canva.com/design/…' },
+        reply_to_message_id: q.message.message_id });
   }
 
   if (step === 'belum') {
@@ -75,9 +78,10 @@ async function onButton(token, kod, q) {
     const r = await api({ action: 'reportUpdate', kod, id, step: 'submit' });
     const p = r.program;
     if (r.needLink) {
+      await api({ action: 'reportUpdate', kod, id, step: 'wait', waitKey: waitKeyOf(q.message.chat.id, q.from) });
       await answer('Hantar link Canva dahulu.', true);
-      return send(token, where, `🔗 Balas mesej ini dengan link Canva report anda dahulu.\n\n${head(p)}\n#RP-LINK-${id}`,
-        { reply_markup: { force_reply: true, selective: false } });
+      return send(token, where, `🔗 ${who(q.from)}, tampal link Canva report anda dalam chat ini dahulu.\n\n${head(p)}\n#RP-LINK-${id}`,
+        { reply_markup: { force_reply: true, selective: true }, reply_to_message_id: q.message.message_id });
     }
     if (!r.changed) return answer(p.status === 'Lulus' ? 'Report ini sudah diluluskan.' : 'Report ini sedang menunggu kelulusan.', true);
     await answer('Dihantar untuk kelulusan.');
@@ -109,32 +113,45 @@ async function onButton(token, kod, q) {
   }
 }
 
-async function onReply(token, kod, msg) {
-  const asked = msg.reply_to_message;
-  if (!asked.from || !asked.from.is_bot || !kod) return;
-  const tag = new RegExp(`#RP-(LINK|FIX)-(${ID})`).exec(asked.text || '');
-  if (!tag) return;
-  const [, kind, id] = tag;
-  const where = { chat: msg.chat.id, thread: msg.message_thread_id };
+// "<chat>:<user id>" — whose link the bot is waiting for after "Siap duplicate"
+const waitKeyOf = (chat, user) => `${chat}:${user && user.id}`;
+
+// A message in the group: a reply to one of the bot's questions, or a plain message with a link from someone who
+// just pressed "Siap duplicate" (so the PIC can paste the link without replying).
+async function onMessage(token, kod, msg) {
+  if (!kod || !msg.from || msg.from.is_bot) return;
   const text = (msg.text || msg.caption || '').trim();
+  const asked = msg.reply_to_message;
+  const tag = asked && asked.from && asked.from.is_bot ? new RegExp(`#RP-(LINK|FIX)-(${ID})`).exec(asked.text || '') : null;
+  if (tag && tag[1] === 'FIX') return onFix(token, kod, msg, tag[2], text);
+  const waitKey = waitKeyOf(msg.chat.id, msg.from);
+  if (tag) return onLink(token, kod, msg, tag[2], text, waitKey);
+  if (!/https?:\/\//i.test(text)) return;            // ordinary chat: nothing to do (no Apps Script call)
+  const r = await api({ action: 'reportUpdate', kod, waitKey, step: 'info' });
+  if (r.none || !r.program) return;                 // not waiting for a link from this person
+  return onLink(token, kod, msg, r.program.id, text, waitKey);
+}
 
-  if (kind === 'LINK') {
-    const url = (text.match(/https?:\/\/\S+/) || [])[0];
-    const problem = url ? canvaProblem(url) : 'tiada link dalam balasan';
-    if (problem) {
-      const { program: p0 } = await api({ action: 'reportUpdate', kod, id, step: 'info' });
-      return send(token, where,
-        `❌ Link ditolak (${problem}), ${who(msg.from)}.\n\nSila duplicate template dahulu: ${TEMPLATE}\nkemudian BALAS mesej ini dengan link Canva report anda sendiri (canva.com/design/…).\n\n${head(p0)}\n#RP-LINK-${id}`,
-        { reply_to_message_id: msg.message_id, reply_markup: { force_reply: true, selective: false, input_field_placeholder: 'https://www.canva.com/design/…' } });
-    }
-    const r = await api({ action: 'reportUpdate', kod, id, step: 'link', url });
-    const p = r.program;
+async function onLink(token, kod, msg, id, text, waitKey) {
+  const where = { chat: msg.chat.id, thread: msg.message_thread_id };
+  const url = (text.match(/https?:\/\/\S+/) || [])[0];
+  const problem = url ? canvaProblem(url) : 'tiada link dalam mesej';
+  if (problem) {
+    const { program: p0 } = await api({ action: 'reportUpdate', kod, id, step: 'wait', waitKey });
     return send(token, where,
-      `✅ Link diterima, ${who(msg.from)}.\n\n${head(p)}\n🔗 ${p.link}\n\nReport sudah siap? Kalau belum, saya akan follow-up setiap 2 hari.`,
-      { reply_to_message_id: msg.message_id, reply_markup: keyboard([[{ text: '✅ Sudah siap', data: `rp:siap:${id}` }, { text: '⏳ Belum', data: `rp:belum:${id}` }]]) });
+      `❌ Link ditolak (${problem}), ${who(msg.from)}.\n\nSila duplicate template dahulu: ${TEMPLATE}\nkemudian tampal link Canva report anda sendiri (canva.com/design/…) dalam chat ini.\n\n${head(p0)}\n#RP-LINK-${id}`,
+      { reply_to_message_id: msg.message_id, reply_markup: { force_reply: true, selective: true, input_field_placeholder: 'https://www.canva.com/design/…' } });
   }
+  const r = await api({ action: 'reportUpdate', kod, id, step: 'link', url, waitKey });
+  const p = r.program;
+  return send(token, where,
+    `✅ Link diterima, ${who(msg.from)}.\n\n${head(p)}\n🔗 ${p.link}\n\nReport sudah siap? Kalau belum, saya akan follow-up setiap 2 hari.`,
+    { reply_to_message_id: msg.message_id, reply_markup: keyboard([[{ text: '✅ Sudah siap', data: `rp:siap:${id}` }, { text: '⏳ Belum', data: `rp:belum:${id}` }]]) });
+}
 
-  // FIX: an admin's comment on a report that needs changes
+// An admin's comment (reply to "Perlu baiki") on a report that needs changes
+async function onFix(token, kod, msg, id, text) {
+  const where = { chat: msg.chat.id, thread: msg.message_thread_id };
   if (!text) return;
   const r = await api({ action: 'reportUpdate', kod, id, step: 'reject', note: text, by: who(msg.from) });
   const p = r.program;
