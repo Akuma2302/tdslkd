@@ -3,6 +3,8 @@
 // one of the bot's reporting questions. Set up once with report-bot { setup: true }. See backend/lib/report-bot.mjs.
 //
 // Buttons (callback_data "rp:<step>:<programme id>"):
+//   rp:ya     "Ya, berjalan"    → 1st question answered: asks to duplicate the template [Reporting topic]
+//   rp:batal  "Tidak berjalan"  → Reporting = Dibatalkan, no more messages         [Reporting topic]
 //   rp:dup    "Siap duplicate"  → asks for the Canva link (reply)            [Reporting topic]
 //   rp:siap   "Sudah siap"      → approval request to Program Tengah topic 60  [Reporting topic]
 //   rp:belum  "Belum"           → noted; asked again in 2 days                [Reporting topic]
@@ -31,12 +33,28 @@ export default async (req) => {
 };
 
 async function onButton(token, kod, q) {
-  const m = new RegExp(`^rp:(dup|siap|belum|lulus|baiki):(${ID})$`).exec(q.data || '');
+  const m = new RegExp(`^rp:(ya|batal|dup|siap|belum|lulus|baiki):(${ID})$`).exec(q.data || '');
   if (!m) return tg(token, 'answerCallbackQuery', { callback_query_id: q.id });
   const [, step, id] = m;
   const where = { chat: q.message.chat.id, thread: q.message.message_thread_id };
   const answer = (text, alert) => tg(token, 'answerCallbackQuery', { callback_query_id: q.id, text, show_alert: !!alert }).catch(() => {});
   if (!kod) return answer('Bot belum disediakan (KOD_TENGAH tiada dalam Netlify).', true);
+
+  // 1st question "Adakah program … berjalan?"
+  if (step === 'ya' || step === 'batal') {
+    const r = await api({ action: 'reportUpdate', kod, id, step: step === 'ya' ? 'ran' : 'cancel', by: who(q.from) });
+    const p = r.program;
+    if (!r.changed) return answer(p.status === 'Dibatalkan' ? 'Program ini sudah ditanda tidak berjalan.' : 'Sudah dijawab.', true);
+    await tg(token, 'editMessageText', {
+      chat_id: q.message.chat.id, message_id: q.message.message_id, link_preview_options: { is_disabled: true },
+      text: `${q.message.text}\n\n${step === 'ya' ? '✅ Program berjalan' : '❌ Program tidak berjalan (Dibatalkan)'} · ${who(q.from)}`,
+    }).catch(() => {});
+    if (step === 'batal') return answer('Ditanda Dibatalkan. Tiada tindakan lanjut.');
+    await answer('Baik, sila sediakan report.');
+    return send(token, where,
+      `📝 REPORTING PROGRAM\n\n${head(p)}\n\nSila sediakan report program:\n1️⃣ Duplicate template ini: ${TEMPLATE}\n2️⃣ Tekan "✅ Siap duplicate" dan balas dengan link Canva anda.`,
+      { reply_markup: keyboard([[{ text: '✅ Siap duplicate', data: `rp:dup:${id}` }]]) });
+  }
 
   if (step === 'dup') {
     const { program: p } = await api({ action: 'reportUpdate', kod, id, step: 'info' });

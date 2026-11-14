@@ -11,12 +11,13 @@
 //
 // Environment variables (Netlify → Site configuration → Environment variables):
 //   LEGALITY_BOT_TENGAH   bot token                                       (required)
-//   LEGALITY_BOT_CHAT     group chat id (optional; default: Program Tengah)
-//   LEGALITY_BOT_THREAD   topic id inside that group (optional)
+//   LEGALITY_BOT_CHAT     group chat id (optional; default: Mas'ulah & PIC Legality TDS Tengah)
+//   LEGALITY_BOT_THREAD   topic id inside that group (optional; default: 3348, t.me/c/2078197579/3348)
 //   DRY_RUN=1             show the messages, send and mark nothing
 
 const LEGALITY_API = 'https://script.google.com/macros/s/AKfycbwSbdXQNM_xci-P1L_9ivhKzxOEf_aHhBiTvQLQ6YrpwcqDI730b7LXTEZiiJDQlIvh/exec';
-const DEFAULT_CHAT = '-1004404368342'; // "Program Tengah"
+const DEFAULT_CHAT = '-1002078197579'; // "Mas'ulah & PIC Legality TDS Tengah"
+const DEFAULT_THREAD = 3348;            // its topic for PICO (t.me/c/2078197579/3348)
 
 const json = (status, body) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -75,7 +76,7 @@ export default async (req) => {
   const dryRun = process.env.DRY_RUN === '1';
   const token = process.env.LEGALITY_BOT_TENGAH;
   const chat = process.env.LEGALITY_BOT_CHAT || DEFAULT_CHAT;
-  const thread = process.env.LEGALITY_BOT_THREAD ? Number(process.env.LEGALITY_BOT_THREAD) : undefined;
+  const thread = Number(process.env.LEGALITY_BOT_THREAD || DEFAULT_THREAD);
   if (!token && !dryRun) return json(500, { ok: false, error: 'LEGALITY_BOT_TENGAH belum ditetapkan dalam Netlify.' });
 
   let claim;

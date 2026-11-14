@@ -564,7 +564,7 @@
         var rtd = el("td", "lgd-rep");
         if (!rep.status) rtd.appendChild(el("span", "lgd-rep-none", "—"));
         else {
-          var tone = rep.status === "Lulus" ? "is-ok" : rep.status === "Perlu baiki" ? "is-fail" : rep.status === "Menunggu kelulusan" ? "is-review" : "is-wait";
+          var tone = rep.status === "Lulus" ? "is-ok" : rep.status === "Perlu baiki" || rep.status === "Dibatalkan" ? "is-fail" : rep.status === "Menunggu kelulusan" ? "is-review" : "is-wait";
           var rb = el("span", "lgd-tg " + tone, rep.status === "Lulus" ? "✓ Lulus" : rep.status);
           rb.title = (rep.komen ? rep.komen + " · " : "") + (rep.next ? "Follow-up seterusnya: " + new Date(rep.next).toLocaleString("ms-MY", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false }) : "");
           rtd.appendChild(rb);

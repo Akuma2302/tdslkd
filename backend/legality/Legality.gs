@@ -1835,7 +1835,7 @@ var REPORT_EVERY_DAYS = 2;
 var REPORT_HOUR = 9;
 var REPORT_NEXT = "reportNextAt";   // cache: when the next reporting message is due (ms)
 var RS = { WAIT: "Menunggu program tamat", TEMPLATE: "Template", MAKING: "Sedang dibuat", REVIEW: "Menunggu kelulusan",
-           FIX: "Perlu baiki", DONE: "Lulus" };
+           FIX: "Perlu baiki", DONE: "Lulus", CONFIRM: "Menunggu pengesahan", CANCEL: "Dibatalkan" };
 
 function ensureReportHeader(sh) {
   if (sh.getMaxColumns() < REPORT_COL + REPORT_HEAD.length - 1) {
@@ -1908,14 +1908,15 @@ function reportClaim(body) {
   var now = Date.now(), jobs = [], earliest = 0;
   rows.forEach(function (r, i) {
     var p = reportRow(r);
-    if (!p.id || [RS.WAIT, RS.TEMPLATE, RS.MAKING, RS.FIX].indexOf(p.status) < 0 || !p.next) return;
+    if (!p.id || [RS.WAIT, RS.CONFIRM, RS.TEMPLATE, RS.MAKING, RS.FIX].indexOf(p.status) < 0 || !p.next) return;
     if (p.next > now) { if (!earliest || p.next < earliest) earliest = p.next; return; }
     var job = { id: p.id };
-    if (p.status === RS.WAIT) {
-      job.kind = "start";
-      job.text = "📝 REPORTING PROGRAM\n\n" + reportHead(p) + "\n\nProgram telah tamat. Sila sediakan report program:\n" +
-                 "1️⃣ Duplicate template ini: " + REPORT_TEMPLATE + "\n2️⃣ Tekan \"✅ Siap duplicate\" dan balas dengan link Canva anda.";
-      job.buttons = [[{ text: "✅ Siap duplicate", data: "rp:dup:" + p.id }]];
+    if (p.status === RS.WAIT || p.status === RS.CONFIRM) {
+      // 1st question: did the programme run? (Ya → duplicate the template; Tidak → Dibatalkan, nothing more)
+      job.kind = "run";
+      job.text = (p.status === RS.WAIT ? "📝 REPORTING PROGRAM\n\n" : "⏰ PERINGATAN REPORTING\n\n") + reportHead(p) +
+                 "\n\nAdakah program \"" + p.nama + "\" berjalan?";
+      job.buttons = [[{ text: "✅ Ya, berjalan", data: "rp:ya:" + p.id }, { text: "❌ Tidak berjalan", data: "rp:batal:" + p.id }]];
     } else if (p.status === RS.TEMPLATE) {
       job.kind = "link";
       job.text = "⏰ PERINGATAN REPORTING\n\n" + reportHead(p) + "\n\nLink Canva report belum dihantar.\n" +
@@ -1931,7 +1932,7 @@ function reportClaim(body) {
     jobs.push(job);
     if (!body.peek) {
       var next = reportNextFollowUp(now);
-      sh.getRange(i + 2, REPORT_COL, 1, 4).setValues([[p.status === RS.WAIT ? RS.TEMPLATE : p.status, p.link, new Date(), next]]);
+      sh.getRange(i + 2, REPORT_COL, 1, 4).setValues([[p.status === RS.WAIT ? RS.CONFIRM : p.status, p.link, new Date(), next]]);
       if (!earliest || next.getTime() < earliest) earliest = next.getTime();
     }
   });
@@ -1958,6 +1959,8 @@ function reportRelease(body) {
 /**
  * Buttons and replies from Telegram (Netlify telegram-webhook). body: { id, step, url?, note?, by? }
  *   info   → the programme (no change)
+ *   ran    → the programme ran                           → Template (duplicate it)
+ *   cancel → the programme did not run                   → Dibatalkan (stops)
  *   link   → Canva link received                          → Sedang dibuat
  *   submit → PIC says the report is ready                 → Menunggu kelulusan
  *   approve→ approved in Program Tengah                   → Lulus (stops)
@@ -1979,6 +1982,12 @@ function reportUpdate(body) {
         REPORT_TEMPLATE.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/+$/, "").toLowerCase()) throw new Error("Ini link template.");
     if (p.status === RS.DONE || p.status === RS.REVIEW) return { ok: true, changed: false, program: p };
     set = [p.status === RS.FIX ? RS.FIX : RS.MAKING, url, now, reportNextFollowUp(now.getTime()), p.komen];
+  } else if (step === "ran") {      // the programme ran → the PIC duplicates the template
+    if ([RS.WAIT, RS.CONFIRM].indexOf(p.status) < 0) return { ok: true, changed: false, program: p };
+    set = [RS.TEMPLATE, "", now, reportNextFollowUp(now.getTime()), ""];
+  } else if (step === "cancel") {   // the programme did not run → Dibatalkan, no more messages
+    if ([RS.WAIT, RS.CONFIRM].indexOf(p.status) < 0) return { ok: true, changed: false, program: p };
+    set = [RS.CANCEL, "", now, "", "Program tidak berjalan (" + text(body.by).slice(0, 60) + ")"];
   } else if (step === "submit") {
     if ([RS.MAKING, RS.FIX, RS.TEMPLATE].indexOf(p.status) < 0) return { ok: true, changed: false, program: p };
     if (!p.link) return { ok: true, changed: false, needLink: true, program: p };
@@ -2023,6 +2032,15 @@ function reportTest(body) {
   CacheService.getScriptCache().remove("programs");
   return { ok: true, id: id };
 }
+/** Run from the editor: removes old test programmes and makes a new one tagging REPORT_TEST_PICS; the
+ *  every-minute trigger then posts its first reminder to the testing topic (no access code needed). */
+var REPORT_TEST_PICS = ["@akmalasyraaaf"];
+function reportTestDemo() {
+  reportTestClear();
+  var r = reportTest({ pics: REPORT_TEST_PICS });
+  Logger.log(JSON.stringify(r));
+  return r;
+}
 /** Admin: removes the test programmes (ID "TEST-…"). */
 function reportTestClear() {
   var sh = programSheet();
@@ -2047,7 +2065,7 @@ function reportTick(kod) {
       var earliest = 0;
       reportRows(programSheet()).forEach(function (r) {
         var p = reportRow(r);
-        if ([RS.WAIT, RS.TEMPLATE, RS.MAKING, RS.FIX].indexOf(p.status) > -1 && p.next && (!earliest || p.next < earliest)) earliest = p.next;
+        if ([RS.WAIT, RS.CONFIRM, RS.TEMPLATE, RS.MAKING, RS.FIX].indexOf(p.status) > -1 && p.next && (!earliest || p.next < earliest)) earliest = p.next;
       });
       CacheService.getScriptCache().put(REPORT_NEXT, String(earliest || Date.now() + 6 * 3600000), 21600);
       return;

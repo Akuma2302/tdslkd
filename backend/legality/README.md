@@ -78,7 +78,7 @@ Semakan dibuat oleh Apps Script (tindakan `reminder`, kod admin sahaja). Mesej d
 
 Persediaan (sekali sahaja), dalam **Netlify → tdslkd → Environment variables**:
 - `LEGALITY_BOT_TENGAH`: token bot Legality Tds Tengah (dari @BotFather).
-- `LEGALITY_BOT_CHAT` (pilihan): id group; jika tiada, group **Program Tengah** (`-1004404368342`) digunakan. `LEGALITY_BOT_THREAD` (pilihan) untuk satu topik.
+- `LEGALITY_BOT_CHAT` (pilihan): id group; untuk PICO, jika tiada, group **Mas'ulah & PIC Legality TDS Tengah** (`-1002078197579`) topik 3348 digunakan (`LEGALITY_BOT_THREAD` untuk topik lain).
 - Selepas menukarnya, buat **Trigger deploy**.
 
 Guna: **Admin → Legality → Bot semakan Legality** → *Semak sekarang* (pratonton) → *Semak sambungan bot* (pastikan bot dalam group, tiada mesej) → *Hantar ke group*.
@@ -89,7 +89,7 @@ Bahagian lain boleh ditambah dalam `BOT_CHECKS` dalam `Legality.gs`.
 
 - Halaman sekolah (cawangan dalam `WEEKLY_CAWANGAN`, buat masa ini TENGAH) ada section **Checklist Mingguan** di atas Checklist Progress. Minggu = Isnin–Ahad (waktu Malaysia); kosong semula setiap Isnin.
 - Item dalam `WEEKLY_ITEMS` (sekarang: **PM cikgu**). PIC tanda dengan memuat naik **screenshot** sebagai bukti — satu setiap sekolah seminggu. Rekod dalam tab **Checklist Mingguan** sheet cawangan (Minggu, Sekolah, Item, PIC, Screenshot, File ID, Masa, Telegram); gambar dalam folder Drive Gambar.
-- Bot **PICO** = bot `LEGALITY_BOT_TENGAH` (token dalam Netlify), group **Program Tengah**, melalui fungsi Netlify `pico`:
+- Bot **PICO** = bot `LEGALITY_BOT_TENGAH` (token dalam Netlify), group **Mas'ulah & PIC Legality TDS Tengah**, topik t.me/c/2078197579/3348, melalui fungsi Netlify `pico`:
   - screenshot baru dihantar ke group sebaik dimuat naik;
   - **Isnin–Jumaat 8 pagi**: tag PIC sekolah yang belum selesai (tiada mesej jika semua sudah);
   - **Sabtu 8 pagi**: ringkasan minggu itu — selesai / gagal (gagal = belum ditanda sebelum Jumaat 23:59).
@@ -107,7 +107,7 @@ Bahagian lain boleh ditambah dalam `BOT_CHECKS` dalam `Legality.gs`.
 ## Reporting program (bot Program, `TELEGRAM_BOT_TOKEN`)
 
 - Untuk **program baru cawangan Tengah** (`REPORT_CAWANGAN`) yang berjaya dihantar dari borang Program. Lajur tambahan dalam sheet Program: Reporting · Link Canva · Reporting dikemas kini · Follow-up seterusnya · Komen reporting · Video program.
-- **2 jam selepas program tamat** → mesej dalam topik Reporting (t.me/c/2078197579/4523), tag Main PIC + PIC Legality (borang program): duplicate template Canva, tekan *Siap duplicate*, balas dengan link Canva. Link mesti link Canva (canva.com / canva.link) dan bukan link template; jika tidak, bot tolak dan minta PIC hantar semula.
+- **2 jam selepas program tamat** → mesej dalam topik Reporting (t.me/c/2078197579/4523), tag Main PIC + PIC Legality (borang program). Soalan 1: *Adakah program berjalan?* [Ya, berjalan] [Tidak berjalan]. *Tidak* → Reporting = **Dibatalkan**, tiada tindakan lanjut. *Ya* → soalan 2: duplicate template Canva, tekan *Siap duplicate*, balas dengan link Canva. Link mesti link Canva (canva.com / canva.link) dan bukan link template; jika tidak, bot tolak dan minta PIC hantar semula.
 - Semua mesej (peringatan, follow-up, belum, dihantar, lulus, perlu baiki) tag Main PIC + PIC Legality supaya mereka ambil maklum.
 - **Setiap 2 hari, 9 pagi** → "Report sudah siap?" [Sudah siap] [Belum].
 - *Sudah siap* → permohonan kelulusan ke group Program Tengah, topik 60 (t.me/c/4404368342/60): [Lulus] [Perlu baiki] (semua ahli boleh tekan). *Lulus* → status Lulus (selesai). *Perlu baiki* → admin balas komen → bot hantar ke topik Reporting, follow-up diteruskan.
