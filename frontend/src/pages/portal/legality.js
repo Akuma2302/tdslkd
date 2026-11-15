@@ -71,6 +71,51 @@
 
   var getKod = Api.getKod, setKod = Api.setKod, get = Api.get, post = Api.post;
 
+  // ---------- Show the last copy at once, then refresh quietly ----------
+  // Each school list / school page is kept in this browser. On the next visit it is drawn straight away and
+  // replaced when the fresh copy arrives (unless the person has started editing).
+  function memoKey(q) { return "legality:memo:" + q.action + ":" + (q.cawangan || "") + ":" + (q.sekolah || ""); }
+  function memoGet(q) {
+    try { var s = localStorage.getItem(memoKey(q)); return s ? JSON.parse(s) : null; } catch (e) { return null; }
+  }
+  function memoPut(q, d) {
+    try { localStorage.setItem(memoKey(q), JSON.stringify(d)); } catch (e) {}
+  }
+  var refreshPill = null;
+  function refreshing(on) {
+    if (on && !refreshPill) {
+      refreshPill = el("div", "lg-refreshing", "Mengemas kini…");
+      refreshPill.setAttribute("role", "status");
+      document.body.appendChild(refreshPill);
+    } else if (!on && refreshPill) { refreshPill.remove(); refreshPill = null; }
+  }
+  // draw(d, fromMemo) renders the page; returns nothing. The fresh copy is drawn only if it differs from what is
+  // shown, the person is still on the same page, and nothing has been edited yet.
+  function load(q, statusText, draw) {
+    var here = location.hash;
+    var memo = memoGet(q);
+    refreshing(false);
+    if (memo) { draw(memo, true); refreshing(true); }
+    else { root.textContent = ""; root.appendChild(el("p", "borang-status", statusText)); }
+    get(q).then(function (d) {
+      if (location.hash !== here) return;
+      refreshing(false);
+      memoPut(q, d);
+      if (memo && JSON.stringify(memo) === JSON.stringify(d)) return;
+      if (memo && anyDirty()) { toast("Ada data lebih baharu di sheet. Simpan perubahan anda, kemudian muat semula halaman.", "warn"); return; }
+      var typing = document.activeElement;
+      if (memo && typing && root.contains(typing) && /^(INPUT|TEXTAREA|SELECT)$/.test(typing.tagName) && typing.value) return;   // do not wipe what is being typed
+      var y = window.scrollY;
+      draw(d, false);
+      if (memo) window.scrollTo(0, y);
+    }).catch(function (e) {
+      refreshing(false);
+      if (location.hash !== here) return;
+      if (memo && !(e && e.kod)) { toast("Tidak dapat mengemas kini. Data yang dipaparkan mungkin lama.", "warn"); return; }
+      fail(e);
+    });
+  }
+
   function askKod(wrong) {
     // The login screen (components/gate.js) handles the code; fall back to an inline box without it.
     if (window.YoshGate) { root.textContent = ""; window.YoshGate.show(wrong ? "Kod akses telah ditukar. Masukkan kod baru." : ""); window.YoshGate.ready(route); return; }
@@ -157,9 +202,7 @@
   // ---------- Step 1: cawangan ----------
 
   function showCawangan() {
-    root.textContent = "";
-    root.appendChild(el("p", "borang-status", "Memuatkan cawangan…"));
-    get({ action: "cawangan" }).then(function (d) {
+    load({ action: "cawangan" }, "Memuatkan cawangan…", function (d) {
       root.textContent = "";
       var card = el("section", "borang-card");
       card.appendChild(el("h2", "borang-section", "Pilih cawangan"));
@@ -179,16 +222,14 @@
       });
       card.appendChild(grid);
       root.appendChild(card);
-    }).catch(fail);
+    });
   }
 
   // ---------- Step 2: schools ----------
 
   function showSchools() {
     if (saveBar) { saveBar.remove(); saveBar = null; document.body.classList.remove("has-savebar"); }
-    root.textContent = "";
-    root.appendChild(el("p", "borang-status", "Memuatkan sekolah " + state.cawangan + "…"));
-    get({ action: "schools", cawangan: state.cawangan }).then(function (d) {
+    load({ action: "schools", cawangan: state.cawangan }, "Memuatkan sekolah " + state.cawangan + "…", function (d) {
       root.textContent = "";
       var card = el("section", "borang-card");
       card.appendChild(el("h2", "borang-section", "Sekolah · " + d.cawangan));
@@ -240,7 +281,7 @@
         if (want && want !== "1") addCard.querySelector("input").value = want.toUpperCase().slice(0, 40);
         addCard.scrollIntoView({ behavior: "smooth", block: "center" });
       }
-    }).catch(fail);
+    });
   }
 
   function addSchoolCard(cawangan, schools) {
@@ -279,10 +320,9 @@
   // ---------- Step 3: one school ----------
 
   function showSchool() {
-    root.textContent = "";
-    root.appendChild(el("p", "borang-status", "Memuatkan " + state.sekolah + "…"));
-    get({ action: "school", cawangan: state.cawangan, sekolah: state.sekolah }).then(function (d) {
+    load({ action: "school", cawangan: state.cawangan, sekolah: state.sekolah }, "Memuatkan " + state.sekolah + "…", function (d) {
       state.school = d;
+      state.dirty = {};
       root.textContent = "";
 
       // Sticky chips (with a status dot each), the summary card, then two zones:
@@ -317,7 +357,7 @@
       buildNav(nav);
       buildSaveBar();
       schoolChanged();
-    }).catch(fail);
+    });
   }
 
   // ---------- Floating save bar: shown while any part has unsaved changes ----------

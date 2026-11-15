@@ -795,6 +795,19 @@ input[type="date"].borang-input { color-scheme: dark; }
 }
 .lg-toast.ok { border-color: rgba(255, 195, 0, 0.6); }
 .lg-toast.warn { border-color: rgba(255, 140, 140, 0.7); }
+/* Shown while a page drawn from the saved copy is being refreshed */
+.lg-refreshing {
+  position: fixed; top: 0.75rem; right: 0.75rem; z-index: 50; padding: 0.35rem 0.8rem 0.35rem 1.7rem;
+  border-radius: 999px; background: var(--card-2); border: 1px solid var(--line-2); color: var(--muted, #aaa);
+  font-size: 0.8rem; pointer-events: none;
+}
+.lg-refreshing::before {
+  content: ""; position: absolute; left: 0.65rem; top: 50%; width: 0.6rem; height: 0.6rem; margin-top: -0.3rem;
+  border-radius: 50%; border: 2px solid rgba(255, 195, 0, 0.9); border-right-color: transparent;
+  animation: lg-spin 0.8s linear infinite;
+}
+@keyframes lg-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .lg-refreshing::before { animation: none; } }
 
 @media (max-width: 560px) {
   .lg-fields, .lg-checklist { grid-template-columns: 1fr; }
