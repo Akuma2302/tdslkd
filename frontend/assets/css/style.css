@@ -1509,3 +1509,18 @@ body.lg-page .lg-section .lg-section-title { display: flex; align-items: center;
 .lgd-rep-link:hover { text-decoration: underline; }
 .lgd-rep-note { display: block; max-width: 14rem; margin-top: 0.3rem; color: #ff8c8c; font-size: 0.72rem; white-space: normal; }
 .lgd-rep-none { color: var(--muted); }
+
+/* Admin: delete a programme (trash → confirm in the same cell) */
+.lgd-del-col { width: 1%; white-space: nowrap; vertical-align: top; text-align: right; }
+.lgd-del-btn {
+  border: 1px solid transparent; background: none; color: var(--muted); font-size: 1rem; line-height: 1;
+  padding: 0.35rem 0.45rem; border-radius: 8px; cursor: pointer; opacity: 0.7;
+}
+.lgd-del-btn:hover, .lgd-del-btn:focus-visible { opacity: 1; color: #ff8c8c; border-color: rgba(255, 140, 140, 0.45); background: rgba(255, 140, 140, 0.08); }
+.lgd-del-ask { display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem; font-size: 0.78rem; color: var(--text); }
+.lgd-del-ask button {
+  border-radius: 999px; padding: 0.3rem 0.75rem; font-size: 0.75rem; font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+.lgd-del-yes { background: #c0392b; border: 1px solid #c0392b; color: #fff; }
+.lgd-del-yes:disabled { opacity: 0.6; cursor: default; }
+.lgd-del-no { background: none; border: 1px solid var(--line-2); color: var(--muted); }

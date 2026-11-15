@@ -518,8 +518,10 @@
     var wrap = el("div", "tbl-wrap");
     var t = el("table", "mtable lgd-prog-table");
     var hr = el("tr");
-    ["Tarikh", "Sekolah", "Program", "Pelajar", "Manpower", "PIC", "Telegram", "Dihantar", "Reporting", "Video program"].forEach(function (h, i) {
-      hr.appendChild(el("th", i === 3 || i === 4 ? "num" : null, h));
+    ["Tarikh", "Sekolah", "Program", "Pelajar", "Manpower", "PIC", "Telegram", "Dihantar", "Reporting", "Video program", ""].forEach(function (h, i) {
+      var c = el("th", i === 3 || i === 4 ? "num" : null, h);
+      if (i === 10) { c.className = "lgd-del-col"; c.setAttribute("aria-label", "Padam"); }
+      hr.appendChild(c);
     });
     var th = el("thead"); th.appendChild(hr); t.appendChild(th);
     var tb = el("tbody");
@@ -583,11 +585,52 @@
           vtd.appendChild(vl);
         } else vtd.appendChild(el("span", "lgd-rep-none", p.video || "—"));
         r.appendChild(vtd);
+        r.appendChild(deleteCell(p, r));
         tb.appendChild(r);
       });
       if (!tb.children.length) {
-        var er = el("tr"); var ec = el("td", "empty-text", "Tiada program sepadan."); ec.colSpan = 10; er.appendChild(ec); tb.appendChild(er);
+        var er = el("tr"); var ec = el("td", "empty-text", "Tiada program sepadan."); ec.colSpan = 11; er.appendChild(ec); tb.appendChild(er);
       }
+    }
+
+    // Trash button → "Padam program ini?" [Ya, padam] [Batal] in the same cell → removes the row from the Program sheet.
+    function deleteCell(p, row) {
+      var td = el("td", "lgd-del-col");
+      function idle() {
+        td.textContent = "";
+        var b = el("button", "lgd-del-btn", "🗑");
+        b.type = "button";
+        b.title = "Padam program ini";
+        b.setAttribute("aria-label", "Padam program " + p.nama);
+        b.addEventListener("click", ask);
+        td.appendChild(b);
+      }
+      function ask() {
+        td.textContent = "";
+        var box = el("div", "lgd-del-ask");
+        box.appendChild(el("span", null, "Padam program ini?"));
+        var yes = el("button", "lgd-del-yes", "Ya, padam"); yes.type = "button";
+        var no = el("button", "lgd-del-no", "Batal"); no.type = "button";
+        no.addEventListener("click", idle);
+        yes.addEventListener("click", function () {
+          yes.disabled = no.disabled = true; yes.textContent = "Memadam…";
+          Api.post({ action: "deleteProgram", id: p.id, dihantar: p.dihantar, sekolah: p.sekolah, nama: p.nama })
+            .then(function () {
+              state.programs = (state.programs || []).filter(function (x) { return x !== p; });
+              row.remove();
+              changed();
+            })
+            .catch(function (e) {
+              idle();
+              alert("Tidak dapat memadam: " + (e.message || e));
+            });
+        });
+        box.appendChild(yes); box.appendChild(no);
+        td.appendChild(box);
+        yes.focus();
+      }
+      idle();
+      return td;
     }
     search.addEventListener("input", draw);
     draw();

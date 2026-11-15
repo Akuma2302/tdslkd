@@ -146,6 +146,11 @@ function doPost(e) {
       return json(sendLegalityReminder(body));
     }
     if (body.action === "deleteImage") return json(deleteImage(body));
+    if (body.action === "deleteProgram") {   // admin dashboard: trash button on a programme
+      if (role !== "admin") throw new Error("Hanya admin boleh memadam program.");
+      lock.waitLock(20000);
+      return json(deleteProgram(body));
+    }
     return json({ error: "Tindakan tidak dikenali: " + body.action });
   } catch (err) {
     return json({ error: String(err && err.message || err) });
@@ -1022,6 +1027,30 @@ function listPrograms() {
   }
   out.sort(function (a, b) { return a.dihantar < b.dihantar ? 1 : a.dihantar > b.dihantar ? -1 : 0; });
   return { programs: out, sheetUrl: sh.getParent().getUrl(), generated: new Date().toISOString() };
+}
+
+/**
+ * Admin: removes one programme row from the Program sheet (the trash button on the admin dashboard).
+ * body: { id } — or, for an old row without an ID, { dihantar (ISO), sekolah, nama }. Its reporting stops with it.
+ */
+function deleteProgram(body) {
+  var sh = programSheet();
+  if (sh.getLastRow() < 2) throw new Error("Program tidak dijumpai.");
+  var id = text(body.id);
+  var rows = sh.getRange(2, 1, sh.getLastRow() - 1, 6).getValues();
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var hit = id ? text(r[0]) === id
+                 : !text(r[0]) && text(r[3]) === text(body.sekolah) && text(r[5]) === text(body.nama) &&
+                   (r[1] instanceof Date ? r[1].toISOString() : text(r[1])) === text(body.dihantar);
+    if (!hit) continue;
+    sh.deleteRow(i + 2);
+    SpreadsheetApp.flush();
+    CacheService.getScriptCache().remove(REPORT_NEXT);
+    CacheService.getScriptCache().remove("programs");
+    return { ok: true, removed: { id: text(r[0]), sekolah: text(r[3]), nama: text(r[5]) } };
+  }
+  throw new Error("Program tidak dijumpai (mungkin sudah dipadam). Muat semula halaman.");
 }
 
 // ---------- PIC Legality ----------
