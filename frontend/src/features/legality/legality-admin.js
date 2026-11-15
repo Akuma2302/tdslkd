@@ -388,6 +388,15 @@
     var p = isoDate.split("-");
     return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString("ms-MY", { day: "numeric", month: "short", year: "numeric" });
   }
+  // "20–21 Nov 2026", "30 Nov – 2 Dis 2026", or one date
+  function fmtRange(a, b) {
+    if (!b || b === a) return fmtDate(a);
+    var re = /^(\d{4})-(\d{2})-(\d{2})$/, x = re.exec(a || ""), y = re.exec(b || "");
+    if (!x || !y) return fmtDate(a) + " – " + fmtDate(b);
+    if (x[1] === y[1] && x[2] === y[2]) return +x[3] + "–" + fmtDate(b);
+    if (x[1] === y[1]) return new Date(+x[1], +x[2] - 1, +x[3]).toLocaleDateString("ms-MY", { day: "numeric", month: "short" }) + " – " + fmtDate(b);
+    return fmtDate(a) + " – " + fmtDate(b);
+  }
   function today() {
     var d = new Date();
     return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
@@ -516,7 +525,7 @@
     w.appendChild(search);
 
     var wrap = el("div", "tbl-wrap");
-    var t = el("table", "mtable lgd-prog-table");
+    var t = el("table", "mtable lgd-prog-table lgd-plist");
     var hr = el("tr");
     ["Tarikh", "Sekolah", "Program", "Pelajar", "Manpower", "PIC", "Telegram", "Dihantar", "Reporting", "Video program", ""].forEach(function (h, i) {
       var c = el("th", i === 3 || i === 4 ? "num" : null, h);
@@ -536,34 +545,45 @@
         return !q || [p.sekolah, p.negeri, p.nama, p.jenis, p.mainPic, p.legality, p.virality, p.cawangan].join(" ").toLowerCase().indexOf(q) > -1;
       }).forEach(function (p) {
         var r = el("tr", (p.tamat || p.mula) >= now ? "is-upcoming" : "");
-        var d = el("td", "lgd-prog-date");
-        d.appendChild(document.createTextNode(fmtDate(p.mula) + (p.tamat && p.tamat !== p.mula ? " – " + fmtDate(p.tamat) : "")));
+        // Each cell has a class (its place in the card layout on small screens) and a label shown there.
+        function cell(cls, label) { var c = el("td", cls); if (label) c.setAttribute("data-label", label); return c; }
+        var d = cell("lgd-prog-date lgd-c-date");
+        d.appendChild(document.createTextNode(fmtRange(p.mula, p.tamat)));
         if (p.masa) d.appendChild(el("small", null, p.masa));
         r.appendChild(d);
-        var sc = el("td"); sc.appendChild(document.createTextNode(p.sekolah));
+        var sc = cell("lgd-c-school"); sc.appendChild(document.createTextNode(p.sekolah));
         sc.appendChild(el("small", null, [p.cawangan, p.negeri].filter(Boolean).join(" · "))); r.appendChild(sc);
-        var pr = el("td");
+        var pr = cell("lgd-c-name");
         if (p.sheet && /^https?:/i.test(p.sheet)) {
           var a = el("a", null, p.nama); a.href = p.sheet; a.target = "_blank"; a.rel = "noopener"; pr.appendChild(a);
         } else pr.appendChild(document.createTextNode(p.nama));
         pr.appendChild(el("small", null, [p.jenis, p.bilGuru ? p.bilGuru + " guru" : ""].filter(String).join(" · ")));
         if (p.guru) pr.title = "Guru bertugas:\n" + p.guru;
         r.appendChild(pr);
-        var pl = el("td", "num", String(p.jumlahPelajar)); if (p.pelajar) pl.title = p.pelajar; r.appendChild(pl);
-        r.appendChild(el("td", "num", p.manpower + (p.tambahan ? " +" + p.tambahan : "")));
-        var pic = el("td", "lgd-prog-pic");
+        var pl = cell("num lgd-c-pel", "Pelajar"); pl.textContent = String(p.jumlahPelajar); if (p.pelajar) pl.title = p.pelajar; r.appendChild(pl);
+        var mp = cell("num lgd-c-man", "Manpower"); mp.textContent = p.manpower + (p.tambahan ? " +" + p.tambahan : ""); r.appendChild(mp);
+        var pic = cell("lgd-prog-pic lgd-c-pic", "PIC");
+        // "Main @user" per line; "(Bukan Alumni · Kader Tengah)" goes to the tooltip so the column stays narrow.
         [["Main", p.mainPic], ["Legality", p.legality], ["Virality", p.virality]].forEach(function (x) {
-          if (x[1]) pic.appendChild(el("small", null, x[0] + ": " + x[1]));
+          if (!x[1]) return;
+          var m = /^(.*?)\s*\((.+)\)\s*$/.exec(x[1]);
+          var line = el("small", "lgd-pic-line");
+          line.appendChild(el("span", "lgd-pic-role", x[0]));
+          line.appendChild(document.createTextNode(" " + (m ? m[1] : x[1])));
+          if (m) line.title = x[0] + ": " + m[2];
+          pic.appendChild(line);
         });
         r.appendChild(pic);
         var ok = /^berjaya/i.test(p.telegram);
-        var tg = el("td"); var badge = el("span", "lgd-tg " + (ok ? "is-ok" : "is-fail"), ok ? "Terhantar" : (p.telegram ? "Gagal" : "—"));
+        var tg = cell("lgd-c-tg", "Telegram"); var badge = el("span", "lgd-tg " + (ok ? "is-ok" : "is-fail"), ok ? "Terhantar" : (p.telegram ? "Gagal" : "—"));
         if (!ok && p.telegram) badge.title = p.telegram;
         tg.appendChild(badge); r.appendChild(tg);
-        r.appendChild(el("td", "lgd-prog-sent", p.dihantar ? new Date(p.dihantar).toLocaleString("ms-MY", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—"));
+        var sent = cell("lgd-prog-sent lgd-c-sent", "Dihantar");
+        sent.textContent = p.dihantar ? new Date(p.dihantar).toLocaleString("ms-MY", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
+        r.appendChild(sent);
         // Reporting program (bot): status, Canva link, admin comment; programmes before the bot show "—"
         var rep = p.reporting || {};
-        var rtd = el("td", "lgd-rep");
+        var rtd = cell("lgd-rep lgd-c-rep", "Reporting");
         if (!rep.status) rtd.appendChild(el("span", "lgd-rep-none", "—"));
         else {
           var tone = rep.status === "Lulus" ? "is-ok" : rep.status === "Perlu baiki" || rep.status === "Dibatalkan" ? "is-fail" : rep.status === "Menunggu kelulusan" ? "is-review" : "is-wait";
@@ -578,7 +598,7 @@
           if (rep.status === "Perlu baiki" && rep.komen) rtd.appendChild(el("small", "lgd-rep-note", rep.komen));
         }
         r.appendChild(rtd);
-        var vtd = el("td", "lgd-rep");
+        var vtd = cell("lgd-rep lgd-c-vid", "Video");
         if (p.video && /^https?:/.test(p.video)) {
           var vl = el("a", "lgd-rep-link", "Video ↗");
           vl.href = p.video; vl.target = "_blank"; vl.rel = "noopener";
@@ -595,7 +615,7 @@
 
     // Trash button → "Padam program ini?" [Ya, padam] [Batal] in the same cell → removes the row from the Program sheet.
     function deleteCell(p, row) {
-      var td = el("td", "lgd-del-col");
+      var td = el("td", "lgd-del-col lgd-c-del");
       function idle() {
         td.textContent = "";
         var b = el("button", "lgd-del-btn", "🗑");
