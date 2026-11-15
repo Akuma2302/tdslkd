@@ -74,10 +74,10 @@ function doGet(e) {
     if (role === "tengah") throw new Error("KOD_SALAH");   // the Tengah code opens the MOM page only
     if (p.action === "alumni") return json(readAlumni(p.cawangan));
     if (p.action === "cawangan") return json(listCawangan());
-    if (p.action === "schools") return json(listSchools(p.cawangan));
+    if (p.action === "schools") return json(cachedRead("schools", p.cawangan, "", function () { return listSchools(p.cawangan); }));
     if (p.action === "schoolList") return json(schoolList(p.cawangan));
     if (p.action === "teachers") return json(schoolTeachers(p.cawangan, p.sekolah));
-    if (p.action === "school") return json(readSchool(p.cawangan, p.sekolah));
+    if (p.action === "school") return json(cachedRead("school", p.cawangan, p.sekolah, function () { return readSchool(p.cawangan, p.sekolah); }));
     if (p.action === "reminder") {
       if (role !== "admin") throw new Error("KOD_SALAH");
       return json(legalityReminder(p.cawangan));
@@ -150,6 +150,7 @@ function doPost(e) {
   } catch (err) {
     return json({ error: String(err && err.message || err) });
   } finally {
+    try { bumpData(); } catch (x) {}   // anything may have been saved: cached school pages are read again
     try { lock.releaseLock(); } catch (x) {}
   }
 }
@@ -176,6 +177,29 @@ function book(cawangan) {
 }
 
 function text(v) { return String(v == null ? "" : v).trim(); }
+
+// ---------- Cache for the school list and school pages ----------
+// Reading school tabs takes seconds, so a result is kept in CacheService (6 hours) and reused as long as
+//  - nothing was saved through the portal since (DATA_GEN changes after every doPost), and
+//  - the cawangan sheet was not edited directly in Google Sheets (Drive "last updated" of the file).
+// The key carries today's date, since the Checklist Mingguan part depends on the current week.
+var DATA_GEN = "dataGen";
+function bumpData() { CacheService.getScriptCache().put(DATA_GEN, String(Date.now()), 21600); }
+function cachedRead(kind, cawangan, name, build) {
+  var c = text(cawangan).toUpperCase();
+  var id = sheetMap()[c];
+  if (!id) return build();
+  var cache = CacheService.getScriptCache();
+  var key = (kind + ":" + c + ":" + text(name) + ":" + Utilities.formatDate(new Date(), MOM_TZ, "yyyy-MM-dd")).slice(0, 240);
+  var stamp = (cache.get(DATA_GEN) || "0") + "|" + DriveApp.getFileById(id).getLastUpdated().getTime();
+  var hit = cache.get(key);
+  if (hit) {
+    try { var o = JSON.parse(hit); if (o.s === stamp) return o.d; } catch (e) {}
+  }
+  var data = build();
+  try { cache.put(key, JSON.stringify({ s: stamp, d: data }), 21600); } catch (e) {}   // too big to keep: just not cached
+  return data;
+}
 
 function listCawangan() {
   var map = sheetMap();
@@ -246,10 +270,25 @@ function listSchools(cawangan) {
 
 // ---------- Layout of a school tab ----------
 
-// Finds the section title rows by the text in column A.
-function markers(sh) {
+// One read of the whole school tab (values, shown text, merged cells), shared by markers() and readSection()
+// so a school page needs a few sheet calls instead of dozens.
+function schoolSnap(sh) {
   var n = Math.min(sh.getMaxRows(), 400);
-  var a = sh.getRange(1, 1, n, 1).getDisplayValues().map(function (r) { return text(r[0]).toLowerCase(); });
+  var rg = sh.getRange(1, 1, n, COL.LAST);
+  var hidden = {};
+  rg.getMergedRanges().forEach(function (mr) {
+    for (var r = mr.getRow(); r <= mr.getLastRow(); r++)
+      for (var c = mr.getColumn(); c <= mr.getLastColumn(); c++)
+        if (r !== mr.getRow() || c !== mr.getColumn()) hidden[r + ":" + c] = true;
+  });
+  return { n: n, raw: rg.getValues(), shown: rg.getDisplayValues(), hidden: hidden };
+}
+
+// Finds the section title rows by the text in column A.
+function markers(sh, snap) {
+  var n = snap ? snap.n : Math.min(sh.getMaxRows(), 400);
+  var vals = snap ? snap.shown : sh.getRange(1, 1, n, 7).getDisplayValues();
+  var a = vals.map(function (r) { return text(r[0]).toLowerCase(); });
   function find(prefix, from) {
     for (var i = (from || 2); i < a.length; i++) if (a[i].indexOf(prefix) === 0) return i + 1;
     return 0;
@@ -263,9 +302,8 @@ function markers(sh) {
   var peluang = find("peluang lain", modul);
   // Peluang rows run to the last row that has anything in A:G.
   var last = peluang + 2;
-  var vals = sh.getRange(1, 1, n, 7).getDisplayValues();
   for (var i = peluang + 1; i < n; i++) {
-    if (vals[i].some(function (v) { return text(v) !== ""; })) last = i + 1;
+    if (vals[i].slice(0, 7).some(function (v) { return text(v) !== ""; })) last = i + 1;
   }
   return {
     crmEnd: alumni - 1, alumni: alumni, program: program, analisa: analisa,
@@ -300,20 +338,27 @@ function cellValue(key, c, raw, shown) {
   return text(shown);
 }
 
-function readSection(sh, key, m) {
+function readSection(sh, key, m, snap) {
   var rows = sectionRows(sh, key, m);
   var cols = SECTIONS[key].cols;
   if (!rows.length) return { rows: [] };
   var first = rows[0], n = rows.length;
-  var raw = sh.getRange(first, 1, n, COL.LAST).getValues();
-  var shown = sh.getRange(first, 1, n, COL.LAST).getDisplayValues();
-  // Cells hidden inside a merge (not its top-left) cannot be edited.
-  var hidden = {};
-  sh.getRange(first, 1, n, COL.LAST).getMergedRanges().forEach(function (mr) {
-    for (var r = mr.getRow(); r <= mr.getLastRow(); r++)
-      for (var c = mr.getColumn(); c <= mr.getLastColumn(); c++)
-        if (r !== mr.getRow() || c !== mr.getColumn()) hidden[r + ":" + c] = true;
-  });
+  var raw, shown, hidden;
+  if (snap && first - 1 + n <= snap.n) {   // already read with the whole tab
+    raw = snap.raw.slice(first - 1, first - 1 + n);
+    shown = snap.shown.slice(first - 1, first - 1 + n);
+    hidden = snap.hidden;
+  } else {
+    raw = sh.getRange(first, 1, n, COL.LAST).getValues();
+    shown = sh.getRange(first, 1, n, COL.LAST).getDisplayValues();
+    // Cells hidden inside a merge (not its top-left) cannot be edited.
+    hidden = {};
+    sh.getRange(first, 1, n, COL.LAST).getMergedRanges().forEach(function (mr) {
+      for (var r = mr.getRow(); r <= mr.getLastRow(); r++)
+        for (var c = mr.getColumn(); c <= mr.getLastColumn(); c++)
+          if (r !== mr.getRow() || c !== mr.getColumn()) hidden[r + ":" + c] = true;
+    });
+  }
   var out = rows.map(function (r, i) {
     return {
       r: r,
@@ -324,9 +369,8 @@ function readSection(sh, key, m) {
   if (key === "crm") {
     // Priority group (High / Low) from column A, which is merged per group.
     var group = "";
-    var aShown = sh.getRange(first, 1, n, 1).getDisplayValues();
     out.forEach(function (row, i) {
-      var g = text(aShown[i][0]);
+      var g = text(shown[i][0]);
       if (g) group = /low/i.test(g) ? "Low" : /high/i.test(g) ? "High" : g;
       row.group = group;
     });
@@ -334,14 +378,19 @@ function readSection(sh, key, m) {
   return { rows: out };
 }
 
-function listOptions(cell) {
-  var dv = cell.getDataValidation();
+function listOptions(cell) { return dvOptions(cell.getDataValidation()); }
+// Dropdown choices of a data-validation rule. memo: list ranges already read (several cells share one list).
+function dvOptions(dv, memo) {
   if (!dv) return [];
   var t = dv.getCriteriaType();
   var v = dv.getCriteriaValues();
   if (t === SpreadsheetApp.DataValidationCriteria.VALUE_IN_LIST) return v[0].map(text).filter(String);
   if (t === SpreadsheetApp.DataValidationCriteria.VALUE_IN_RANGE) {
-    return v[0].getDisplayValues().map(function (r) { return text(r[0]); }).filter(String);
+    var key = memo ? v[0].getSheet().getName() + "!" + v[0].getA1Notation() : "";
+    if (memo && memo[key]) return memo[key];
+    var out = v[0].getDisplayValues().map(function (r) { return text(r[0]); }).filter(String);
+    if (memo) memo[key] = out;
+    return out;
   }
   return [];
 }
@@ -350,20 +399,25 @@ function readSchool(cawangan, sekolah) {
   var ss = book(cawangan);
   var sh = ss.getSheetByName(text(sekolah));
   if (!sh || schoolNames(ss).indexOf(text(sekolah)) < 0) throw new Error("Sekolah tidak dijumpai: " + sekolah);
-  var m = markers(sh);
+  var snap = schoolSnap(sh);
+  var m = markers(sh, snap);
   var data = { cawangan: text(cawangan).toUpperCase(), sekolah: sh.getName(), sections: {} };
-  Object.keys(SECTIONS).forEach(function (k) { data.sections[k] = readSection(sh, k, m); });
-  // Labels and dropdown choices for the KPI part.
-  var head = sh.getRange(2, COL.KPI, 1, COL.KPI_N).getDisplayValues()[0].map(text);
-  var entitiOpts = {};
-  sectionRows(sh, "crm", m).forEach(function (r) {
-    listOptions(sh.getRange(r, COL.B)).forEach(function (o) { entitiOpts[o] = 1; });
-  });
+  Object.keys(SECTIONS).forEach(function (k) { data.sections[k] = readSection(sh, k, m, snap); });
+  // Labels and dropdown choices for the KPI part (data validation read once per block, not per cell).
+  var head = snap.shown[1].slice(COL.KPI - 1, COL.KPI - 1 + COL.KPI_N).map(text);
+  var entitiOpts = {}, memo = {};
+  var crmRows = sectionRows(sh, "crm", m);
+  if (crmRows.length) {
+    sh.getRange(crmRows[0], COL.B, crmRows.length, 1).getDataValidations().forEach(function (r) {
+      dvOptions(r[0], memo).forEach(function (o) { entitiOpts[o] = 1; });
+    });
+  }
+  var kdv = sh.getRange(3, COL.KPI, 1, 3).getDataValidations()[0];
   data.kpi = {
     headers: head,
-    kategori: listOptions(sh.getRange(3, COL.KPI)),
-    phase: listOptions(sh.getRange(3, COL.KPI + 1)),
-    level: listOptions(sh.getRange(3, COL.KPI + 2)),
+    kategori: dvOptions(kdv[0], memo),
+    phase: dvOptions(kdv[1], memo),
+    level: dvOptions(kdv[2], memo),
     entiti: Object.keys(entitiOpts)
   };
   data.progress = { items: PROGRESS_ITEMS, values: readProgress(ss, sh.getName()), note: readProgressNote(ss, sh.getName()),
