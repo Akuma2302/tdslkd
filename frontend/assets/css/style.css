@@ -1525,6 +1525,37 @@ body.lg-page .lg-section .lg-section-title { display: flex; align-items: center;
 .lgd-del-yes:disabled { opacity: 0.6; cursor: default; }
 .lgd-del-no { background: none; border: 1px solid var(--line-2); color: var(--muted); }
 
+/* Admin: programme filters, status chip, video link */
+.lgd-prog-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.9rem; }
+.lgd-prog-tools .lgd-prog-search { flex: 1 1 220px; max-width: none; margin: 0; }
+.lgd-prog-filter { flex: 0 1 auto; width: auto; min-width: 0; padding: 0.55rem 0.7rem; font-size: 0.85rem; }
+.lgd-prog-count { color: var(--muted); font-size: 0.8rem; }
+@media (max-width: 560px) { .lgd-prog-filter { flex: 1 1 45%; } }
+.lgd-pstat {
+  display: inline-block; margin-right: 0.5rem; padding: 0.15rem 0.55rem; border-radius: 999px;
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.02em; background: rgba(255, 255, 255, 0.08); color: var(--muted);
+}
+.lgd-pstat.is-akan { background: rgba(255, 195, 0, 0.16); color: var(--accent); }
+.lgd-pstat.is-hari { background: rgba(52, 211, 113, 0.18); color: #5be08f; }
+.lgd-pstat.is-batal { background: rgba(255, 107, 107, 0.16); color: #ff8c8c; }
+.lgd-plist.lgd-prog-table tr.is-cancelled { opacity: 0.7; }
+.lgd-vid-add {
+  padding: 0.25rem 0.65rem; border: 1px dashed var(--line-2); border-radius: 999px; background: none;
+  color: var(--muted); font-size: 0.75rem; font-weight: 700; cursor: pointer;
+}
+.lgd-vid-add:hover { color: var(--accent); border-color: rgba(255, 195, 0, 0.5); }
+.lgd-vid-link { display: inline-block !important; margin: 0 !important; }
+.lgd-vid-edit { margin-left: 0.35rem; padding: 0.1rem 0.35rem; border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: pointer; }
+.lgd-vid-edit:hover { color: var(--accent); background: rgba(255, 255, 255, 0.06); }
+.lgd-vid-form { display: grid; gap: 0.35rem; }
+.lgd-vid-input { padding: 0.4rem 0.6rem; font-size: 0.8rem; min-width: 0; }
+.lgd-vid-actions { display: flex; gap: 0.35rem; }
+.lgd-vid-actions button { border-radius: 999px; padding: 0.25rem 0.7rem; font-size: 0.75rem; font-weight: 700; cursor: pointer; }
+.lgd-vid-save { background: var(--accent); border: 1px solid var(--accent); color: #111; }
+.lgd-vid-save:disabled { opacity: 0.6; }
+.lgd-vid-err { color: #ff8c8c; font-size: 0.72rem; }
+.lgd-plist .lgd-c-vid { grid-column: span 1; }
+
 /* Admin: programmes as a grid of cards (1 column on phones, 2–3 on wide screens; no sideways scrolling) */
 .lgd-plist .lgd-pic-role { display: inline-block; min-width: 4.6rem; color: var(--muted); font-weight: 600; }
 .lgd-programs .tbl-wrap { overflow: visible; }

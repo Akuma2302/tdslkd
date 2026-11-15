@@ -487,6 +487,40 @@
     return w;
   }
 
+  // Programme status from its dates (reporting "Dibatalkan" = the PIC said it did not run).
+  var PROG_STATUS = [
+    { id: "akan", label: "Akan datang" }, { id: "hari", label: "Sedang berjalan" },
+    { id: "selesai", label: "Selesai" }, { id: "batal", label: "Dibatalkan" }
+  ];
+  function progStatus(p, now) {
+    if ((p.reporting || {}).status === "Dibatalkan") return "batal";
+    var a = p.mula || p.tamat || "", b = p.tamat || p.mula || "";
+    if (a > now) return "akan";
+    if (b >= now) return "hari";
+    return "selesai";
+  }
+  function dayDiff(a, b) { return Math.round((Date.parse(b) - Date.parse(a)) / 86400000); }
+  // " · 5 hari lagi" / " · esok" — only for upcoming programmes
+  function daysNote(p, st, now) {
+    if (st !== "akan" || !/^\d{4}-\d{2}-\d{2}$/.test(p.mula || "")) return "";
+    var n = dayDiff(now, p.mula);
+    return n === 1 ? " · esok" : " · " + n + " hari lagi";
+  }
+  // Reporting groups for the filter
+  var REP_GROUPS = [
+    { id: "tiada", label: "Reporting: belum bermula" }, { id: "proses", label: "Reporting: dalam proses" },
+    { id: "semak", label: "Reporting: menunggu kelulusan" }, { id: "lulus", label: "Reporting: lulus" },
+    { id: "batal", label: "Reporting: dibatalkan" }
+  ];
+  function repGroup(p) {
+    var s = (p.reporting || {}).status || "";
+    if (!s) return "tiada";
+    if (s === "Lulus") return "lulus";
+    if (s === "Menunggu kelulusan") return "semak";
+    if (s === "Dibatalkan") return "batal";
+    return "proses";
+  }
+
   // "Program Sekolah" tracker: every programme the cawangan sent through the Program page.
   function programWidget(branch) {
     var all = (state.programs || []).filter(function (p) { return branch === ALL || p.cawangan === branch; });
@@ -518,11 +552,35 @@
       w.appendChild(el("p", "empty-text", "Belum ada program dihantar" + (branch === ALL ? "." : " untuk cawangan " + branch + ".")));
       return w;
     }
+    // Search + filters (kept in state, so they survive a redraw)
+    var pf = state.progFilter = state.progFilter || { q: "", status: "", rep: "", month: "" };
+    var tools = el("div", "lgd-prog-tools");
     var search = el("input", "borang-input lgd-prog-search");
     search.type = "search";
     search.placeholder = "Cari sekolah, program atau PIC";
     search.setAttribute("aria-label", "Cari program");
-    w.appendChild(search);
+    search.value = pf.q;
+    tools.appendChild(search);
+    function filterSelect(key, label, options) {
+      var s = el("select", "borang-input lgd-prog-filter");
+      s.setAttribute("aria-label", label);
+      [["", label]].concat(options).forEach(function (o) {
+        var op = el("option", null, o[1]); op.value = o[0]; s.appendChild(op);
+      });
+      s.value = pf[key];
+      s.addEventListener("change", function () { pf[key] = s.value; draw(); });
+      tools.appendChild(s);
+    }
+    filterSelect("status", "Semua status", PROG_STATUS.map(function (x) { return [x.id, x.label]; }));
+    filterSelect("rep", "Semua reporting", REP_GROUPS.map(function (x) { return [x.id, x.label]; }));
+    var months = {};
+    all.forEach(function (p) { var m = (p.mula || "").slice(0, 7); if (/^\d{4}-\d{2}$/.test(m)) months[m] = 1; });
+    filterSelect("month", "Semua bulan", Object.keys(months).sort().reverse().map(function (m) {
+      return [m, new Date(+m.slice(0, 4), +m.slice(5) - 1, 1).toLocaleDateString("ms-MY", { month: "long", year: "numeric" })];
+    }));
+    var count = el("span", "lgd-prog-count");
+    tools.appendChild(count);
+    w.appendChild(tools);
 
     var wrap = el("div", "tbl-wrap");
     var t = el("table", "mtable lgd-prog-table lgd-plist");
@@ -540,14 +598,23 @@
 
     function draw() {
       tb.textContent = "";
+      pf.q = search.value;
       var q = search.value.trim().toLowerCase();
-      all.filter(function (p) {
+      var shown = all.filter(function (p) {
+        if (pf.status && progStatus(p, now) !== pf.status) return false;
+        if (pf.rep && repGroup(p) !== pf.rep) return false;
+        if (pf.month && (p.mula || "").slice(0, 7) !== pf.month) return false;
         return !q || [p.sekolah, p.negeri, p.nama, p.jenis, p.mainPic, p.legality, p.virality, p.cawangan].join(" ").toLowerCase().indexOf(q) > -1;
-      }).forEach(function (p) {
-        var r = el("tr", (p.tamat || p.mula) >= now ? "is-upcoming" : "");
+      });
+      count.textContent = shown.length === all.length ? "" : shown.length + " daripada " + all.length;
+      shown.forEach(function (p) {
+        var st = progStatus(p, now);
+        var r = el("tr", st === "akan" || st === "hari" ? "is-upcoming" : st === "batal" ? "is-cancelled" : "");
         // Each cell has a class (its place in the card layout on small screens) and a label shown there.
         function cell(cls, label) { var c = el("td", cls); if (label) c.setAttribute("data-label", label); return c; }
         var d = cell("lgd-prog-date lgd-c-date");
+        var stInfo = PROG_STATUS.filter(function (x) { return x.id === st; })[0];
+        d.appendChild(el("span", "lgd-pstat is-" + st, stInfo.label + daysNote(p, st, now)));
         d.appendChild(document.createTextNode(fmtRange(p.mula, p.tamat)));
         if (p.masa) d.appendChild(el("small", null, p.masa));
         r.appendChild(d);
@@ -598,19 +665,68 @@
           if (rep.status === "Perlu baiki" && rep.komen) rtd.appendChild(el("small", "lgd-rep-note", rep.komen));
         }
         r.appendChild(rtd);
-        var vtd = cell("lgd-rep lgd-c-vid", "Video");
-        if (p.video && /^https?:/.test(p.video)) {
-          var vl = el("a", "lgd-rep-link", "Video ↗");
-          vl.href = p.video; vl.target = "_blank"; vl.rel = "noopener";
-          vtd.appendChild(vl);
-        } else vtd.appendChild(el("span", "lgd-rep-none", p.video || "—"));
-        r.appendChild(vtd);
+        r.appendChild(videoCell(p, cell("lgd-rep lgd-c-vid", "Video")));
         r.appendChild(deleteCell(p, r));
         tb.appendChild(r);
       });
       if (!tb.children.length) {
         var er = el("tr"); var ec = el("td", "empty-text", "Tiada program sepadan."); ec.colSpan = 11; er.appendChild(ec); tb.appendChild(er);
       }
+    }
+
+    // Video program: link (or "+ Link video"), with a pencil to change it; saved to the Program sheet.
+    function videoCell(p, td) {
+      function show() {
+        td.textContent = "";
+        if (p.video && /^https?:/i.test(p.video)) {
+          var a = el("a", "lgd-rep-link lgd-vid-link", "Video ↗");
+          a.href = p.video; a.target = "_blank"; a.rel = "noopener";
+          td.appendChild(a);
+          var ed = el("button", "lgd-vid-edit", "✎"); ed.type = "button";
+          ed.title = "Tukar link video"; ed.setAttribute("aria-label", "Tukar link video " + p.nama);
+          ed.addEventListener("click", edit);
+          td.appendChild(ed);
+        } else {
+          var add = el("button", "lgd-vid-add", "+ Link video"); add.type = "button";
+          add.addEventListener("click", edit);
+          td.appendChild(add);
+        }
+      }
+      function edit() {
+        td.textContent = "";
+        var box = el("div", "lgd-vid-form");
+        var inp = el("input", "borang-input lgd-vid-input");
+        inp.type = "url"; inp.placeholder = "https://…"; inp.value = p.video || "";
+        inp.setAttribute("aria-label", "Link video " + p.nama);
+        var err = el("small", "lgd-vid-err");
+        var save = el("button", "lgd-vid-save", "Simpan"); save.type = "button";
+        var cancel = el("button", "lgd-del-no", "Batal"); cancel.type = "button";
+        cancel.addEventListener("click", show);
+        function submit() {
+          var url = inp.value.trim();
+          if (url && !/^https?:\/\/\S+$/i.test(url)) { err.textContent = "Link mesti bermula dengan https://"; inp.focus(); return; }
+          save.disabled = cancel.disabled = true; save.textContent = "Menyimpan…";
+          Api.post({ action: "saveProgramVideo", id: p.id, url: url })
+            .then(function () { p.video = url; show(); })
+            .catch(function (e) {
+              save.disabled = cancel.disabled = false; save.textContent = "Simpan";
+              err.textContent = "Tidak dapat menyimpan: " + (e.message || e);
+            });
+        }
+        save.addEventListener("click", submit);
+        inp.addEventListener("keydown", function (e) {
+          if (e.key === "Enter") { e.preventDefault(); submit(); }
+          if (e.key === "Escape") show();
+        });
+        box.appendChild(inp);
+        var row = el("div", "lgd-vid-actions"); row.appendChild(save); row.appendChild(cancel);
+        box.appendChild(row);
+        box.appendChild(err);
+        td.appendChild(box);
+        inp.focus();
+      }
+      show();
+      return td;
     }
 
     // Trash button → "Padam program ini?" [Ya, padam] [Batal] in the same cell → removes the row from the Program sheet.

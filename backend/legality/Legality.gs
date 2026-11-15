@@ -151,6 +151,11 @@ function doPost(e) {
       lock.waitLock(20000);
       return json(deleteProgram(body));
     }
+    if (body.action === "saveProgramVideo") {   // admin dashboard: "+ Link video" on a programme
+      if (role !== "admin") throw new Error("Hanya admin boleh mengubah link video.");
+      lock.waitLock(20000);
+      return json(saveProgramVideo(body));
+    }
     return json({ error: "Tindakan tidak dikenali: " + body.action });
   } catch (err) {
     return json({ error: String(err && err.message || err) });
@@ -1049,6 +1054,25 @@ function deleteProgram(body) {
     CacheService.getScriptCache().remove(REPORT_NEXT);
     CacheService.getScriptCache().remove("programs");
     return { ok: true, removed: { id: text(r[0]), sekolah: text(r[3]), nama: text(r[5]) } };
+  }
+  throw new Error("Program tidak dijumpai (mungkin sudah dipadam). Muat semula halaman.");
+}
+
+/** Admin: sets (or clears, url "") the "Video program" link of one programme. body: { id, url } */
+function saveProgramVideo(body) {
+  var url = text(body.url).slice(0, 500);
+  if (url && !/^https?:\/\/\S+$/i.test(url)) throw new Error("Link video mesti bermula dengan https://");
+  var sh = programSheet();
+  ensureReportHeader(sh);
+  var id = text(body.id);
+  if (!id || sh.getLastRow() < 2) throw new Error("Program tidak dijumpai.");
+  var ids = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues();
+  for (var i = 0; i < ids.length; i++) {
+    if (text(ids[i][0]) !== id) continue;
+    sh.getRange(i + 2, REPORT_COL + REPORT_HEAD.indexOf("Video program")).setValue(url);
+    SpreadsheetApp.flush();
+    CacheService.getScriptCache().remove("programs");
+    return { ok: true, id: id, video: url };
   }
   throw new Error("Program tidak dijumpai (mungkin sudah dipadam). Muat semula halaman.");
 }
