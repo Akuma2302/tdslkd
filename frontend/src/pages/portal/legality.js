@@ -1548,7 +1548,7 @@
     planning: tableSection([
       { i: 0, label: "Perkara (apa tindakan yang nak dibuat)", long: true, wide: true },
       { i: 1, label: "Tarikh", type: "date" }
-    ], "+ Tambah perkara", "Belum ada perkara dirancang."),
+    ], "+ Tambah perkara", "Belum ada perkara dirancang.", { removable: true }),
 
     program: tableSection([
       { i: 0, label: "Nama program" }, { i: 1, label: "Tarikh" }, { i: 2, label: "Niche" },
@@ -1596,10 +1596,15 @@
   }
 
   // Rows with content are shown as editable cards; empty rows stay hidden until "Tambah" is used.
-  function tableSection(fields, addLabel, emptyText) {
+  // opts.removable: saved rows get "Buang" too; it empties the row in the sheet on Simpan (the empty row is
+  // then reused by the next "Tambah").
+  function tableSection(fields, addLabel, emptyText, opts) {
+    opts = opts || {};
     return function (body, model, changed, redraw) {
       var key = model.key;
-      var rows = model.rows.filter(function (row) { return row.r == null || row.shown || hasContent(row.v, key); });
+      var rows = model.rows.filter(function (row) {
+        return !row.removed && (row.r == null || row.shown || hasContent(row.v, key));
+      });
       rows.forEach(function (row, n) {
         var card = el("div", "lg-row");
         card.appendChild(el("span", "lg-row-num", String(n + 1)));
@@ -1612,6 +1617,13 @@
         if (row.r == null) {
           card.appendChild(button("link-btn lg-remove", "Buang", function () {
             model.rows.splice(model.rows.indexOf(row), 1);
+            redraw();
+          }));
+        } else if (opts.removable && !row.lock.some(Boolean)) {
+          card.appendChild(button("link-btn lg-remove", "Buang", function () {
+            row.w = row.w.map(function (v) { return v === true || v === false ? false : ""; });
+            row.removed = true; row.shown = false;
+            changed();
             redraw();
           }));
         }
