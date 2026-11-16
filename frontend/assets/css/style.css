@@ -1508,8 +1508,6 @@ body.lg-page .lg-section .lg-section-title { display: flex; align-items: center;
 .lg-stepper-next { margin: 0 0 0.9rem; color: var(--accent); font-size: 0.85rem; font-weight: 600; }
 .lg-stepper-next.is-all { color: #5be08f; }
 
-.lg-ov-sheet { color: var(--muted); text-decoration: none; border-bottom: 1px dashed var(--line-2); }
-.lg-ov-sheet:hover { color: var(--accent); border-color: var(--accent); }
 
 .lg-schoolnav { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem; margin: 1.6rem 0 1rem; }
 .lg-schoolnav-back, .lg-schoolnav-link {

@@ -31,6 +31,10 @@
     { key: "peluang", title: "Peluang Lain Tahun Depan", short: "Peluang" }
   ];
 
+  // Shown in the top zone, in this order, under the progress cards; the rest stay under "Data sekolah".
+  var TOP_SECTIONS = ["planning", "analisa"];
+  function sectionInfo(key) { return SECTION_INFO.filter(function (s) { return s.key === key; })[0]; }
+
   var state = { cawangan: null, sekolah: null, school: null, dirty: {} };
 
   function seq(a, b) { var r = []; for (var i = a; i <= b; i++) r.push(i); return r; }
@@ -338,10 +342,14 @@
       if (d.weekly) root.appendChild(weeklyCard(d.weekly));
       if (d.progress) root.appendChild(noteCard(d.progress.note || { text: "", updated: "" }));
       if (d.progress) root.appendChild(progressCard(d.progress));
+      // Planning, then Analisa, right under the progress cards (worked on together each week).
+      TOP_SECTIONS.forEach(function (k) { root.appendChild(foldable(sectionCard(sectionInfo(k)), k)); });
 
       root.appendChild(zoneLabel("Data sekolah", "Tekan untuk buka"));
       root.appendChild(foldable(picCard(d.pic || []), "pic"));
-      SECTION_INFO.forEach(function (s) { root.appendChild(foldable(sectionCard(s), s.key)); });
+      SECTION_INFO.forEach(function (s) {
+        if (TOP_SECTIONS.indexOf(s.key) < 0) root.appendChild(foldable(sectionCard(s), s.key));
+      });
 
       // Parts the Legality bot checks (it tags the PIC when they are empty or out of date)
       ["semasa", "planning", "peluang"].forEach(function (k) {
@@ -563,12 +571,6 @@
     var ni = noteInfo();
     meta.appendChild(el("span", "lg-ov-when" + (ni.stale ? " is-stale" : ""),
       ni.has ? "Progress dikemas kini " + agoText(n.updated) : "Progress belum pernah dikemas kini"));
-    if (d.sheetUrl) {
-      var sheet = el("a", "lg-ov-sheet", "Google Sheet ↗");
-      sheet.href = d.sheetUrl; sheet.target = "_blank"; sheet.rel = "noopener";
-      sheet.title = "Buka tab " + d.sekolah + " dalam sheet " + d.cawangan;
-      meta.appendChild(sheet);
-    }
     box.appendChild(meta);
 
     var stats = el("div", "lg-ov-stats");
@@ -617,8 +619,10 @@
   function buildNav(nav) {
     var items = [{ key: "ringkasan", short: "Ringkasan" }]
       .concat(state.school.weekly ? [{ key: "mingguan", short: "Mingguan" }] : [])
-      .concat([{ key: "semasa", short: "Progress" }, { key: "progress", short: "Checklist" }, { key: "pic", short: "PIC" }])
-      .concat(SECTION_INFO);
+      .concat([{ key: "semasa", short: "Progress" }, { key: "progress", short: "Checklist" }])
+      .concat(TOP_SECTIONS.map(sectionInfo))
+      .concat([{ key: "pic", short: "PIC" }])
+      .concat(SECTION_INFO.filter(function (s) { return TOP_SECTIONS.indexOf(s.key) < 0; }));
     NAV = items.map(function (s) {
       var a = el("a", "lg-chip");
       a.href = "#sec-" + s.key;
