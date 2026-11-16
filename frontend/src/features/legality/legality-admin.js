@@ -363,21 +363,41 @@
     if (view === "analisa") {
       td.appendChild(s.analisa ? el("p", "lgd-prog-text", s.analisa) : el("span", "lgd-prog-empty is-missing", "Belum diisi"));
     } else if (view === "planning") {
-      var plan = s.planning || [];
-      var filled = plan.filter(function (p) { return p.value; }).length;
-      if (!plan.length) { td.appendChild(el("span", "lgd-prog-empty is-missing", "Belum diisi")); return; }
-      td.appendChild(el("span", "lgd-more-tag " + (filled === plan.length ? "is-ok" : filled ? "is-mid" : "is-no"),
-        filled + "/" + plan.length + " diisi"));
-      var list = el("dl", "lgd-more-plan");
+      // [{ perkara, tarikh }]; a summary from before the change has { label, value } and no perkara
+      var plan = (s.planning || []).filter(function (p) { return p.perkara !== undefined; });
+      if (!plan.length) { td.appendChild(el("span", "lgd-prog-empty is-missing", "Belum ada perkara dirancang")); return; }
+      var list = el("ol", "lgd-plan-list");
       plan.forEach(function (p) {
-        list.appendChild(el("dt", null, p.label || "—"));
-        list.appendChild(el("dd", p.value ? null : "lgd-prog-empty is-missing", p.value || "Belum diisi"));
+        var li = el("li");
+        li.appendChild(el("span", "lgd-plan-what" + (p.perkara ? "" : " lgd-prog-empty is-missing"), p.perkara || "Perkara belum ditulis"));
+        li.appendChild(el("span", "lgd-plan-when" + (p.tarikh ? "" : " is-missing"), p.tarikh ? "📅 " + fmtDate(p.tarikh) : "Tarikh belum ditetapkan"));
+        list.appendChild(li);
       });
       td.appendChild(list);
     } else {
-      var ada = s.alumniAda !== undefined ? s.alumniAda : !!s.alumni;
-      td.appendChild(ada ? el("p", "lgd-prog-text", s.alumni) : el("span", "lgd-prog-empty", s.alumni || "Tiada maklumat alumni"));
+      var people = parseAlumni(s.alumni);
+      if (!people.length) { td.appendChild(el("span", "lgd-prog-empty", "Tiada alumni")); return; }
+      var ul = el("ol", "lgd-alumni-list");
+      people.forEach(function (a) {
+        var li = el("li", null, a.nama || "—");
+        if (a.tahun) li.appendChild(el("span", "lgd-alumni-spm", "SPM " + a.tahun));
+        ul.appendChild(li);
+      });
+      td.appendChild(ul);
     }
+  }
+
+  // Same reading as the user form: "1. Adam Harith (SPM 2019)\n2. Wazif" -> [{ nama, tahun }]
+  function parseAlumni(t) {
+    t = String(t || "").trim();
+    if (!t || /^(tiada|tak ?ada|takde|belum ada|-+|—|nil|none|n\/?a)\.?$/i.test(t)) return [];
+    return t.split(/\n|\s+(?=\d+\.\s)/).map(function (line) {
+      line = line.replace(/^\s*(\d+[.)]|[-–•*])\s*/, "").trim();
+      var tahun = "";
+      var m = line.match(/\s*\(\s*SPM\s*(\d{1,4})\s*\)\s*$/i) || line.match(/[\s,(–-]*\(?\s*(?:SPM\s*)?((?:19|20)\d{2})\s*\)?\s*$/i);
+      if (m) { tahun = m[1]; line = line.slice(0, m.index); }
+      return { nama: line.replace(/[\s.,;–-]+$/, "").trim(), tahun: tahun };
+    }).filter(function (a) { return a.nama || a.tahun; });
   }
 
   function progressWidget(rows, branch) {
@@ -409,9 +429,9 @@
       if (branch === ALL) school.appendChild(el("small", null, x.cawangan));
       // Ada / tiada alumni (from the "Alumni Sekolah" part of the school tab)
       if (x.s.alumni !== undefined) {
-        var ada = x.s.alumniAda !== undefined ? x.s.alumniAda : !!x.s.alumni;
-        var al = el("span", "lgd-alumni " + (ada ? "is-yes" : "is-no"), ada ? "🎓 Ada alumni" : "Tiada alumni");
-        if (ada) al.title = x.s.alumni;
+        var nAlumni = parseAlumni(x.s.alumni).length;
+        var al = el("span", "lgd-alumni " + (nAlumni ? "is-yes" : "is-no"), nAlumni ? "🎓 " + nAlumni + " alumni" : "Tiada alumni");
+        if (nAlumni) al.title = x.s.alumni;
         school.appendChild(al);
       }
       r.appendChild(school);

@@ -449,12 +449,9 @@
     });
     return { people: people, aktif: aktif };
   }
-  // Same rules as the Legality bot (backend sectionFilled): Planning needs a written row or a picture;
+  // Same rules as the Legality bot (backend sectionFilled): Planning needs a Perkara written;
   // Peluang needs its first column written.
-  function planningFilled() {
-    return rowsOf("planning").some(function (r) { return !r.lock[1] && filled(r.v[1]); }) ||
-      (state.school.images || []).some(function (im) { return im.section === "planning"; });
-  }
+  function planningFilled() { return countRows("planning", 0) > 0; }
   function peluangFilled() { return rowsOf("peluang").some(function (r) { return filled(r.v[0]); }); }
   function daysSince(iso) { return iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : -1; }
   function agoText(iso) {
@@ -510,9 +507,10 @@
         var u = (state.school.pic || []).filter(function (p) { return p.username; }).map(function (p) { return "@" + p.username; });
         return u.length ? u.join(" ") : "Belum ditetapkan";
       case "crm": var c = crmCounts(); return c.people ? c.people + " orang · " + c.aktif + " aktif" : "Belum ada orang";
-      case "alumni": return countRows("alumni", 0) + " alumni";
+      case "alumni": var na = rowsOf("alumni").length ? parseAlumni(rowsOf("alumni")[0].v[0]).length : 0;
+        return na ? na + " alumni" : "Tiada alumni";
       case "program": return countRows("program", 0) + " program";
-      case "planning": return planningFilled() ? "Sudah diisi" : "Kosong · bot akan tag PIC";
+      case "planning": return planningFilled() ? countRows("planning", 0) + " perkara" : "Kosong · bot akan tag PIC";
       case "peluang": return peluangFilled() ? countRows("peluang", 0) + " peluang" : "Kosong · bot akan tag PIC";
       default: var n = countRows(key, 0); return n ? n + " baris" : "Kosong";
     }
@@ -1249,7 +1247,12 @@
     lab.htmlFor = id;
     var input;
     if (opts.long) { input = el("textarea", "borang-input"); input.rows = opts.rows || 3; }
-    else { input = el("input", "borang-input"); input.type = opts.type || "text"; }
+    else {
+      input = el("input", "borang-input");
+      input.type = opts.type || "text";
+      // A date typed by hand in the sheet ("20 Nov") would show as blank in a date box: keep it as text.
+      if (input.type === "date" && row.w[i] && !/^\d{4}-\d{2}-\d{2}$/.test(row.w[i])) input.type = "text";
+    }
     if (opts.list) input.setAttribute("list", opts.list);
     input.id = id;
     input.value = row.w[i] == null ? "" : row.w[i];
@@ -1258,6 +1261,41 @@
     box.appendChild(lab);
     box.appendChild(input);
     return box;
+  }
+
+  // A labelled input not tied to a sheet cell (the alumni Nama / Tahun SPM pairs).
+  function plainField(label, value, attrs, onInput) {
+    var box = el("div", "lg-field");
+    var id = "f" + (++uid);
+    var lab = el("label", "lg-label", label);
+    lab.htmlFor = id;
+    var input = el("input", "borang-input");
+    input.type = "text"; input.id = id; input.value = value || "";
+    Object.keys(attrs).forEach(function (k) { input.setAttribute(k, attrs[k]); });
+    // Number-only boxes refuse other characters as they are typed or pasted.
+    if (attrs.inputmode === "numeric") input.addEventListener("beforeinput", function (e) { if (e.data && /\D/.test(e.data)) e.preventDefault(); });
+    input.addEventListener("input", function () { onInput(input.value); });
+    box.appendChild(lab);
+    box.appendChild(input);
+    return box;
+  }
+
+  // "1. Adam Harith (SPM 2019)\n2. Wazif" <-> [{ nama, tahun }]. Older free text ("1. Afifah. 2. Alimi") is split too.
+  function parseAlumni(t) {
+    t = String(t || "").trim();
+    if (!t || /^(tiada|tak ?ada|takde|belum ada|-+|—|nil|none|n\/?a)\.?$/i.test(t)) return [];
+    return t.split(/\n|\s+(?=\d+\.\s)/).map(function (line) {
+      line = line.replace(/^\s*(\d+[.)]|[-–•*])\s*/, "").trim();
+      var tahun = "";
+      var m = line.match(/\s*\(\s*SPM\s*(\d{1,4})\s*\)\s*$/i) || line.match(/[\s,(–-]*\(?\s*(?:SPM\s*)?((?:19|20)\d{2})\s*\)?\s*$/i);
+      if (m) { tahun = m[1]; line = line.slice(0, m.index); }
+      return { nama: line.replace(/[\s.,;–-]+$/, "").trim(), tahun: tahun };
+    }).filter(function (a) { return a.nama || a.tahun; });
+  }
+  function alumniText(list) {
+    return list.filter(function (a) { return a.nama.trim() || a.tahun; }).map(function (a, n) {
+      return (n + 1) + ". " + a.nama.trim() + (a.tahun ? " (SPM " + a.tahun + ")" : "");
+    }).join("\n");
   }
 
   function selectField(label, row, i, options, onChange) {
@@ -1473,10 +1511,32 @@
       }
     },
 
-    alumni: function (body, model, changed) {
+    // One cell in the sheet holds every alumni, one per line: "1. Adam Harith (SPM 2019)".
+    // The form edits them as Nama + Tahun SPM pairs and writes the lines back.
+    alumni: function (body, model, changed, redraw) {
       var row = model.rows[0];
       if (!row) return body.appendChild(el("p", "lg-empty", "Bahagian ini tiada dalam tab sekolah."));
-      body.appendChild(textField("Nama alumni & maklumat", row, 0, { long: true, rows: 6, wide: true }, changed));
+      if (row.lock[0]) return body.appendChild(el("p", "lg-empty", "Sel alumni bercantum dalam sheet — kemas kini terus di sheet."));
+      if (!model.alumni || alumniText(model.alumni) !== String(row.w[0] || "")) model.alumni = parseAlumni(row.w[0]);
+      var list = model.alumni;
+      function sync() { row.w[0] = alumniText(list); changed(); }
+      list.forEach(function (a, n) {
+        var card = el("div", "lg-row");
+        card.appendChild(el("span", "lg-row-num", String(n + 1)));
+        var f = el("div", "lg-fields lg-alumni-fields");
+        f.appendChild(plainField("Nama", a.nama, {}, function (v) { a.nama = v; sync(); }));
+        f.appendChild(plainField("Tahun SPM", a.tahun, { inputmode: "numeric", maxlength: 4, placeholder: "cth. 2019" },
+          function (v) { a.tahun = v.replace(/\D/g, ""); sync(); }));
+        card.appendChild(f);
+        card.appendChild(button("link-btn lg-remove", "Buang", function () {
+          list.splice(list.indexOf(a), 1); sync(); redraw();
+        }));
+        body.appendChild(card);
+      });
+      if (!list.length) body.appendChild(el("p", "lg-empty", "Belum ada alumni direkodkan."));
+      body.appendChild(button("lg-add", "+ Tambah alumni", function () {
+        list.push({ nama: "", tahun: "" }); redraw();
+      }));
     },
 
     analisa: function (body, model, changed) {
@@ -1485,17 +1545,10 @@
       body.appendChild(textField("Analisa situasi semasa sekolah", row, 0, { long: true, rows: 6, wide: true }, changed));
     },
 
-    planning: function (body, model, changed) {
-      var any = false;
-      model.rows.forEach(function (row) {
-        if (row.lock[1]) return;
-        any = true;
-        var label = row.v[0] || "Catatan";
-        body.appendChild(textField(label, row, 1, { long: true, rows: 2, wide: true }, changed));
-      });
-      if (!any) body.appendChild(el("p", "lg-empty", "Bahagian ini tiada dalam tab sekolah."));
-      body.appendChild(imageGallery("planning"));
-    },
+    planning: tableSection([
+      { i: 0, label: "Perkara (apa tindakan yang nak dibuat)", long: true, wide: true },
+      { i: 1, label: "Tarikh", type: "date" }
+    ], "+ Tambah perkara", "Belum ada perkara dirancang."),
 
     program: tableSection([
       { i: 0, label: "Nama program" }, { i: 1, label: "Tarikh" }, { i: 2, label: "Niche" },
@@ -1513,9 +1566,7 @@
     ], "+ Tambah peluang", "Belum ada peluang direkodkan.")
   };
 
-  // ---------- Images (Planning) ----------
-  // Pictures upload straight away (no Simpan needed) to Google Drive through the Apps Script.
-
+  // ---------- Images ----------
   // Shrinks a photo to at most 1600px and turns it into JPEG, so phone photos upload quickly.
   function shrinkImage(file) {
     return new Promise(function (resolve, reject) {
@@ -1544,101 +1595,6 @@
     });
   }
 
-  function imageGallery(section) {
-    var wrap = el("div", "lg-gallery");
-    var head = el("div", "lg-gallery-head");
-    head.appendChild(el("h4", "lg-sub", "Gambar"));
-    var pick = el("input");
-    pick.type = "file"; pick.accept = "image/*"; pick.multiple = true; pick.hidden = true;
-    var addBtn = button("lg-add-btn", "+ Muat naik gambar", function () { pick.click(); });
-    head.appendChild(addBtn);
-    head.appendChild(pick);
-    wrap.appendChild(head);
-    var grid = el("div", "lg-gallery-grid");
-    wrap.appendChild(grid);
-    var note = el("p", "lg-gallery-note");
-    wrap.appendChild(note);
-
-    function mine() { return (state.school.images || []).filter(function (im) { return im.section === section; }); }
-
-    function draw(pending) {
-      grid.textContent = "";
-      mine().forEach(function (im) {
-        var fig = el("figure", "lg-thumb");
-        var open = button("lg-thumb-open", null, function () { viewImage(im); });
-        open.setAttribute("aria-label", "Lihat " + im.name);
-        var img = el("img");
-        img.alt = im.name;
-        // Drive may need a moment to make the thumbnail of a new upload, so try once more before giving up.
-        var tries = 0;
-        img.onerror = function () {
-          if (tries++ < 2) setTimeout(function () { img.src = im.thumb + "&r=" + tries; }, 2500);
-          else fig.classList.add("is-broken");
-        };
-        img.src = im.thumb;
-        open.appendChild(img);
-        fig.appendChild(open);
-        var del = button("lg-thumb-del", "×", function () {
-          if (!confirm("Buang gambar \"" + im.name + "\"? Ia akan dipindah ke Bin Google Drive.")) return;
-          fig.classList.add("is-busy");
-          post({ action: "deleteImage", cawangan: state.cawangan, sekolah: state.sekolah, id: im.id })
-            .then(function (d) { state.school.images = d.images; draw(); toast("Gambar dibuang.", "ok"); })
-            .catch(function (e) { fig.classList.remove("is-busy"); toast("Tidak dapat buang: " + (e.message || e), "warn"); });
-        });
-        del.setAttribute("aria-label", "Buang " + im.name);
-        fig.appendChild(del);
-        grid.appendChild(fig);
-      });
-      for (var i = 0; i < (pending || 0); i++) grid.appendChild(el("div", "lg-thumb is-loading", "Memuat naik…"));
-      if (!grid.children.length) grid.appendChild(el("p", "lg-empty", "Belum ada gambar. Contohnya gambar timeline, carta atau dokumen."));
-    }
-    draw();
-
-    pick.addEventListener("change", function () {
-      var files = Array.prototype.slice.call(pick.files || []);
-      pick.value = "";
-      if (!files.length) return;
-      var left = files.length, failed = [];
-      addBtn.disabled = true;
-      note.textContent = "";
-      draw(left);
-      // One at a time keeps each request small and the order as chosen.
-      files.reduce(function (chain, file) {
-        return chain.then(function () {
-          return shrinkImage(file)
-            .then(function (g) {
-              return post({ action: "uploadImage", cawangan: state.cawangan, sekolah: state.sekolah, section: section,
-                            name: g.name, mime: g.mime, data: g.data });
-            })
-            .then(function (d) { state.school.images = d.images; })
-            .catch(function (e) { failed.push(file.name + ": " + (e.message || e)); })
-            .then(function () { left--; draw(left); });
-        });
-      }, Promise.resolve()).then(function () {
-        addBtn.disabled = false;
-        if (failed.length) { note.textContent = "Tidak dimuat naik — " + failed.join("; "); toast("Sebahagian gambar gagal dimuat naik.", "warn"); }
-        else toast(files.length > 1 ? files.length + " gambar dimuat naik." : "Gambar dimuat naik.", "ok");
-      });
-    });
-    return wrap;
-  }
-
-  function viewImage(im) {
-    var box = el("div", "lg-viewer");
-    var img = el("img");
-    img.alt = im.name;
-    img.src = im.thumb;                       // already loaded for the grid, so it shows at once
-    var big = new Image();
-    big.onload = function () { if (big.naturalWidth > img.naturalWidth) img.src = big.src; };
-    big.src = im.full;                        // swap in the sharper copy if Drive has one
-    box.appendChild(img);
-    window.YoshModal.open({
-      title: im.name, subtitle: im.date ? "Dimuat naik " + im.date : "",
-      body: box,
-      actions: [{ label: "Buka di Drive", primary: true, onClick: function () { window.open(im.url, "_blank", "noopener"); } }]
-    });
-  }
-
   // Rows with content are shown as editable cards; empty rows stay hidden until "Tambah" is used.
   function tableSection(fields, addLabel, emptyText) {
     return function (body, model, changed, redraw) {
@@ -1650,7 +1606,7 @@
         var f = el("div", "lg-fields");
         fields.forEach(function (fd) {
           if (fd.check) f.appendChild(checkField(fd.label, row, fd.i, changed, "is-solo"));
-          else f.appendChild(textField(fd.label, row, fd.i, { long: fd.long, wide: fd.wide, rows: 2 }, changed));
+          else f.appendChild(textField(fd.label, row, fd.i, { long: fd.long, wide: fd.wide, rows: 2, type: fd.type }, changed));
         });
         card.appendChild(f);
         if (row.r == null) {

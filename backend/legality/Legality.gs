@@ -24,12 +24,12 @@ var SECTIONS = {
   alumni:   { cols: [2] },                                          // B (merged B:G)
   program:  { cols: [1, 2, 3, 4, 7] },                              // Nama, Tarikh, Niche, Penglibatan, Reporting
   analisa:  { cols: [1] },                                          // A (merged A:G)
-  planning: { cols: [1, 2] },                                       // label (read-only), value
+  planning: { cols: [1, 2] },                                       // Perkara (tindakan), Tarikh
   modul:    { cols: [1, 2, 3, 4] },                                 // Nama, Tarikh, Niche, Short brief
   peluang:  { cols: [1, 2, 3] }                                     // Peluang, Tarikh, Permanfaatan
 };
 var CHECKBOX_COLS = { crm: [3].concat(range_(14, 30)), program: [7] };
-var DATE_COLS = { crm: [11] };
+var DATE_COLS = { crm: [11], planning: [2] };
 
 // Progress Legality: one row per school in the "Progress" tab of each cawangan sheet.
 var PROGRESS_TAB = "Progress";
@@ -329,7 +329,7 @@ function sectionRows(sh, key, m) {
     case "alumni": return [m.alumni + 1];
     case "program": return range_(m.program + 2, m.analisa - 1);
     case "analisa": return [m.analisa + 1];
-    case "planning": return range_(m.planning + 1, m.modul - 1);
+    case "planning": return range_(m.planning + 2, m.modul - 1);   // under the "Perkara | Tarikh" header
     case "modul": return range_(m.modul + 2, m.peluang - 1);
     case "peluang": return range_(m.peluang + 2, m.peluangEnd);
   }
@@ -712,7 +712,7 @@ function saveAlumni(body) {
 //  - each school tab is read once (one getValues, markers found from that same block);
 //  - the result is cached for 6 hours and returned at once; after any save it is only marked out of date
 //    ("stale": true) and the admin page fetches a fresh copy in the background.
-var SUMMARY_KEY = "summary4", SUMMARY_STALE = "summaryStale";   // summary4: + alumni, analisa, planning per school
+var SUMMARY_KEY = "summary5", SUMMARY_STALE = "summaryStale";   // summary5: planning as [{ perkara, tarikh }]
 // The flag holds the time of the last save, so a summary that was already being built before that save does not clear it.
 function markSummaryStale() { CacheService.getScriptCache().put(SUMMARY_STALE, String(Date.now()), 21600); }
 
@@ -798,15 +798,14 @@ function summary(fresh) {
       if (m.program && m.analisa) {
         a.slice(m.program + 1, m.analisa - 1).forEach(function (r) { if (text(r[0]) !== "") programs++; });
       }
-      // Alumni (B under "Alumni Sekolah"), Analisa Situasi Semasa (A), Planning Legality (A label, B value)
+      // Alumni (B under "Alumni Sekolah"), Analisa Situasi Semasa (A), Planning Legality (A Perkara, B Tarikh)
       var alumniText = m.alumni && a[m.alumni] ? summaryText(a[m.alumni][1]) : "";
       var analisaText = m.analisa && a[m.analisa] ? summaryText(a[m.analisa][0]) : "";
       var planning = [];
       if (m.planning && m.modul) {
-        a.slice(m.planning, m.modul - 1).forEach(function (r) {
-          var label = summaryText(r[0]).replace(/^[-–•]\s*/, ""), value = summaryText(r[1]);
-          if (/^item perlu ada/i.test(label)) return;   // template heading row ("Item perlu ada:" / "*Tulis Timeline disini")
-          if (label || value) planning.push({ label: label.replace(/:$/, ""), value: value });
+        a.slice(m.planning + 1, m.modul - 1).forEach(function (r) {   // rows under the "Perkara | Tarikh" header
+          var perkara = summaryText(r[0]), tarikh = summaryText(r[1]);
+          if (perkara || tarikh) planning.push({ perkara: perkara, tarikh: tarikh });
         });
       }
       // "Tiada", "-", "belum ada" written in the alumni box means no alumni
@@ -1177,11 +1176,7 @@ function filledText(v) { return text(v) !== "" && v !== false && !isPlaceholder(
 
 function sectionFilled(sh, key, m, ss, school) {
   var rows = readSection(sh, key, m).rows;
-  if (key === "planning") {
-    var written = rows.some(function (row) { return !row.lock[1] && filledText(row.v[1]); });
-    return written || listImages(ss, school).some(function (im) { return im.section === "planning"; });
-  }
-  // Peluang: the "Peluang" column itself must be written. Permanfaatan alone often only holds the template
+  // Planning: at least one Perkara written. Peluang: the "Peluang" column itself must be written. Permanfaatan alone often only holds the template
   // example ("- Singgah Kopi, Printago, Wakaf Quran"), so it does not count.
   return rows.some(function (row) { return filledText(row.v[0]); });
 }
@@ -2284,7 +2279,6 @@ function same(a, b) { return a === b || (a !== true && a !== false && b !== true
 function saveSection(body) {
   var key = text(body.section);
   if (!SECTIONS[key]) throw new Error("Bahagian tidak dikenali: " + key);
-  if (key === "planning" && (body.adds || []).length) throw new Error("Planning tidak boleh ditambah baris.");
   var ss = book(body.cawangan);
   var sh = ss.getSheetByName(text(body.sekolah));
   if (!sh || schoolNames(ss).indexOf(text(body.sekolah)) < 0) throw new Error("Sekolah tidak dijumpai: " + body.sekolah);
@@ -2302,7 +2296,6 @@ function saveSection(body) {
     var i = cols.indexOf(ed.c);
     if (!row || i < 0) throw new Error("Data sudah berubah (baris " + ed.r + "). Muat semula halaman.");
     if (row.lock[i]) return;
-    if (key === "planning" && ed.c === 1) return; // labels are fixed
     var now = row.v[i];
     if (same(now, ed.val)) return;
     if (!same(now, ed.old)) { conflicts.push(ed.r); return; }
@@ -2333,7 +2326,6 @@ function saveSection(body) {
       var r = empty.shift();
       if (!r) r = insertRow(sh, key);
       cols.forEach(function (c, i) {
-        if (key === "planning") return;
         var v = vals[i];
         if (v === "" || v == null) return;
         sh.getRange(r, c).setValue(toCell(key, c, v));
@@ -2368,6 +2360,59 @@ function insertRow(sh, key) {
   }
   sh.setRowHeight(at, sh.getRowHeight(key === "crm" ? last + 1 : last));
   return at;
+}
+
+// ---------- One-off: Planning Legality as a "Perkara | Tarikh" table ----------
+// The old layout had fixed label rows ("Item perlu ada:", "- Tarikh siap Report", …) with notes in B (often
+// merged B:G). This turns every school tab and the template into a header row "Perkara | Tarikh" and one row
+// per action. Notes already written are kept as Perkara text ("Tarikh Meeting: …"); Tarikh starts empty.
+// Run migratePlanningPreview() first (changes nothing, logs what would happen), then migratePlanningRun().
+var PLANNING_HEAD = ["Perkara (apa tindakan yang nak dibuat)", "Tarikh"];
+function migratePlanningPreview() { migratePlanning(false); }
+function migratePlanningRun() { migratePlanning(true); }
+function migratePlanning(apply) {
+  var map = sheetMap();
+  CAWANGAN.forEach(function (c) {
+    if (!map[c]) return;
+    var ss = SpreadsheetApp.openById(map[c]);
+    [TEMPLATE].concat(schoolNames(ss)).forEach(function (name) {
+      var sh = ss.getSheetByName(name);
+      if (!sh) return;
+      var m;
+      try { m = markers(sh); } catch (e) { Logger.log(c + " / " + name + ": dilangkau (" + e.message + ")"); return; }
+      var head = m.planning + 1, last = m.modul - 1;
+      if (last < head) { Logger.log(c + " / " + name + ": tiada baris planning"); return; }
+      var vals = sh.getRange(head, 1, last - head + 1, 2).getDisplayValues();
+      if (/^perkara/i.test(text(vals[0][0]))) { Logger.log(c + " / " + name + ": sudah format baru"); return; }
+      // Old notes worth keeping, as Perkara text.
+      var items = [];
+      vals.forEach(function (r) {
+        var label = text(r[0]).replace(/^[-–•]\s*/, "").replace(/:$/, "").trim();
+        var note = text(r[1]);
+        if (/^item perlu ada/i.test(label)) label = "";
+        if (!note || isPlaceholder(note)) return;
+        items.push(label ? label + ": " + note : note);
+      });
+      var dataRows = Math.max(3, items.length);
+      Logger.log(c + " / " + name + ": baris " + head + "–" + last + " → header + " + dataRows + " baris" +
+        (items.length ? "; disimpan: " + items.map(function (t) { return JSON.stringify(t.slice(0, 60)); }).join(", ") : ""));
+      if (!apply) return;
+      var have = last - head;                       // data rows after the header
+      if (dataRows > have) sh.insertRowsAfter(last, dataRows - have);
+      var block = sh.getRange(head, 1, dataRows + 1, 7);
+      block.breakApart();
+      block.clearContent();
+      block.clearDataValidations();
+      // Look of the Program table's header and first row (A:B only, no merges).
+      sh.getRange(m.program + 1, 1, 1, 2).copyTo(sh.getRange(head, 1, 1, 2), SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+      sh.getRange(m.program + 2, 1, 1, 2).copyTo(sh.getRange(head + 1, 1, dataRows, 2), SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+      sh.getRange(head, 1, 1, 2).setValues([PLANNING_HEAD]);
+      sh.getRange(head + 1, 1, dataRows, 1).setWrap(true);
+      sh.getRange(head + 1, 2, dataRows, 1).setNumberFormat("d mmm yyyy");
+      if (items.length) sh.getRange(head + 1, 1, items.length, 1).setValues(items.map(function (t) { return [t]; }));
+    });
+  });
+  if (apply) { SpreadsheetApp.flush(); bumpData(); markSummaryStale(); }
 }
 
 // ---------- New school ----------
