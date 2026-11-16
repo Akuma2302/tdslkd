@@ -712,7 +712,7 @@ function saveAlumni(body) {
 //  - each school tab is read once (one getValues, markers found from that same block);
 //  - the result is cached for 6 hours and returned at once; after any save it is only marked out of date
 //    ("stale": true) and the admin page fetches a fresh copy in the background.
-var SUMMARY_KEY = "summary3", SUMMARY_STALE = "summaryStale";
+var SUMMARY_KEY = "summary4", SUMMARY_STALE = "summaryStale";   // summary4: + alumni, analisa, planning per school
 // The flag holds the time of the last save, so a summary that was already being built before that save does not clear it.
 function markSummaryStale() { CacheService.getScriptCache().put(SUMMARY_STALE, String(Date.now()), 21600); }
 
@@ -725,15 +725,25 @@ function summaryMarkers(a) {
   if (!alumni) return null;
   var program = find("program yang telah", alumni);
   var analisa = find("analisa situasi", program);
-  return { crmEnd: alumni - 1, program: program, analisa: analisa };
+  var planning = analisa ? find("planning legality", analisa) : 0;
+  var modul = planning ? find("modul program", planning) : 0;
+  return { crmEnd: alumni - 1, alumni: alumni, program: program, analisa: analisa, planning: planning, modul: modul };
 }
+// CacheService keeps at most 100 KB per key: the summary is stored gzipped (base64).
+function zipText(s) { return Utilities.base64Encode(Utilities.gzip(Utilities.newBlob(s, "application/json")).getBytes()); }
+function unzipText(s) {
+  if (s.charAt(0) === "{") return s;   // an older, uncompressed copy
+  return Utilities.ungzip(Utilities.newBlob(Utilities.base64Decode(s), "application/x-gzip")).getDataAsString();
+}
+// A cell as short text for the admin summary (dates as yyyy-mm-dd)
+function summaryText(v) { return (v instanceof Date ? iso(v) : text(v)).slice(0, 600); }
 
 function summary(fresh) {
   var cache = CacheService.getScriptCache();
   if (!fresh) {
     var hit = cache.get(SUMMARY_KEY);
     if (hit) {
-      var cached = JSON.parse(hit);
+      var cached = JSON.parse(unzipText(hit));
       cached.stale = !!cache.get(SUMMARY_STALE);
       return cached;
     }
@@ -788,7 +798,21 @@ function summary(fresh) {
       if (m.program && m.analisa) {
         a.slice(m.program + 1, m.analisa - 1).forEach(function (r) { if (text(r[0]) !== "") programs++; });
       }
+      // Alumni (B under "Alumni Sekolah"), Analisa Situasi Semasa (A), Planning Legality (A label, B value)
+      var alumniText = m.alumni && a[m.alumni] ? summaryText(a[m.alumni][1]) : "";
+      var analisaText = m.analisa && a[m.analisa] ? summaryText(a[m.analisa][0]) : "";
+      var planning = [];
+      if (m.planning && m.modul) {
+        a.slice(m.planning, m.modul - 1).forEach(function (r) {
+          var label = summaryText(r[0]).replace(/^[-–•]\s*/, ""), value = summaryText(r[1]);
+          if (/^item perlu ada/i.test(label)) return;   // template heading row ("Item perlu ada:" / "*Tulis Timeline disini")
+          if (label || value) planning.push({ label: label.replace(/:$/, ""), value: value });
+        });
+      }
+      // "Tiada", "-", "belum ada" written in the alumni box means no alumni
+      var alumniAda = !!alumniText && !/^(tiada|tak ?ada|takde|belum ada|-+|—|nil|none|n\/?a)\.?$/i.test(alumniText.trim());
       schools.push({
+        alumni: alumniText, alumniAda: alumniAda, analisa: analisaText, planning: planning,
         name: n, people: people, aktif: aktif, phase: phase, kategori: kategori, checks: checks,
         programs: programs, progress: prog[n] || PROGRESS_ITEMS.map(function () { return false; }),
         note: note[n] || { text: "", updated: "" }, pic: pics[n] || []
@@ -797,7 +821,7 @@ function summary(fresh) {
     out.cawangan.push({ id: c, ready: true, url: ss.getUrl(), schools: schools });
   });
   try {
-    cache.put(SUMMARY_KEY, JSON.stringify(out), 21600);
+    cache.put(SUMMARY_KEY, zipText(JSON.stringify(out)), 21600);
     var savedAt = +(cache.get(SUMMARY_STALE) || 0);
     if (savedAt < startedAt) cache.remove(SUMMARY_STALE);   // a save during the build keeps it marked out of date
   } catch (e) {}

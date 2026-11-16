@@ -1525,6 +1525,29 @@ body.lg-page .lg-section .lg-section-title { display: flex; align-items: center;
 .lgd-del-yes:disabled { opacity: 0.6; cursor: default; }
 .lgd-del-no { background: none; border: 1px solid var(--line-2); color: var(--muted); }
 
+/* Admin: Progress dan Status — alumni chip and folded "Analisa & Planning" */
+.lgd-alumni { display: table; margin-top: 0.35rem; padding: 0.12rem 0.5rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; }
+.lgd-alumni.is-yes { background: rgba(52, 211, 113, 0.16); color: #5be08f; cursor: help; }
+.lgd-alumni.is-no { background: rgba(255, 255, 255, 0.06); color: var(--muted); }
+.lgd-more { margin-top: 0.6rem; border: 1px solid var(--line); border-radius: 10px; background: rgba(255, 255, 255, 0.02); }
+.lgd-more-sum { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; padding: 0.45rem 0.7rem; cursor: pointer; list-style: none; font-size: 0.8rem; }
+.lgd-more-sum::-webkit-details-marker { display: none; }
+.lgd-more-sum::after { content: "▾"; margin-left: auto; color: var(--muted); transition: transform 0.15s ease; }
+.lgd-more[open] > .lgd-more-sum::after { transform: rotate(180deg); }
+.lgd-more-title { font-weight: 700; color: var(--text); }
+.lgd-more-tag { padding: 0.08rem 0.45rem; border-radius: 999px; font-size: 0.68rem; font-weight: 700; background: rgba(255, 255, 255, 0.08); color: var(--muted); }
+.lgd-more-tag.is-ok { background: rgba(52, 211, 113, 0.16); color: #5be08f; }
+.lgd-more-tag.is-mid { background: rgba(240, 180, 41, 0.16); color: #f0b429; }
+.lgd-more-tag.is-no { background: rgba(255, 107, 107, 0.14); color: #ff8c8c; }
+.lgd-more-body { display: grid; gap: 0.75rem; padding: 0.2rem 0.7rem 0.75rem; }
+.lgd-more-h { margin: 0 0 0.25rem; color: var(--muted); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.lgd-more-text { margin: 0; white-space: pre-wrap; line-height: 1.5; font-size: 0.85rem; }
+.lgd-more-plan { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr); gap: 0.3rem 0.75rem; margin: 0; font-size: 0.82rem; }
+.lgd-more-plan dt { color: var(--muted); }
+.lgd-more-plan dd { margin: 0; white-space: pre-wrap; }
+@media (max-width: 480px) { .lgd-more-plan { grid-template-columns: 1fr; } .lgd-more-plan dd { margin-bottom: 0.4rem; } }
+.lgd-more-body .lgd-prog-empty { margin: 0; }
+
 /* Admin: programme filters, status chip, video link */
 .lgd-prog-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.9rem; }
 .lgd-prog-tools .lgd-prog-search { flex: 1 1 220px; max-width: none; margin: 0; }

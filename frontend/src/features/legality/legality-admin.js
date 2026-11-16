@@ -317,6 +317,39 @@
     statusTd.appendChild(msg);
   }
 
+  // Folded "Analisa & Planning" under Progress semasa: Analisa Situasi Semasa, Planning Legality, Alumni.
+  // The summary line says what is filled in, so the admin sees gaps without opening it.
+  function moreDetails(s) {
+    var plan = s.planning || [];
+    var filled = plan.filter(function (p) { return p.value; }).length;
+    var d = el("details", "lgd-more");
+    var sum = el("summary", "lgd-more-sum");
+    sum.appendChild(el("span", "lgd-more-title", "Analisa & Planning"));
+    sum.appendChild(el("span", "lgd-more-tag " + (s.analisa ? "is-ok" : "is-no"), "Analisa " + (s.analisa ? "✓" : "✗")));
+    sum.appendChild(el("span", "lgd-more-tag " + (plan.length && filled === plan.length ? "is-ok" : filled ? "is-mid" : "is-no"),
+      "Planning " + filled + "/" + plan.length));
+    d.appendChild(sum);
+    var body = el("div", "lgd-more-body");
+    function block(title, content) {
+      var b = el("div", "lgd-more-block");
+      b.appendChild(el("h4", "lgd-more-h", title));
+      b.appendChild(content);
+      body.appendChild(b);
+    }
+    block("Analisa Situasi Semasa", s.analisa ? el("p", "lgd-more-text", s.analisa) : el("p", "lgd-prog-empty is-missing", "Belum diisi"));
+    var list = el("dl", "lgd-more-plan");
+    if (!plan.length) list.appendChild(el("p", "lgd-prog-empty is-missing", "Belum diisi"));
+    plan.forEach(function (p) {
+      list.appendChild(el("dt", null, p.label || "—"));
+      list.appendChild(el("dd", p.value ? null : "lgd-prog-empty is-missing", p.value || "Belum diisi"));
+    });
+    block("Planning Legality", list);
+    var adaAlumni = s.alumniAda !== undefined ? s.alumniAda : !!s.alumni;
+    block("Alumni Sekolah", adaAlumni ? el("p", "lgd-more-text", s.alumni) : el("p", "lgd-prog-empty", s.alumni || "Tiada maklumat alumni"));
+    d.appendChild(body);
+    return d;
+  }
+
   function progressWidget(rows, branch) {
     var w = widget("w-4", "Progress dan Status Legality Sekolah", rows.length + " sekolah");
     if (!rows.length) { w.appendChild(el("p", "empty-text", "Belum ada sekolah untuk paparan ini.")); return w; }
@@ -335,6 +368,13 @@
       var r = el("tr");
       var school = el("td", "lgd-prog-school", x.s.name);
       if (branch === ALL) school.appendChild(el("small", null, x.cawangan));
+      // Ada / tiada alumni (from the "Alumni Sekolah" part of the school tab)
+      if (x.s.alumni !== undefined) {
+        var ada = x.s.alumniAda !== undefined ? x.s.alumniAda : !!x.s.alumni;
+        var al = el("span", "lgd-alumni " + (ada ? "is-yes" : "is-no"), ada ? "🎓 Ada alumni" : "Tiada alumni");
+        if (ada) al.title = x.s.alumni;
+        school.appendChild(al);
+      }
       r.appendChild(school);
 
       // Jenis Legality (A/B/C) and Status Legality: set here by admin only, saved as soon as they change
@@ -374,6 +414,7 @@
       } else {
         noteTd.appendChild(el("span", "lgd-prog-empty is-missing", "Belum ada catatan"));
       }
+      if (x.s.analisa !== undefined) noteTd.appendChild(moreDetails(x.s));
       r.appendChild(noteTd);
       tb.appendChild(r);
     });
