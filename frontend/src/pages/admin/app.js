@@ -284,11 +284,27 @@
     }
     var u = units.filter(function (x) { return x.id === id; })[0];
     document.title = u.name + " — Yosh Junior";
+    if (menuCur) menuCur.textContent = shortName(u);
+  }
+
+  // Phones: the menu button at the top right opens the unit list under the header.
+  var side = document.querySelector(".side");
+  var menuBtn = document.getElementById("menuBtn");
+  var menuCur = document.getElementById("menuCur");
+  function setMenu(open) {
+    if (!menuBtn) return;
+    side.classList.toggle("menu-open", open);
+    menuBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+  if (menuBtn) {
+    menuBtn.addEventListener("click", function () { setMenu(!side.classList.contains("menu-open")); });
+    document.addEventListener("click", function (e) { if (!side.contains(e.target)) setMenu(false); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && side.classList.contains("menu-open")) { setMenu(false); menuBtn.focus(); } });
   }
 
   tablist.addEventListener("click", function (e) {
     var t = e.target.closest(".tab");
-    if (t) { select(t.dataset.unit); window.scrollTo(0, 0); }
+    if (t) { select(t.dataset.unit); setMenu(false); window.scrollTo(0, 0); }
   });
 
   tablist.addEventListener("keydown", function (e) {

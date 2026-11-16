@@ -58,6 +58,13 @@
       <img class="brand-logo" src="/assets/images/logo.png" alt="" width="1200" height="462">
       <span class="brand-sub">Sistem Pasukan</span>
     </a>
+    <!-- Phones only: menu button and Log keluar at the top right; the tabs open below as a list -->
+    <div class="side-actions">
+      <button type="button" class="menu-btn" id="menuBtn" aria-expanded="false" aria-controls="tabs">
+        <span class="menu-btn-icon" aria-hidden="true"></span><span id="menuCur">Menu</span>
+      </button>
+      <button type="button" class="logout-btn is-inline side-logout" data-logout>Log keluar</button>
+    </div>
     <div class="tabs" id="tabs" role="tablist" aria-label="Menu"></div>
     <p class="side-foot">Yosh Junior<br>Sistem Pasukan</p>
   </aside>
