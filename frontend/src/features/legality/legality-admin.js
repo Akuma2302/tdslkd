@@ -317,37 +317,67 @@
     statusTd.appendChild(msg);
   }
 
-  // Folded "Analisa & Planning" under Progress semasa: Analisa Situasi Semasa, Planning Legality, Alumni.
-  // The summary line says what is filled in, so the admin sees gaps without opening it.
-  function moreDetails(s) {
-    var plan = s.planning || [];
-    var filled = plan.filter(function (p) { return p.value; }).length;
-    var d = el("details", "lgd-more");
-    var sum = el("summary", "lgd-more-sum");
-    sum.appendChild(el("span", "lgd-more-title", "Analisa & Planning"));
-    sum.appendChild(el("span", "lgd-more-tag " + (s.analisa ? "is-ok" : "is-no"), "Analisa " + (s.analisa ? "✓" : "✗")));
-    sum.appendChild(el("span", "lgd-more-tag " + (plan.length && filled === plan.length ? "is-ok" : filled ? "is-mid" : "is-no"),
-      "Planning " + filled + "/" + plan.length));
-    d.appendChild(sum);
-    var body = el("div", "lgd-more-body");
-    function block(title, content) {
-      var b = el("div", "lgd-more-block");
-      b.appendChild(el("h4", "lgd-more-h", title));
-      b.appendChild(content);
-      body.appendChild(b);
-    }
-    block("Analisa Situasi Semasa", s.analisa ? el("p", "lgd-more-text", s.analisa) : el("p", "lgd-prog-empty is-missing", "Belum diisi"));
-    var list = el("dl", "lgd-more-plan");
-    if (!plan.length) list.appendChild(el("p", "lgd-prog-empty is-missing", "Belum diisi"));
-    plan.forEach(function (p) {
-      list.appendChild(el("dt", null, p.label || "—"));
-      list.appendChild(el("dd", p.value ? null : "lgd-prog-empty is-missing", p.value || "Belum diisi"));
+  // The last column of the progress table shows one thing at a time, picked from a dropdown in its header.
+  var PROG_VIEWS = [
+    { id: "progress", label: "Progress semasa" },
+    { id: "analisa", label: "Analisa Situasi Semasa" },
+    { id: "planning", label: "Planning Legality" },
+    { id: "alumni", label: "Alumni Sekolah" }
+  ];
+  var VIEW_KEY = "lgd-prog-view";
+  function progView() {
+    if (!state.progView) { try { state.progView = localStorage.getItem(VIEW_KEY) || ""; } catch (e) {} }
+    if (!PROG_VIEWS.some(function (v) { return v.id === state.progView; })) state.progView = "progress";
+    return state.progView;
+  }
+  function viewSelect(cls) {
+    var s = el("select", "borang-input lgd-view-select " + (cls || ""));
+    s.setAttribute("aria-label", "Paparan lajur");
+    PROG_VIEWS.forEach(function (v) {
+      var o = el("option", null, v.label); o.value = v.id;
+      if (v.id === progView()) o.selected = true;
+      s.appendChild(o);
     });
-    block("Planning Legality", list);
-    var adaAlumni = s.alumniAda !== undefined ? s.alumniAda : !!s.alumni;
-    block("Alumni Sekolah", adaAlumni ? el("p", "lgd-more-text", s.alumni) : el("p", "lgd-prog-empty", s.alumni || "Tiada maklumat alumni"));
-    d.appendChild(body);
-    return d;
+    s.addEventListener("change", function () {
+      state.progView = s.value;
+      try { localStorage.setItem(VIEW_KEY, s.value); } catch (e) {}
+      changed();
+    });
+    return s;
+  }
+
+  function noteCell(td, note, now) {
+    if (!note.text) { td.appendChild(el("span", "lgd-prog-empty is-missing", "Belum ada catatan")); return; }
+    td.appendChild(el("p", "lgd-prog-text", note.text));
+    if (!note.updated) return;
+    var days = Math.floor((now - new Date(note.updated).getTime()) / 86400000);
+    var when = el("small", "lgd-prog-when" + (days >= STALE_DAYS ? " is-stale" : ""),
+      (days >= STALE_DAYS ? "⚠️ " : "") + "Dikemas kini " + ago(note.updated));
+    when.title = new Date(note.updated).toLocaleString("ms-MY", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
+    td.appendChild(when);
+  }
+
+  function viewCell(td, s, view, now) {
+    if (view === "progress") return noteCell(td, s.note || {}, now);
+    if (s.analisa === undefined) { td.appendChild(el("span", "lgd-prog-empty", "Belum dimuat — muat semula data.")); return; }
+    if (view === "analisa") {
+      td.appendChild(s.analisa ? el("p", "lgd-prog-text", s.analisa) : el("span", "lgd-prog-empty is-missing", "Belum diisi"));
+    } else if (view === "planning") {
+      var plan = s.planning || [];
+      var filled = plan.filter(function (p) { return p.value; }).length;
+      if (!plan.length) { td.appendChild(el("span", "lgd-prog-empty is-missing", "Belum diisi")); return; }
+      td.appendChild(el("span", "lgd-more-tag " + (filled === plan.length ? "is-ok" : filled ? "is-mid" : "is-no"),
+        filled + "/" + plan.length + " diisi"));
+      var list = el("dl", "lgd-more-plan");
+      plan.forEach(function (p) {
+        list.appendChild(el("dt", null, p.label || "—"));
+        list.appendChild(el("dd", p.value ? null : "lgd-prog-empty is-missing", p.value || "Belum diisi"));
+      });
+      td.appendChild(list);
+    } else {
+      var ada = s.alumniAda !== undefined ? s.alumniAda : !!s.alumni;
+      td.appendChild(ada ? el("p", "lgd-prog-text", s.alumni) : el("span", "lgd-prog-empty", s.alumni || "Tiada maklumat alumni"));
+    }
   }
 
   function progressWidget(rows, branch) {
@@ -357,10 +387,19 @@
       var ua = (a.s.note && a.s.note.text && a.s.note.updated) || "", ub = (b.s.note && b.s.note.text && b.s.note.updated) || "";
       return ub < ua ? -1 : ub > ua ? 1 : 0;
     });
+    var view = progView();
+    // On phones the table header is hidden, so the same dropdown sits above the list.
+    var bar = el("div", "lgd-view-bar");
+    bar.appendChild(el("span", null, "Paparan:"));
+    bar.appendChild(viewSelect());
+    w.appendChild(bar);
     var wrap = el("div", "tbl-wrap");
     var t = el("table", "mtable lgd-prog-table");
     var hr = el("tr");
-    ["Sekolah", "Jenis Legality", "Status Legality", "PIC", "Progress semasa"].forEach(function (h) { hr.appendChild(el("th", null, h)); });
+    ["Sekolah", "Jenis Legality", "Status Legality", "PIC"].forEach(function (h) { hr.appendChild(el("th", null, h)); });
+    var vth = el("th", "lgd-view-th");
+    vth.appendChild(viewSelect());
+    hr.appendChild(vth);
     var th = el("thead"); th.appendChild(hr); t.appendChild(th);
     var tb = el("tbody");
     var now = Date.now();
@@ -401,20 +440,7 @@
       r.appendChild(picTd);
 
       var noteTd = el("td", "lgd-prog-note");
-      var note = x.s.note || {};
-      if (note.text) {
-        noteTd.appendChild(el("p", "lgd-prog-text", note.text));
-        if (note.updated) {
-          var days = Math.floor((now - new Date(note.updated).getTime()) / 86400000);
-          var when = el("small", "lgd-prog-when" + (days >= STALE_DAYS ? " is-stale" : ""),
-            (days >= STALE_DAYS ? "⚠️ " : "") + "Dikemas kini " + ago(note.updated));
-          when.title = new Date(note.updated).toLocaleString("ms-MY", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
-          noteTd.appendChild(when);
-        }
-      } else {
-        noteTd.appendChild(el("span", "lgd-prog-empty is-missing", "Belum ada catatan"));
-      }
-      if (x.s.analisa !== undefined) noteTd.appendChild(moreDetails(x.s));
+      viewCell(noteTd, x.s, view, now);
       r.appendChild(noteTd);
       tb.appendChild(r);
     });
