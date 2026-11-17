@@ -41,13 +41,13 @@ var FASA = [
   { n: 3, name: "Suggest the most suitable package", items: ["Follow up BnW", "Persetujuan (tandatangan) BnW", "Set tarikh untuk program", "Set tarikh next meeting"] },
   { n: 4, name: "Access", items: ["Bentuk kerjasama yang dibuat dengan pihak sekolah", "Pelaksanaan kerjasama yang dibuat (progress)"] },
   { n: 5, name: "Admit", items: ["Berjaya turunkan admin ke program yang dibuat", "Dapatkan feedback program (video)", "Cikgu share program di socmed", "Meeting reporting program kepada cikgu"] },
-  { n: 6, name: "Affirmation", items: ["Dapatkan fix tarikh untuk program legal", "CRM cikgu biasa (Level CRM 1)"] },
+  { n: 6, name: "Affirmation", items: ["Dapatkan fix tarikh untuk program legal"] },
   { n: 7, name: "Activate", items: ["Mula meeting reporting program berkala", "Cikgu join kempen Yosh"] },
   { n: 8, name: "Assign", items: ["Mutarabbi digerakkan untuk CRM sekolah"] },
   { n: 9, name: "Adopt", items: ["Sekolah setuju lanjutkan kontrak legality untuk tahun seterusnya", "Cikgu bagi dan nak join projek dan kempen Yosh"] },
   { n: 10, name: "Advocate", items: ["Admin promote kita kepada sekolah lain", "Admin promote projek kita kepada ibu bapa dan semua staf", "Sekolah support Yosh"] }
 ];
-var FASA_N = FASA.reduce(function (t, f) { return t + f.items.length; }, 0);   // 28 actions
+var FASA_N = FASA.reduce(function (t, f) { return t + f.items.length; }, 0);   // 27 actions ("CRM cikgu biasa" removed from Fasa 6)
 var FASA_LABELS = [].concat.apply([], FASA.map(function (f) { return f.items; }));
 // Old column headings that became other actions: a tick there counts for each of these (BnW split on 2026-11-18).
 var FASA_ALIAS = { "persetujuan melalui draf bnw": ["Persetujuan melalui draf BnW: Program", "Persetujuan melalui draf BnW: Mingguan"] };
@@ -970,7 +970,7 @@ function saveAlumni(body) {
 //  - each school tab is read once (one getValues, markers found from that same block);
 //  - the result is cached for 6 hours and returned at once; after any save it is only marked out of date
 //    ("stale": true) and the admin page fetches a fresh copy in the background.
-var SUMMARY_KEY = "summary8", SUMMARY_STALE = "summaryStale";   // summary8: fasa with the BnW split (28 actions)
+var SUMMARY_KEY = "summary9", SUMMARY_STALE = "summaryStale";   // summary9: fasa with BnW split, Fasa 6 = 1 action (27)
 // The flag holds the time of the last save, so a summary that was already being built before that save does not clear it.
 function markSummaryStale() { CacheService.getScriptCache().put(SUMMARY_STALE, String(Date.now()), 21600); }
 
