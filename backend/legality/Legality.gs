@@ -37,7 +37,7 @@ var DATE_COLS = { crm: [11], planning: [2] };
 var FASA_TAB = "Fasa Legality";
 var FASA = [
   { n: 1, name: "Initial contact", items: ["Dapatkan background sekolah, admin", "Contact pihak sekolah", "Hantar surat / proposal", "Set up meeting bersama pihak sekolah"] },
-  { n: 2, name: "Intelligence gathering", items: ["Perjumpaan bersama pihak sekolah", "Niche / keperluan sekolah", "Persetujuan melalui draf BnW"] },
+  { n: 2, name: "Intelligence gathering", items: ["Perjumpaan bersama pihak sekolah", "Niche / keperluan sekolah", "Persetujuan melalui draf BnW: Program", "Persetujuan melalui draf BnW: Mingguan"] },
   { n: 3, name: "Suggest the most suitable package", items: ["Follow up BnW", "Persetujuan (tandatangan) BnW", "Set tarikh untuk program", "Set tarikh next meeting"] },
   { n: 4, name: "Access", items: ["Bentuk kerjasama yang dibuat dengan pihak sekolah", "Pelaksanaan kerjasama yang dibuat (progress)"] },
   { n: 5, name: "Admit", items: ["Berjaya turunkan admin ke program yang dibuat", "Dapatkan feedback program (video)", "Cikgu share program di socmed", "Meeting reporting program kepada cikgu"] },
@@ -47,7 +47,10 @@ var FASA = [
   { n: 9, name: "Adopt", items: ["Sekolah setuju lanjutkan kontrak legality untuk tahun seterusnya", "Cikgu bagi dan nak join projek dan kempen Yosh"] },
   { n: 10, name: "Advocate", items: ["Admin promote kita kepada sekolah lain", "Admin promote projek kita kepada ibu bapa dan semua staf", "Sekolah support Yosh"] }
 ];
-var FASA_N = FASA.reduce(function (t, f) { return t + f.items.length; }, 0);   // 27 actions
+var FASA_N = FASA.reduce(function (t, f) { return t + f.items.length; }, 0);   // 28 actions
+var FASA_LABELS = [].concat.apply([], FASA.map(function (f) { return f.items; }));
+// Old column headings that became other actions: a tick there counts for each of these (BnW split on 2026-11-18).
+var FASA_ALIAS = { "persetujuan melalui draf bnw": ["Persetujuan melalui draf BnW: Program", "Persetujuan melalui draf BnW: Mingguan"] };
 function fasaLevel(vals) {
   var i = 0, level = 0;
   for (var k = 0; k < FASA.length; k++) {
@@ -58,7 +61,7 @@ function fasaLevel(vals) {
   }
   return level;
 }
-// Tab: A = Sekolah, B.. = 27 checkboxes (row 1 fasa names, row 2 actions), then "Dikemas kini"; data from row 3.
+// Tab: A = Sekolah, B.. = FASA_N checkboxes (row 1 fasa names, row 2 actions), then "Dikemas kini"; data from row 3.
 function fasaSheet(ss, create) {
   var sh = ss.getSheetByName(FASA_TAB);
   if (sh || !create) return sh;
@@ -95,23 +98,66 @@ function fasaSheet(ss, create) {
   sh.getRange(3, FASA_N + 2, 300, 1).setNumberFormat("d mmm yyyy h:mm").setFontColor("#666666");
   return sh;
 }
-// Every school's ticks in one read: { "SMAPK": [bool x27], … }
-function fasaAll(ss) {
-  var sh = fasaSheet(ss, false), out = {};
-  if (!sh || sh.getLastRow() < 3) return out;
-  sh.getRange(3, 1, sh.getLastRow() - 2, FASA_N + 1).getValues().forEach(function (r) {
-    if (text(r[0])) out[text(r[0])] = r.slice(1).map(function (v) { return v === true; });
+// The tab's rows, read by column heading (row 2), so ticks stay with their action even after the list of actions
+// changes: { ok: headings match FASA exactly, rows: [{ name, vals: [bool x FASA_N], updated }] }
+function fasaRead(sh) {
+  var out = { ok: false, rows: [] };
+  if (!sh) return out;
+  var lastCol = sh.getLastColumn(), lastRow = sh.getLastRow();
+  if (lastCol < 2) return out;
+  var head = sh.getRange(1, 1, 2, lastCol).getDisplayValues();
+  var at = {}, upd = -1;
+  for (var c = 1; c < lastCol; c++) {
+    var lab = text(head[1][c]).toLowerCase();
+    if (lab) at[lab] = c;
+    if (/^dikemas kini/i.test(text(head[0][c]))) upd = c;
+  }
+  var cols = FASA_LABELS.map(function (l) { return at[l.toLowerCase()]; });
+  Object.keys(FASA_ALIAS).forEach(function (old) {
+    if (at[old] === undefined) return;
+    FASA_ALIAS[old].forEach(function (l) { var i = FASA_LABELS.indexOf(l); if (i > -1 && cols[i] === undefined) cols[i] = at[old]; });
+  });
+  out.ok = FASA_LABELS.every(function (l, i) { return at[l.toLowerCase()] === i + 1; });
+  if (lastRow < 3) return out;
+  sh.getRange(3, 1, lastRow - 2, lastCol).getValues().forEach(function (r) {
+    if (!text(r[0])) return;
+    out.rows.push({ name: text(r[0]), vals: cols.map(function (c) { return c !== undefined && r[c] === true; }),
+                    updated: upd > -1 && r[upd] instanceof Date ? r[upd] : "" });
   });
   return out;
 }
+// Every school's ticks in one read: { "SMAPK": [bool x FASA_N], … }
+function fasaAll(ss) {
+  var out = {};
+  fasaRead(fasaSheet(ss, false)).rows.forEach(function (row) { out[row.name] = row.vals; });
+  return out;
+}
+// Before writing: if the tab still has an older list of actions, rebuild it in the current layout, keeping every tick.
+function fasaSheetCurrent(ss) {
+  var sh = fasaSheet(ss, false);
+  if (!sh) return fasaSheet(ss, true);
+  var cur = fasaRead(sh);
+  if (cur.ok) return sh;
+  var tmp = ss.getSheetByName(FASA_TAB + " (lama)");
+  if (tmp) ss.deleteSheet(tmp);
+  sh.setName(FASA_TAB + " (lama)");
+  var fresh = fasaSheet(ss, true);
+  if (cur.rows.length) {
+    fresh.getRange(3, 1, cur.rows.length, FASA_N + 2).setValues(cur.rows.map(function (row) {
+      return [row.name].concat(row.vals, [row.updated || ""]);
+    }));
+  }
+  ss.deleteSheet(sh);
+  return fresh;
+}
 function noFasa() { var a = []; for (var i = 0; i < FASA_N; i++) a.push(false); return a; }
 function readFasa(ss, school) { return fasaAll(ss)[school] || noFasa(); }
-/** body: { cawangan, sekolah, values: [bool x27], old: [bool x27] } — same "someone else changed it" check as saveProgress. */
+/** body: { cawangan, sekolah, values: [bool x FASA_N], old: [bool x FASA_N] } — same "someone else changed it" check as saveProgress. */
 function saveFasa(body) {
   var ss = book(body.cawangan);
   var school = text(body.sekolah);
   if (schoolNames(ss).indexOf(school) < 0) throw new Error("Sekolah tidak dijumpai: " + school);
-  var sh = fasaSheet(ss, true);
+  var sh = fasaSheetCurrent(ss);
   var last = sh.getLastRow(), r = 0;
   if (last >= 3) {
     var names = sh.getRange(3, 1, last - 2, 1).getValues().map(function (x) { return text(x[0]); });
@@ -318,7 +364,8 @@ function cachedRead(kind, cawangan, name, build) {
   var id = sheetMap()[c];
   if (!id) return build();
   var cache = CacheService.getScriptCache();
-  var key = (kind + ":" + c + ":" + text(name) + ":" + Utilities.formatDate(new Date(), MOM_TZ, "yyyy-MM-dd")).slice(0, 240);
+  // SUMMARY_KEY changes whenever the data layout changes, so a deploy never serves pages cached by older code
+  var key = (kind + ":" + SUMMARY_KEY + ":" + c + ":" + text(name) + ":" + Utilities.formatDate(new Date(), MOM_TZ, "yyyy-MM-dd")).slice(0, 240);
   var stamp = (cache.get(DATA_GEN) || "0") + "|" + DriveApp.getFileById(id).getLastUpdated().getTime();
   var hit = cache.get(key);
   if (hit) {
@@ -377,24 +424,41 @@ function schoolTeachers(cawangan, sekolah) {
   return out;
 }
 
+// School list of a cawangan (name, CRM people, fasa). Fast path: the admin summary already holds all of it, so
+// when that cache is up to date and has the same schools, no school tab is opened at all.
 function listSchools(cawangan) {
+  var c = text(cawangan).toUpperCase();
   var ss = book(cawangan);
-  var prog = {};
-  var psh = ss.getSheetByName(PROGRESS_TAB);
-  if (psh && psh.getLastRow() >= 2) {
-    psh.getRange(2, 1, psh.getLastRow() - 1, PROGRESS_ITEMS.length + 1).getValues().forEach(function (r) {
-      if (text(r[0])) prog[text(r[0])] = r.slice(1).filter(function (v) { return v === true; }).length;
-    });
-  }
+  var names = schoolNames(ss);
+  var quick = schoolsFromSummary(c, names);
+  if (quick) return quick;
   var fz = fasaAll(ss);
-  var schools = schoolNames(ss).map(function (n) {
+  var schools = names.map(function (n) {
     var sh = ss.getSheetByName(n);
-    var m = markers(sh);
-    var rows = sh.getRange(3, COL.B, m.crmEnd - 2, 3).getValues(); // B, C, D
-    var people = rows.filter(function (r) { return r[1] === true || text(r[2]); }).length;
-    return { name: n, people: people, progress: prog[n] || 0, fasa: fasaLevel(fz[n] || []) };
+    // one read per school: A (section titles) and B..D (CRM: Entiti, Ada, Nama) down to "Alumni Sekolah"
+    var a = sh.getRange(1, 1, Math.max(1, Math.min(sh.getLastRow(), 400)), 4).getValues();
+    var end = a.length;
+    for (var i = 2; i < a.length; i++) if (text(a[i][0]).toLowerCase().indexOf("alumni sekolah") === 0) { end = i; break; }
+    var people = a.slice(2, end).filter(function (r) { return r[2] === true || text(r[3]); }).length;
+    return { name: n, people: people, fasa: fasaLevel(fz[n] || []) };
   });
-  return { cawangan: text(cawangan).toUpperCase(), schools: schools, steps: PROGRESS_ITEMS.length, fasaMax: FASA.length };
+  return { cawangan: c, schools: schools, fasaMax: FASA.length };
+}
+function schoolsFromSummary(c, names) {
+  try {
+    var cache = CacheService.getScriptCache();
+    if (cache.get(SUMMARY_STALE)) return null;
+    var hit = cache.get(SUMMARY_KEY);
+    if (!hit) return null;
+    var cw = JSON.parse(unzipText(hit)).cawangan.filter(function (x) { return x.id === c; })[0];
+    if (!cw || !cw.ready) return null;
+    var by = {};
+    cw.schools.forEach(function (s) { by[s.name] = s; });
+    if (names.some(function (n) { return !by[n]; })) return null;   // a school added since: build it the slow way
+    return { cawangan: c, fasaMax: FASA.length, schools: names.map(function (n) {
+      return { name: n, people: by[n].people, fasa: fasaLevel(by[n].fasa || []) };
+    }) };
+  } catch (e) { return null; }
 }
 
 // ---------- Layout of a school tab ----------
@@ -906,7 +970,7 @@ function saveAlumni(body) {
 //  - each school tab is read once (one getValues, markers found from that same block);
 //  - the result is cached for 6 hours and returned at once; after any save it is only marked out of date
 //    ("stale": true) and the admin page fetches a fresh copy in the background.
-var SUMMARY_KEY = "summary7", SUMMARY_STALE = "summaryStale";   // summary7: + fasa ticks per school (Fasa Legality)
+var SUMMARY_KEY = "summary8", SUMMARY_STALE = "summaryStale";   // summary8: fasa with the BnW split (28 actions)
 // The flag holds the time of the last save, so a summary that was already being built before that save does not clear it.
 function markSummaryStale() { CacheService.getScriptCache().put(SUMMARY_STALE, String(Date.now()), 21600); }
 
