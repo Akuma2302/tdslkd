@@ -1114,20 +1114,6 @@ html.ym-lock { overflow: hidden; }
 }
 
 /* Bot semakan Legality (admin) */
-.lgd-bot .w-head { flex-wrap: wrap; }
-.lgd-bot-lead { color: var(--muted); font-size: 0.85rem; margin: -0.4rem 0 0.8rem; }
-.lgd-bot-tools { margin-bottom: 0.8rem; }
-.lgd-bot-list { display: grid; gap: 0.4rem; }
-.lgd-bot-row { display: grid; grid-template-columns: minmax(110px, 0.8fr) minmax(0, 1fr) minmax(0, 1.6fr); gap: 0.6rem; align-items: center; padding: 0.6rem 0.8rem; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-2); }
-.lgd-bot-pic { color: var(--accent); font-size: 0.85rem; overflow-wrap: anywhere; }
-.lgd-bot-pic.is-none { color: var(--muted); font-style: italic; }
-.lgd-bot-miss { display: flex; flex-wrap: wrap; gap: 0.3rem; }
-.lgd-bot-preview { margin-top: 0.9rem; }
-.lgd-bot-preview summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
-.lgd-bot-preview pre { margin-top: 0.6rem; padding: 0.9rem; border: 1px solid var(--line); border-radius: 10px; background: #0f0f0f; white-space: pre-wrap; font-size: 0.82rem; line-height: 1.5; }
-.lgd-bot-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.8rem; margin-top: 0.9rem; }
-.lgd-bot-note { color: var(--muted); font-size: 0.82rem; }
-@media (max-width: 640px) { .lgd-bot-row { grid-template-columns: 1fr; } }
 
 /* Progress Semasa Legality (school page) */
 .lg-note { min-height: 6.5rem; resize: vertical; line-height: 1.55; }
@@ -1685,3 +1671,55 @@ th.lgd-view-th { padding-bottom: 0.5rem; }
 .lgd-kron-input { width: auto; padding: 0.35rem 0.55rem; font-size: 0.8rem; color-scheme: dark; }
 .lgd-kron-edit .lgd-vid-err { flex-basis: 100%; }
 .lgd-kron-more { justify-self: start; margin-left: 0.55rem; }
+
+/* Admin Legality: sub-tabs (Ringkasan · Perlu Tindakan · Sekolah · Program · Kronologi) */
+.lgd-subtabs {
+  position: relative; display: flex; gap: 0.3rem; margin: 0 0 1rem; padding: 0.3rem; overflow-x: auto; scrollbar-width: none;
+  border: 1px solid var(--line); border-radius: 14px; background: var(--bg-2);
+}
+.lgd-subtabs::-webkit-scrollbar { display: none; }
+.lgd-subtab {
+  flex: 1 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
+  padding: 0.6rem 0.8rem; border: 0; border-radius: 10px; background: none; color: var(--muted);
+  font: inherit; font-size: 0.86rem; font-weight: 700; white-space: nowrap; cursor: pointer; transition: color 0.15s, background 0.15s;
+}
+.lgd-subtab:hover { color: var(--text); background: rgba(255, 255, 255, 0.04); }
+.lgd-subtab[aria-selected="true"] { color: var(--on-accent); background: var(--accent); }
+.lgd-subtab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lgd-subtab-n {
+  min-width: 1.35rem; padding: 0.05rem 0.4rem; border-radius: 999px; text-align: center;
+  background: rgba(255, 255, 255, 0.1); color: var(--text); font-size: 0.68rem; font-variant-numeric: tabular-nums;
+}
+.lgd-subtab-n.is-bad { background: #d93a3a; color: #fff; }
+.lgd-subtab-n.is-acc { background: rgba(255, 195, 0, 0.18); color: var(--accent); }
+.lgd-subtab[aria-selected="true"] .lgd-subtab-n { background: rgba(0, 0, 0, 0.2); color: var(--on-accent); }
+@media (max-width: 600px) {
+  .lgd-subtabs { margin-left: -2px; margin-right: -2px; }
+  .lgd-subtab { flex: 0 0 auto; padding: 0.55rem 0.8rem; font-size: 0.82rem; }
+}
+
+/* Admin Legality: Perlu Tindakan */
+.lgd-act-clear { margin: 0; padding: 1rem; border-radius: 12px; background: rgba(52, 211, 113, 0.1); color: #5be08f; font-weight: 700; }
+.lgd-act-group { margin-top: 0.9rem; }
+.lgd-act-group:first-of-type { margin-top: 0.2rem; }
+.lgd-act-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem; margin: 0 0 0.45rem; font-size: 0.9rem; font-weight: 800; }
+.lgd-act-h small { color: var(--muted); font-size: 0.74rem; font-weight: 500; }
+.lgd-act-n { padding: 0.02rem 0.45rem; border-radius: 999px; background: rgba(255, 107, 107, 0.16); color: #ff8c8c; font-size: 0.7rem; }
+.lgd-act-group.is-soon .lgd-act-n { background: rgba(255, 195, 0, 0.16); color: var(--accent); }
+.lgd-act-row {
+  display: grid; grid-template-columns: minmax(130px, 0.8fr) minmax(0, 2fr) auto; align-items: center; gap: 0.75rem;
+  padding: 0.6rem 0.8rem; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-2); margin-bottom: 0.35rem;
+}
+.lgd-act-school { font-size: 0.85rem; font-weight: 700; }
+.lgd-act-school small { margin-left: 0.4rem; color: var(--muted); font-weight: 500; font-size: 0.72rem; }
+.lgd-act-text { font-size: 0.84rem; color: var(--text); }
+.lgd-act-go {
+  justify-self: end; padding: 0.3rem 0.75rem; border: 1px solid var(--line-2); border-radius: 999px; background: none;
+  color: var(--accent); font: inherit; font-size: 0.75rem; font-weight: 700; text-decoration: none; white-space: nowrap; cursor: pointer;
+}
+.lgd-act-go:hover { border-color: rgba(255, 195, 0, 0.5); background: rgba(255, 195, 0, 0.08); }
+@media (max-width: 600px) {
+  .lgd-act-row { grid-template-columns: minmax(0, 1fr) auto; gap: 0.25rem 0.6rem; }
+  .lgd-act-text { grid-column: 1 / 2; grid-row: 2; }
+  .lgd-act-go { grid-row: 1 / 3; grid-column: 2; }
+}

@@ -160,6 +160,153 @@
     return box;
   }
 
+  // ---------- Sub-tabs ----------
+  // Ringkasan · Perlu Tindakan · Sekolah · Program · Kronologi. The choice is kept on this device and in the
+  // link (#legality/program), so a sub-tab can be opened directly.
+  var SUBS = [
+    { id: "ringkasan", label: "Ringkasan" }, { id: "tindakan", label: "Perlu Tindakan" },
+    { id: "sekolah", label: "Sekolah" }, { id: "program", label: "Program" }, { id: "kronologi", label: "Kronologi" }
+  ];
+  var SUB_KEY = "lgd-sub";
+  function validSub(id) { return SUBS.some(function (s) { return s.id === id; }); }
+  function currentSub() {
+    var h = location.hash.slice(1).split("/");
+    if (h[0] === "legality" && validSub(h[1])) return h[1];
+    var saved = store(SUB_KEY);
+    return validSub(saved) ? saved : "ringkasan";
+  }
+  function setSub(id) {
+    store(SUB_KEY, id);
+    if (location.hash.slice(1).split("/")[0] === "legality") history.replaceState(null, "", "#legality/" + id);
+  }
+
+  function subTabs(sub, rows, branch, redraw) {
+    var nav = el("div", "lgd-subtabs");
+    nav.setAttribute("role", "tablist");
+    nav.setAttribute("aria-label", "Bahagian Legality");
+    var progs = (state.programs || []).filter(function (p) { return branch === ALL || p.cawangan === branch; });
+    var now = today();
+    var weekAgo = Date.now() - 7 * 86400000;
+    var badge = {
+      tindakan: { n: actionItems(rows, branch).length, cls: "is-bad" },
+      sekolah: { n: rows.length },
+      program: { n: progs.filter(function (p) { return progStatus(p, now) === "akan"; }).length, cls: "is-acc", title: "akan datang" },
+      kronologi: { n: (kron.entries || []).filter(function (e) {
+        return (branch === ALL || e.cawangan === branch) && Date.parse(e.dicatat || e.masa) >= weekAgo;
+      }).length, cls: "is-acc", title: "baru minggu ini" }
+    };
+    SUBS.forEach(function (s) {
+      var b = el("button", "lgd-subtab");
+      b.type = "button";
+      b.setAttribute("role", "tab");
+      b.setAttribute("aria-selected", s.id === sub ? "true" : "false");
+      b.appendChild(el("span", null, s.label));
+      var bd = badge[s.id];
+      if (bd && bd.n) {
+        var c = el("span", "lgd-subtab-n " + (bd.cls || ""), String(bd.n));
+        if (bd.title) c.title = bd.n + " " + bd.title;
+        b.appendChild(c);
+      }
+      b.addEventListener("click", function () {
+        if (s.id === sub) return;
+        setSub(s.id);
+        redraw();
+        var top = nav.getBoundingClientRect().top;
+        if (top < 0) nav.scrollIntoView({ block: "start" });
+      });
+      nav.appendChild(b);
+    });
+    // keep the chosen one visible when the row scrolls sideways (phones)
+    setTimeout(function () {
+      var on = nav.querySelector('[aria-selected="true"]');
+      if (!on || nav.scrollWidth <= nav.clientWidth) return;
+      var left = on.offsetLeft, right = left + on.offsetWidth;   // nav is position: relative, so offsets are inside it
+      if (right > nav.scrollLeft + nav.clientWidth) nav.scrollLeft = right - nav.clientWidth + 8;
+      else if (left < nav.scrollLeft) nav.scrollLeft = left - 8;
+    }, 0);
+    return nav;
+  }
+
+  // ---------- Perlu Tindakan ----------
+  // Everything someone should follow up, from the school summaries and the programme list.
+  function daysAgo(iso) { return Math.floor((Date.now() - Date.parse(iso)) / 86400000); }
+  function actionItems(rows, branch) {
+    var out = [];
+    rows.forEach(function (x) {
+      var s = x.s, note = s.note || {};
+      var base = { cawangan: x.cawangan, sekolah: s.name };
+      if (!note.text || !note.updated) out.push(Object.assign({ group: "progress", text: "Progress semasa belum pernah ditulis" }, base));
+      else if (daysAgo(note.updated) >= STALE_DAYS) out.push(Object.assign({ group: "progress", text: "Progress semasa tidak dikemas kini " + daysAgo(note.updated) + " hari" }, base));
+      if (s.planning !== undefined && !(s.planning || []).some(function (p) { return p.perkara; }))
+        out.push(Object.assign({ group: "planning", text: "Planning Legality masih kosong" }, base));
+      if (!(s.pic || []).some(function (p) { return p.username; }))
+        out.push(Object.assign({ group: "pic", text: "PIC Legality belum ditetapkan" }, base));
+    });
+    var now = today();
+    (state.programs || []).forEach(function (p) {
+      if (branch !== ALL && p.cawangan !== branch) return;
+      var st = progStatus(p, now), rg = repGroup(p);
+      var base = { cawangan: p.cawangan, sekolah: p.sekolah, program: p };
+      if (st === "selesai" && rg === "semak") out.push(Object.assign({ group: "report", text: "\"" + p.nama + "\": reporting menunggu kelulusan" }, base));
+      else if (st === "selesai" && (rg === "tiada" || rg === "proses")) {
+        var n = dayDiff(p.tamat || p.mula, now);
+        out.push(Object.assign({ group: "report", text: "\"" + p.nama + "\": reporting belum siap · " + n + " hari selepas program" }, base));
+      }
+      if ((st === "akan" || st === "hari") && /^\d{4}-\d{2}-\d{2}$/.test(p.mula || "") && dayDiff(now, p.mula) <= 7)
+        out.push(Object.assign({ group: "soon", text: "\"" + p.nama + "\": " + (st === "hari" ? "sedang berjalan" : dayDiff(now, p.mula) === 0 ? "hari ini" : dayDiff(now, p.mula) === 1 ? "esok" : dayDiff(now, p.mula) + " hari lagi") }, base));
+    });
+    return out;
+  }
+  var ACTION_GROUPS = [
+    { id: "progress", label: "Progress semasa", hint: "" },   // hint built when drawn (STALE_DAYS is set further down)
+    { id: "report", label: "Reporting program", hint: "Selepas program selesai" },
+    { id: "planning", label: "Planning Legality", hint: "Tiada perkara dirancang" },
+    { id: "pic", label: "PIC Legality", hint: "Bot tidak dapat tag sesiapa" },
+    { id: "soon", label: "Program 7 hari akan datang", hint: "Untuk makluman" }
+  ];
+  function actionWidget(rows, branch) {
+    var items = actionItems(rows, branch);
+    var w = widget("w-4 lgd-act", "Perlu Tindakan", items.length ? items.length + " perkara" : "");
+    if (!items.length) { w.appendChild(el("p", "lgd-act-clear", "✓ Tiada tindakan tertunggak. Semua sekolah terkini.")); return w; }
+    if (!state.programs) w.appendChild(el("p", "empty-text", state.progLoading ? "Memuatkan program… (reporting akan ditambah)" : ""));
+    ACTION_GROUPS.forEach(function (g) {
+      var list = items.filter(function (it) { return it.group === g.id; });
+      if (!list.length) return;
+      var box = el("section", "lgd-act-group is-" + g.id);
+      var h = el("h3", "lgd-act-h");
+      h.appendChild(el("span", null, g.label));
+      h.appendChild(el("span", "lgd-act-n", String(list.length)));
+      h.appendChild(el("small", null, g.id === "progress" ? "Lebih " + STALE_DAYS + " hari tanpa kemas kini" : g.hint));
+      box.appendChild(h);
+      list.forEach(function (it) {
+        var row = el("div", "lgd-act-row");
+        var who = el("span", "lgd-act-school", it.sekolah);
+        if (branch === ALL) who.appendChild(el("small", null, it.cawangan));
+        row.appendChild(who);
+        row.appendChild(el("span", "lgd-act-text", it.text));
+        if (it.program) {
+          var b = el("button", "lgd-act-go", "Lihat program");
+          b.type = "button";
+          b.addEventListener("click", function () {
+            state.progFilter = { q: it.program.nama, status: "", rep: "", month: "" };
+            setSub("program");
+            changed();
+          });
+          row.appendChild(b);
+        } else {
+          var a = el("a", "lgd-act-go", "Buka ↗");
+          a.href = "/legality/database#/" + encodeURIComponent(it.cawangan) + "/" + encodeURIComponent(it.sekolah);
+          a.target = "_blank"; a.rel = "noopener";
+          a.title = "Buka halaman sekolah " + it.sekolah;
+          row.appendChild(a);
+        }
+        box.appendChild(row);
+      });
+      w.appendChild(box);
+    });
+    return w;
+  }
+
   function view(body, branch) {
     body.textContent = "";
     var d = state.data;
@@ -170,7 +317,16 @@
     var aktif = sum(rows.map(function (x) { return x.s.aktif; }));
     var stepCount = items.map(function (it, i) { return rows.filter(function (x) { return x.s.progress[i]; }).length; });
 
+    var sub = currentSub();
+    body.appendChild(subTabs(sub, rows, branch, function () { view(body, branch); }));
     var grid = el("div", "dash-grid");
+    body.appendChild(grid);
+    if (sub === "tindakan") { grid.appendChild(actionWidget(rows, branch)); return; }
+    if (sub === "program") { grid.appendChild(programWidget(branch)); return; }
+    if (sub === "kronologi") { grid.appendChild(kronologiWidget(branch)); return; }
+    if (sub === "sekolah") { schoolTab(grid, rows, branch, items); return; }
+
+    // Ringkasan
     grid.appendChild(stat("Sekolah", String(n), branch === ALL ? "Dalam " + d.cawangan.filter(function (c) { return c.schools.length; }).length + " cawangan" : "Cawangan " + branch, true));
     grid.appendChild(stat("Orang CRM", String(people), aktif + " ditanda Ada (CRM aktif)"));
     grid.appendChild(stat("Set Meeting", stepCount[0] + "/" + n, pct(stepCount[0], n) + "% sekolah sudah set tarikh meeting"));
@@ -223,8 +379,11 @@
       bw.appendChild(wrap);
       grid.appendChild(bw);
     }
+  }
 
-    // Checklist Legality Semasa: the 6 steps of each school (green = done)
+  // Sub-tab Sekolah: Checklist Legality Semasa (the 6 steps of each school, green = done) + Progress dan Status.
+  function schoolTab(grid, rows, branch, items) {
+    var n = rows.length;
     var mw = widget("w-4", "Checklist Legality Semasa", n + " sekolah");
     if (!n) {
       mw.appendChild(el("p", "empty-text", "Belum ada sekolah untuk paparan ini."));
@@ -266,11 +425,6 @@
     }
     grid.appendChild(mw);
     grid.appendChild(progressWidget(rows, branch));
-
-    grid.appendChild(programWidget(branch));
-    grid.appendChild(kronologiWidget(branch));
-    grid.appendChild(botWidget());
-    body.appendChild(grid);
   }
 
   // Progress Legality Sekolah: Sekolah · PIC (opens their Telegram) · Progress semasa written on the school page.
@@ -501,91 +655,6 @@
     return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
   }
 
-  // Bot "Legality Tds Tengah": which TENGAH schools still have empty sections, and the message the bot sends.
-  var bot = { data: null, loading: false, error: "", sending: false, note: "" };
-  function botWidget() {
-    var w = widget("w-4 lgd-bot", "Bot semakan Legality · TENGAH", "Planning & Peluang Lain Tahun Depan");
-    w.appendChild(el("p", "lgd-bot-lead",
-      "Bot menyemak setiap sekolah TENGAH. Jika bahagian di atas masih kosong, bot menghantar mesej ke group dan tag PIC Legality sekolah itu."));
-    var tools = el("div", "lgd-bot-tools");
-    var check = el("button", "link-btn", bot.data ? "Semak semula" : "Semak sekarang");
-    check.type = "button";
-    check.disabled = bot.loading;
-    check.addEventListener("click", function () {
-      bot.loading = true; bot.error = ""; bot.note = ""; changed();
-      Api.get({ action: "reminder", cawangan: "TENGAH" })
-        .then(function (d) { bot.data = d; })
-        .catch(function (e) { bot.error = e.message || String(e); })
-        .then(function () { bot.loading = false; changed(); });
-    });
-    tools.appendChild(check);
-    w.appendChild(tools);
-
-    if (bot.loading) { w.appendChild(el("p", "empty-text", "Menyemak semua sekolah TENGAH…")); return w; }
-    if (bot.error) { w.appendChild(el("p", "report-warning", "Tidak dapat menyemak: " + bot.error)); return w; }
-    if (!bot.data) return w;
-
-    var d = bot.data;
-    if (!d.gaps.length) { w.appendChild(el("p", "empty-text", "Semua sekolah TENGAH sudah lengkap. Bot tidak akan hantar mesej.")); return w; }
-
-    var list = el("div", "lgd-bot-list");
-    d.gaps.forEach(function (g) {
-      var row = el("div", "lgd-bot-row");
-      var who = g.pics.filter(function (p) { return p.username; }).map(function (p) { return "@" + p.username; }).join(" ");
-      var name = el("strong", null, g.sekolah);
-      row.appendChild(name);
-      row.appendChild(el("span", "lgd-bot-pic" + (who ? "" : " is-none"), who || "PIC belum ditetapkan"));
-      var miss = el("span", "lgd-bot-miss");
-      g.missing.forEach(function (m) { miss.appendChild(el("span", "lgd-tg is-fail", m)); });
-      row.appendChild(miss);
-      list.appendChild(row);
-    });
-    w.appendChild(list);
-
-    var det = el("details", "lgd-bot-preview");
-    det.appendChild(el("summary", null, "Pratonton mesej bot"));
-    det.appendChild(el("pre", null, d.text));
-    w.appendChild(det);
-
-    // Sending goes through the Netlify function (backend/program/semak-legality.mjs), which holds the
-    // bot token (LEGALITY_BOT_TENGAH) and posts to the Program Tengah group.
-    function botCall(mode) {
-      return fetch("/.netlify/functions/semak-legality", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kod: Api.getKod(), cawangan: "TENGAH", mode: mode })
-      }).then(function (r) {
-        return r.json().catch(function () { return { ok: false, error: "HTTP " + r.status }; });
-      }).then(function (r) { if (!r.ok) throw new Error(r.error || "Gagal"); return r; });
-    }
-    var test = el("button", "link-btn", "Semak sambungan bot");
-    test.type = "button";
-    test.disabled = bot.sending;
-    test.addEventListener("click", function () {
-      bot.sending = true; bot.note = "Menyemak bot…"; changed();
-      botCall("check")
-        .then(function (r) { bot.note = "✓ " + r.bot + " dalam group \"" + r.group + "\" (" + r.status + "). Sedia untuk hantar."; })
-        .catch(function (e) { bot.note = "✕ " + (e.message || e); })
-        .then(function () { bot.sending = false; changed(); });
-    });
-    var send = el("button", "borang-submit lg-btn-sm", bot.sending ? "Sila tunggu…" : "Hantar ke group");
-    send.type = "button";
-    send.disabled = bot.sending;
-    send.addEventListener("click", function () {
-      if (!confirm("Hantar mesej ini ke group Program Tengah sekarang? Ahli group akan nampak dan PIC akan di-tag.")) return;
-      bot.sending = true; bot.note = ""; changed();
-      botCall("send")
-        .then(function (r) { bot.note = r.sent ? "✓ Mesej dihantar (" + r.schools + " sekolah)." : (r.reason || "Tiada mesej dihantar."); })
-        .catch(function (e) { bot.note = "✕ Gagal: " + (e.message || e); })
-        .then(function () { bot.sending = false; changed(); });
-    });
-    var act = el("div", "lgd-bot-actions");
-    act.appendChild(send);
-    act.appendChild(test);
-    if (bot.note) act.appendChild(el("span", "lgd-bot-note", bot.note));
-    w.appendChild(act);
-    return w;
-  }
-
   // Programme status from its dates (reporting "Dibatalkan" = the PIC said it did not run).
   var PROG_STATUS = [
     { id: "akan", label: "Akan datang" }, { id: "hari", label: "Sedang berjalan" },
@@ -619,6 +688,7 @@
     if (s === "Dibatalkan") return "batal";
     return "proses";
   }
+
 
   // ---------- Kronologi ----------
   // Timeline of Progress semasa updates, grouped by day, newest first. The date/time of each entry can be changed.

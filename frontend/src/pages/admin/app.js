@@ -266,6 +266,7 @@
 
   function select(id, opts) {
     opts = opts || {};
+    id = String(id || "").split("/")[0];   // "#legality/program": unit, then a sub-tab the unit view reads itself
     var found = units.some(function (u) { return u.id === id; });
     if (!found) id = units[0] && units[0].id;
     if (!id) return;
@@ -279,7 +280,7 @@
         t.scrollIntoView({ block: "nearest", inline: "center", behavior: reduced ? "auto" : "smooth" });
       }
     });
-    if (opts.push !== false && location.hash !== "#" + id) {
+    if (opts.push !== false && location.hash.split("/")[0] !== "#" + id) {
       history.replaceState(null, "", "#" + id);
     }
     var u = units.filter(function (x) { return x.id === id; })[0];
