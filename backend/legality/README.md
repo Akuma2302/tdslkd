@@ -78,7 +78,7 @@ Semakan dibuat oleh Apps Script (tindakan `reminder`, kod admin sahaja). Mesej d
 
 Persediaan (sekali sahaja), dalam **Netlify → tdslkd → Environment variables**:
 - `LEGALITY_BOT_TENGAH`: token bot Legality Tds Tengah (dari @BotFather).
-- `LEGALITY_BOT_CHAT` (pilihan): id group; untuk PICO, jika tiada, group **Mas'ulah & PIC Legality TDS Tengah** (`-1002078197579`) topik 3348 digunakan (`LEGALITY_BOT_THREAD` untuk topik lain).
+- `LEGALITY_BOT_CHAT` (pilihan): id group; untuk PICO, jika tiada, group **Mas'ulah & PIC Legality TDS Tengah** (`-1002078197579`) topik 3348 digunakan untuk peringatan dan ringkasan (`LEGALITY_BOT_THREAD` untuk topik lain), dan topik 5195 untuk screenshot checklist (`LEGALITY_BOT_PHOTO_THREAD` untuk topik lain).
 - Selepas menukarnya, buat **Trigger deploy**.
 
 Guna: **Admin → Legality → Bot semakan Legality** → *Semak sekarang* (pratonton) → *Semak sambungan bot* (pastikan bot dalam group, tiada mesej) → *Hantar ke group*.
@@ -89,7 +89,7 @@ Bahagian lain boleh ditambah dalam `BOT_CHECKS` dalam `Legality.gs`.
 
 - Halaman sekolah (cawangan dalam `WEEKLY_CAWANGAN`, buat masa ini TENGAH) ada section **Checklist Mingguan** di atas Checklist Progress. Minggu = Isnin–Ahad (waktu Malaysia); kosong semula setiap Isnin.
 - Item dalam `WEEKLY_ITEMS` (sekarang: **PM cikgu**). PIC tanda dengan memuat naik **screenshot** sebagai bukti — satu setiap sekolah seminggu. Rekod dalam tab **Checklist Mingguan** sheet cawangan (Minggu, Sekolah, Item, PIC, Screenshot, File ID, Masa, Telegram); gambar dalam folder Drive Gambar.
-- Bot **PICO** = bot `LEGALITY_BOT_TENGAH` (token dalam Netlify), group **Mas'ulah & PIC Legality TDS Tengah**, topik t.me/c/2078197579/3348, melalui fungsi Netlify `pico`:
+- Bot **PICO** = bot `LEGALITY_BOT_TENGAH` (token dalam Netlify), group **Mas'ulah & PIC Legality TDS Tengah**, topik t.me/c/2078197579/3348 (peringatan & ringkasan) dan t.me/c/2078197579/5195 (screenshot), melalui fungsi Netlify `pico`:
   - screenshot baru dihantar ke group sebaik dimuat naik;
   - **Isnin–Jumaat 8 pagi**: tag PIC sekolah yang belum selesai (tiada mesej jika semua sudah);
   - **Sabtu 8 pagi**: ringkasan minggu itu — selesai / gagal (gagal = belum ditanda sebelum Jumaat 23:59).

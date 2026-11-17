@@ -12,12 +12,14 @@
 // Environment variables (Netlify → Site configuration → Environment variables):
 //   LEGALITY_BOT_TENGAH   bot token                                       (required)
 //   LEGALITY_BOT_CHAT     group chat id (optional; default: Mas'ulah & PIC Legality TDS Tengah)
-//   LEGALITY_BOT_THREAD   topic id inside that group (optional; default: 3348, t.me/c/2078197579/3348)
+//   LEGALITY_BOT_THREAD   topic for the reminders and the weekly summary (optional; default: 3348, t.me/c/2078197579/3348)
+//   LEGALITY_BOT_PHOTO_THREAD  topic for the screenshots ("✅ PM cikgu · …") (optional; default: 5195, t.me/c/2078197579/5195)
 //   DRY_RUN=1             show the messages, send and mark nothing
 
 const LEGALITY_API = 'https://script.google.com/macros/s/AKfycbw2jxiYTQ0bu0C1c9-EvOQh7BW8SgD5fP3tjFjxu-UcWeBCuykc3pZeu4e3F1S86UH3iw/exec';
 const DEFAULT_CHAT = '-1002078197579'; // "Mas'ulah & PIC Legality TDS Tengah"
-const DEFAULT_THREAD = 3348;            // its topic for PICO (t.me/c/2078197579/3348)
+const DEFAULT_THREAD = 3348;            // its topic for PICO reminders + weekly summary (t.me/c/2078197579/3348)
+const DEFAULT_PHOTO_THREAD = 5195;      // its topic for the checklist screenshots (t.me/c/2078197579/5195)
 
 const json = (status, body) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -77,6 +79,7 @@ export default async (req) => {
   const token = process.env.LEGALITY_BOT_TENGAH;
   const chat = process.env.LEGALITY_BOT_CHAT || DEFAULT_CHAT;
   const thread = Number(process.env.LEGALITY_BOT_THREAD || DEFAULT_THREAD);
+  const photoThread = Number(process.env.LEGALITY_BOT_PHOTO_THREAD || DEFAULT_PHOTO_THREAD);
   if (!token && !dryRun) return json(500, { ok: false, error: 'LEGALITY_BOT_TENGAH belum ditetapkan dalam Netlify.' });
 
   let claim;
@@ -95,7 +98,7 @@ export default async (req) => {
   let sent = 0;
   const failed = [];
   for (const job of jobs) {
-    try { await send(token, chat, thread, job); sent++; }
+    try { await send(token, chat, job.type === 'photo' ? photoThread : thread, job); sent++; }
     catch (e) { failed.push({ refs: job.refs, error: e.message }); }
   }
   if (failed.length) await api({ action: 'picoRelease', kod, refs: failed.flatMap((f) => f.refs) }).catch(() => {});
