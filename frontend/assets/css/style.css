@@ -285,25 +285,6 @@ h1, h2, p { margin: 0; }
 .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; border-radius: 10px; }
 
 .side-actions { display: none; }   /* phones only, see max-width: 600px */
-.menu-btn {
-  display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0.85rem;
-  border: 1px solid var(--line-2); border-radius: 999px; background: rgba(255, 255, 255, 0.03);
-  color: var(--text); font-family: var(--display); font-size: 0.72rem; font-weight: 700;
-  letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer;
-}
-.menu-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.menu-btn-icon, .menu-btn-icon::before, .menu-btn-icon::after {
-  display: block; width: 14px; height: 2px; border-radius: 2px; background: var(--accent);
-  transition: transform 0.2s ease, opacity 0.2s ease;
-}
-.menu-btn-icon { position: relative; }
-.menu-btn-icon::before, .menu-btn-icon::after { content: ""; position: absolute; left: 0; }
-.menu-btn-icon::before { top: -5px; }
-.menu-btn-icon::after { top: 5px; }
-.menu-btn[aria-expanded="true"] .menu-btn-icon { background: transparent; }
-.menu-btn[aria-expanded="true"] .menu-btn-icon::before { transform: translateY(5px) rotate(45deg); }
-.menu-btn[aria-expanded="true"] .menu-btn-icon::after { transform: translateY(-5px) rotate(-45deg); }
-
 .side-foot {
   margin-top: auto; padding: 1.25rem;
   font-family: var(--display); font-weight: 700; font-size: 0.58rem; line-height: 1.9;
@@ -618,17 +599,29 @@ th[aria-sort="descending"] .sort::after { content: " ↓"; color: var(--accent);
   }
   .app { grid-template-columns: none; }
   /* One header row: logo left, Menu + Log keluar right; the unit list drops down underneath. */
-  .side { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
-  .brand { padding: 10px 12px 10px 16px; min-width: 0; }
+  /* Same as the user portal navbar on phones (chrome.css .site-nav): 60px bar, logo left, Log keluar + square ☰ right,
+     the unit list opens as a panel over the page. */
+  .side { display: flex; flex-direction: row; align-items: center; gap: 0.75rem; height: 60px; padding: 0 16px; }
+  .brand { padding: 0; min-width: 0; }
   .brand-logo { height: 30px; }
   .brand-sub { display: none; }
-  .side-actions { display: flex; align-items: center; gap: 0.4rem; padding-right: 12px; }
-  .side-actions .logout-btn { padding: 0.45rem 0.8rem; font-size: 0.78rem; }
+  .side-actions { display: flex; align-items: center; gap: 0.75rem; margin-left: auto; }
+  .side-actions .site-logout { padding: 0.45rem 0.8rem; font-size: 0.8rem; }
+  .side-actions .site-burger {
+    display: grid; place-content: center; gap: 4px; width: 42px; height: 42px;
+    border: 1px solid var(--line-2); border-radius: 12px; background: transparent; cursor: pointer;
+  }
+  .side-actions .site-burger span { display: block; width: 18px; height: 2px; border-radius: 2px; background: var(--text); transition: transform 0.2s, opacity 0.2s; }
+  .side.menu-open .site-burger span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+  .side.menu-open .site-burger span:nth-child(2) { opacity: 0; }
+  .side.menu-open .site-burger span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+  .side-actions .site-burger:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .topbar .logout-btn { display: none; }
   .side-foot, .tab-group { display: none; }
   .tabs {
-    grid-column: 1 / -1; display: none; flex-direction: column; padding: 0.35rem 8px 0.75rem;
-    border-top: 1px solid var(--line);
+    position: absolute; top: 100%; left: 0; right: 0; display: none; flex-direction: column;
+    padding: 0.5rem 16px 1rem; max-height: calc(100vh - 60px); overflow-y: auto;
+    background: #0b0b0b; border-bottom: 1px solid var(--line); box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
   }
   .side.menu-open .tabs { display: flex; }
   .tab { gap: 0.75rem; padding: 0.8rem 0.9rem; border-radius: 12px; }

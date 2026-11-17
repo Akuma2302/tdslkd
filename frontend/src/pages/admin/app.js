@@ -284,13 +284,11 @@
     }
     var u = units.filter(function (x) { return x.id === id; })[0];
     document.title = u.name + " — Yosh Junior";
-    if (menuCur) menuCur.textContent = shortName(u);
   }
 
   // Phones: the menu button at the top right opens the unit list under the header.
   var side = document.querySelector(".side");
   var menuBtn = document.getElementById("menuBtn");
-  var menuCur = document.getElementById("menuCur");
   function setMenu(open) {
     if (!menuBtn) return;
     side.classList.toggle("menu-open", open);
