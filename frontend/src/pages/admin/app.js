@@ -24,6 +24,27 @@
   }
 
   function pad(n) { return n < 10 ? "0" + n : "" + n; }
+
+  // Line icons for the sidebar (24×24, stroke = currentColor). Unit views can use them too (window.SIDE_ICON).
+  var UNIT_ICONS = {
+    overall: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
+    murabbi: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
+    mutarabbi: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M19 8v6M22 11h-6",
+    legality: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10M9 12l2 2 4-4",
+    virality: "M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14",
+    tls: "M22 10 12 5 2 10l10 5 10-5zM6 12v5c3 2 9 2 12 0v-5",
+    _: "M4 4h16v16H4z"
+  };
+  function icon(d) {
+    var s = document.createElementNS(SVG, "svg");
+    s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("width", "18"); s.setAttribute("height", "18");
+    s.setAttribute("fill", "none"); s.setAttribute("stroke", "currentColor"); s.setAttribute("stroke-width", "1.8");
+    s.setAttribute("stroke-linecap", "round"); s.setAttribute("stroke-linejoin", "round"); s.setAttribute("aria-hidden", "true");
+    s.setAttribute("class", "tab-icon");
+    var p = document.createElementNS(SVG, "path"); p.setAttribute("d", d); s.appendChild(p);
+    return s;
+  }
+  window.SIDE_ICON = icon;
   var views = window.UNIT_VIEWS || {};
   function count(u) {
     var v = views[u.id];
@@ -206,7 +227,7 @@
     tab.setAttribute("aria-selected", "false");
     tab.tabIndex = -1;
     tab.dataset.unit = u.id;
-    tab.appendChild(el("span", "tab-num", u.overview ? "✦" : pad(i + 1)));
+    tab.appendChild(icon(UNIT_ICONS[u.id] || UNIT_ICONS._));
     tab.appendChild(el("span", "tab-name", shortName(u)));
     tablist.appendChild(tab);
 
@@ -285,6 +306,13 @@
     }
     var u = units.filter(function (x) { return x.id === id; })[0];
     document.title = u.name + " — Yosh Junior";
+    // Extra sidebar groups of the open unit (e.g. Legality: Cawangan picker + its sub-tabs)
+    var sideSub = document.getElementById("sideSub");
+    if (sideSub && sideSub.dataset.unit !== id) {
+      sideSub.textContent = "";
+      sideSub.dataset.unit = id;
+      if (views[id] && views[id].sidebar) views[id].sidebar(sideSub);
+    }
   }
 
   // Phones: the menu button at the top right opens the unit list under the header.
@@ -336,6 +364,17 @@
   var searchBox = document.getElementById("search");
   var searchInput = document.getElementById("searchInput");
   var searchResults = document.getElementById("searchResults");
+
+  // Wide screens: the search sits at the top of the sidebar; phones keep it in the top bar.
+  var sideSearch = document.getElementById("sideSearch");
+  var topbar = document.querySelector(".topbar");
+  var wideMq = window.matchMedia("(min-width: 601px)");
+  function placeSearch() {
+    var target = wideMq.matches && sideSearch ? sideSearch : topbar;
+    if (target && searchBox.parentNode !== target) target.insertBefore(searchBox, target.firstChild);
+  }
+  placeSearch();
+  if (wideMq.addEventListener) wideMq.addEventListener("change", placeSearch); else wideMq.addListener(placeSearch);
 
   var index = [];
   units.forEach(function (u) {

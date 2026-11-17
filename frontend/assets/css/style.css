@@ -1723,3 +1723,43 @@ th.lgd-view-th { padding-bottom: 0.5rem; }
   .lgd-act-text { grid-column: 1 / 2; grid-row: 2; }
   .lgd-act-go { grid-row: 1 / 3; grid-column: 2; }
 }
+
+/* Admin sidebar, console style: search on top, plain group labels, icon + label rows, soft highlight,
+   and the open unit's own groups underneath (Legality: Cawangan picker + sub-tabs). */
+.side-search { padding: 0 10px 4px; }
+.side-search .search { width: 100%; }
+.side-search .search input { padding: 0.55rem 0; font-size: 0.86rem; }
+.tab-group {
+  padding: 0.95rem 1.1rem 0.35rem; font-family: var(--sans); font-size: 0.72rem; font-weight: 600;
+  letter-spacing: 0.02em; text-transform: none; color: var(--muted);
+}
+.tab {
+  margin: 0 8px; padding: 0.5rem 0.7rem; gap: 0.65rem; border-radius: 10px;
+  font-family: var(--sans); font-size: 0.88rem; font-weight: 500; letter-spacing: 0; text-transform: none;
+}
+.tab::before { display: none; }
+.tab-icon { flex: none; opacity: 0.75; }
+.tab:hover { background: rgba(255, 255, 255, 0.05); }
+.tab[aria-selected="true"], .side-subtab[aria-current="page"] { color: var(--text); background: rgba(255, 255, 255, 0.08); }
+.tab[aria-selected="true"] .tab-icon, .side-subtab[aria-current="page"] .tab-icon { color: var(--accent); opacity: 1; }
+.side-sub { padding-bottom: 0.75rem; }
+.side-subtab { width: calc(100% - 16px); }
+.side-subtab .lgd-subtab-n { margin-left: auto; }
+.side-select {
+  display: flex; align-items: center; gap: 0.55rem; margin: 0.1rem 8px 0.2rem; padding: 0 0.6rem;
+  border: 1px solid var(--line-2); border-radius: 10px; background: var(--card); color: var(--muted);
+}
+.side-select:focus-within { border-color: var(--accent); }
+.side-select select {
+  flex: 1; min-width: 0; padding: 0.55rem 0; border: 0; outline: 0; background: none; color: var(--text);
+  font: inherit; font-size: 0.86rem; font-weight: 600; cursor: pointer; color-scheme: dark;
+}
+@media (min-width: 601px) {
+  .lgd-subtabs, .lgd-branch-pick { display: none; }   /* both are in the sidebar on wide screens */
+}
+@media (max-width: 600px) {
+  .side-search, .side-sub { display: none; }
+  .tab { margin: 0; padding: 0.8rem 0.9rem; }   /* bigger touch rows in the phone menu */
+}
+.side { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.12) transparent; }
+.side:has(.side-sub:not(:empty)) .side-foot { display: none; }   /* room for the unit's own groups */

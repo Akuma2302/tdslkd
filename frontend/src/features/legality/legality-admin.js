@@ -180,14 +180,11 @@
     if (location.hash.slice(1).split("/")[0] === "legality") history.replaceState(null, "", "#legality/" + id);
   }
 
-  function subTabs(sub, rows, branch, redraw) {
-    var nav = el("div", "lgd-subtabs");
-    nav.setAttribute("role", "tablist");
-    nav.setAttribute("aria-label", "Bahagian Legality");
+  function subBadges(rows, branch) {
     var progs = (state.programs || []).filter(function (p) { return branch === ALL || p.cawangan === branch; });
     var now = today();
     var weekAgo = Date.now() - 7 * 86400000;
-    var badge = {
+    return {
       tindakan: { n: actionItems(rows, branch).length, cls: "is-bad" },
       sekolah: { n: rows.length },
       program: { n: progs.filter(function (p) { return progStatus(p, now) === "akan"; }).length, cls: "is-acc", title: "akan datang" },
@@ -195,22 +192,33 @@
         return (branch === ALL || e.cawangan === branch) && Date.parse(e.dicatat || e.masa) >= weekAgo;
       }).length, cls: "is-acc", title: "baru minggu ini" }
     };
+  }
+  function badgeEl(bd) {
+    if (!bd || !bd.n) return null;
+    var c = el("span", "lgd-subtab-n " + (bd.cls || ""), String(bd.n));
+    if (bd.title) c.title = bd.n + " " + bd.title;
+    return c;
+  }
+
+  // In-page sub-tab row (phones; on wide screens the same choices are in the sidebar).
+  function subTabs(sub, rows, branch, redraw) {
+    var nav = el("div", "lgd-subtabs");
+    nav.setAttribute("role", "tablist");
+    nav.setAttribute("aria-label", "Bahagian Legality");
+    var badge = subBadges(rows, branch);
     SUBS.forEach(function (s) {
       var b = el("button", "lgd-subtab");
       b.type = "button";
       b.setAttribute("role", "tab");
       b.setAttribute("aria-selected", s.id === sub ? "true" : "false");
       b.appendChild(el("span", null, s.label));
-      var bd = badge[s.id];
-      if (bd && bd.n) {
-        var c = el("span", "lgd-subtab-n " + (bd.cls || ""), String(bd.n));
-        if (bd.title) c.title = bd.n + " " + bd.title;
-        b.appendChild(c);
-      }
+      var c = badgeEl(badge[s.id]);
+      if (c) b.appendChild(c);
       b.addEventListener("click", function () {
         if (s.id === sub) return;
         setSub(s.id);
         redraw();
+        drawSide();
         var top = nav.getBoundingClientRect().top;
         if (top < 0) nav.scrollIntoView({ block: "start" });
       });
@@ -226,6 +234,61 @@
     }, 0);
     return nav;
   }
+
+  // ---------- Sidebar (wide screens) ----------
+  // Under the unit list: "Cawangan" picker (like a branch switcher) and the "Legality" sub-tabs with icons and badges.
+  var SUB_ICONS = {
+    ringkasan: "M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z",
+    tindakan: "M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0",
+    sekolah: "M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6M12 10h.01",
+    program: "M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2",
+    kronologi: "M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"
+  };
+  var sideHost = null;
+  function currentBranch() {
+    var b = store("legalityBranch");
+    return b && state.data && state.data.cawangan.some(function (c) { return c.id === b; }) ? b : ALL;
+  }
+  function drawSide() {
+    if (!sideHost || sideHost.dataset.unit !== "legality") return;
+    sideHost.textContent = "";
+    if (!state.data) return;
+    var branch = currentBranch();
+    sideHost.appendChild(el("p", "tab-group", "Cawangan"));
+    var wrap = el("label", "side-select");
+    var sel = el("select");
+    sel.setAttribute("aria-label", "Cawangan");
+    var all = el("option", null, "Semua cawangan"); all.value = ALL; sel.appendChild(all);
+    state.data.cawangan.forEach(function (c) {
+      var o = el("option", null, c.id + (c.schools.length ? " · " + c.schools.length : "")); o.value = c.id; sel.appendChild(o);
+    });
+    sel.value = branch;
+    sel.addEventListener("change", function () { store("legalityBranch", sel.value); changed(); });
+    if (window.SIDE_ICON) wrap.appendChild(window.SIDE_ICON("M6 3v12M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6M18 9a9 9 0 0 1-9 9"));
+    wrap.appendChild(sel);
+    sideHost.appendChild(wrap);
+
+    sideHost.appendChild(el("p", "tab-group", "Legality"));
+    var sub = currentSub();
+    var badge = subBadges(schoolsFor(branch), branch);
+    SUBS.forEach(function (s) {
+      var b = el("button", "tab side-subtab");
+      b.type = "button";
+      if (s.id === sub) b.setAttribute("aria-current", "page");
+      if (window.SIDE_ICON) b.appendChild(window.SIDE_ICON(SUB_ICONS[s.id]));
+      b.appendChild(el("span", "tab-name", s.label));
+      var c = badgeEl(badge[s.id]);
+      if (c) b.appendChild(c);
+      b.addEventListener("click", function () {
+        setSub(s.id);
+        changed();
+        window.scrollTo(0, 0);
+      });
+      sideHost.appendChild(b);
+    });
+  }
+  function sidebar(host) { sideHost = host; drawSide(); }
+  listeners.push(drawSide);
 
   // ---------- Perlu Tindakan ----------
   // Everything someone should follow up, from the school summaries and the programme list.
@@ -1105,7 +1168,7 @@
       meta.textContent = state.loading ? "Mengemas kini…" :
         "Data dikemas kini " + gen.toLocaleString("ms-MY", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
-      var label = el("label", "month-pick");
+      var label = el("label", "month-pick lgd-branch-pick");   // phones; wide screens use the sidebar picker
       label.appendChild(el("span", null, "Cawangan"));
       var select = el("select");
       var all = el("option", null, "Semua cawangan");
@@ -1138,7 +1201,7 @@
         linkBox.appendChild(links(select.value));
         view(body, select.value);
       }
-      select.addEventListener("change", function () { store("legalityBranch", select.value); draw(); });
+      select.addEventListener("change", function () { store("legalityBranch", select.value); draw(); drawSide(); });
       draw();
     }
 
@@ -1155,6 +1218,7 @@
   window.UNIT_VIEWS = window.UNIT_VIEWS || {};
   window.UNIT_VIEWS.legality = {
     render: render,
+    sidebar: sidebar,
     count: function () { return totals().schools; },
     describe: function () { var t = totals(); return t.schools + " sekolah · " + t.people + " CRM"; }
   };
