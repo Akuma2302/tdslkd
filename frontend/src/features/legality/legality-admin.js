@@ -867,7 +867,8 @@
     }
   }
 
-  // Sub-tab Sekolah: Checklist Fasa Legality (row 1 fasa, row 2 actions, green = done) + Progress dan Status.
+  // Sub-tab Sekolah: Checklist Fasa Legality as a compact matrix — every action of every fasa visible at once as a
+  // small numbered box (1.1 … 10.3), the next fasa of each school outlined, totals per school and % done per action.
   function schoolTab(grid, rows, branch) {
     var n = rows.length, phases = fasaPhases();
     var mw = widget("w-4 lgd-fasa-w", "Checklist Fasa Legality", n + " sekolah");
@@ -877,75 +878,132 @@
       grid.appendChild(progressWidget(rows, branch));
       return;
     }
-    // Schools per fasa, as pills
+    // flat list of actions: { f (fasa), j (number inside the fasa), label, k (index) }
+    var acts = [], k0 = 0;
+    phases.forEach(function (f) { f.items.forEach(function (label, j) { acts.push({ f: f, j: j + 1, label: label, k: k0++ }); }); });
+    var N = acts.length;
+    var levels = rows.map(function (x) { return fasaLevelOf(x.s.fasa); });
+
+    // Schools per fasa
     var counts = fasaCounts(rows);
     var pills = el("div", "lgd-fasa-pills");
     pills.appendChild(el("span", "lgd-fasa-pills-label", "Bilangan sekolah ikut fasa:"));
     counts.forEach(function (k, lvl) {
-      var p = el("span", "lgd-fasa-pill" + (k ? " is-on" : ""), "Fasa " + lvl + " · " + k);
-      if (lvl) p.title = "Fasa " + lvl + " · " + phases[lvl - 1].name;
+      var p = el("span", "lgd-fasa-pill" + (k ? " is-on" : ""), "F" + lvl + " · " + k);
+      p.title = lvl ? "Fasa " + lvl + " · " + phases[lvl - 1].name + ": " + k + " sekolah" : "Fasa 0 · Belum bermula: " + k + " sekolah";
       pills.appendChild(p);
     });
     mw.appendChild(pills);
 
-    var mwrap = el("div", "lgd-matrix-wrap lgd-fasa-wrap");
-    var m = el("table", "lgd-matrix lgd-fasa-table");
+    // Caption: what the hovered column / box is
+    var cap = el("p", "lgd-mx-cap", "Halakan pada kotak atau nombor untuk lihat nama tindakan.");
+    mw.appendChild(cap);
+    var doneBy = acts.map(function (a) { return rows.filter(function (x) { return (x.s.fasa || [])[a.k] === true; }).length; });
+    function capFor(a, school, v) {
+      cap.textContent = "";
+      cap.appendChild(el("strong", null, a.f.n + "." + a.j + " · " + a.label));
+      cap.appendChild(document.createTextNode(school
+        ? " — " + school + ": " + (v ? "dah buat" : "belum")
+        : " — " + doneBy[a.k] + "/" + n + " sekolah (" + pct(doneBy[a.k], n) + "%)"));
+    }
+
+    var wrap = el("div", "lgd-mx-wrap");
+    var t = el("table", "lgd-mx");
     var h1 = el("tr"), h2 = el("tr");
-    var thS = el("th", "lgd-fz-school", "Sekolah"); thS.rowSpan = 2; h1.appendChild(thS);
-    var thL = el("th", "lgd-fz-level", "Fasa semasa"); thL.rowSpan = 2; h1.appendChild(thL);
+    var a1 = el("th", "lgd-mx-school", "Sekolah"); a1.rowSpan = 2; h1.appendChild(a1);
+    var a2 = el("th", "lgd-mx-level", "Fasa"); a2.rowSpan = 2; h1.appendChild(a2);
     phases.forEach(function (f, fi) {
-      var th = el("th", "lgd-fz-phase" + (fi % 2 ? " is-alt" : ""), "Fasa " + f.n + " · " + f.name);
+      var th = el("th", "lgd-mx-ph" + (fi % 2 ? " is-alt" : ""), "F" + f.n + (f.items.length > 1 ? " · " + f.name : ""));
       th.colSpan = f.items.length;
+      th.title = "Fasa " + f.n + " · " + f.name;
       h1.appendChild(th);
-      f.items.forEach(function (label, j) {
-        var a = el("th", "lgd-fz-act" + (fi % 2 ? " is-alt" : "") + (j === 0 ? " is-first" : ""), label);
-        a.title = "Fasa " + f.n + ": " + label;
-        h2.appendChild(a);
-      });
     });
-    var mhead = el("thead"); mhead.appendChild(h1); mhead.appendChild(h2); m.appendChild(mhead);
-    var mb = el("tbody");
-    rows.slice().sort(function (a, b) { return fasaLevelOf(b.s.fasa) - fasaLevelOf(a.s.fasa) || (a.s.name < b.s.name ? -1 : 1); }).forEach(function (x) {
-      var vals = x.s.fasa || [];
-      var level = fasaLevelOf(vals);
-      var r = el("tr");
-      var name = el("td", "lgd-school lgd-fz-school", x.s.name);
-      if (branch === ALL) name.appendChild(el("small", null, x.cawangan));
-      r.appendChild(name);
-      var next = phases[level];
-      var lt = el("td", "lgd-fz-level");
-      lt.appendChild(el("span", "lgd-fz-pill" + (level ? " is-on" : ""), "Fasa " + level));
-      if (next) {
-        var from = 0;
-        for (var q = 0; q < level; q++) from += phases[q].items.length;
-        var dn = vals.slice(from, from + next.items.length).filter(function (v) { return v === true; }).length;
-        lt.appendChild(el("small", null, "Fasa " + next.n + ": " + dn + "/" + next.items.length));
-      } else lt.appendChild(el("small", null, "Semua selesai"));
-      r.appendChild(lt);
-      var k = 0;
-      phases.forEach(function (f) {
-        f.items.forEach(function (label, j) {
-          var v = vals[k++] === true;
-          var td = el("td", (v ? "is-yes" : "is-no") + (j === 0 ? " is-first" : ""));
-          td.title = "Fasa " + f.n + " · " + label + ": " + (v ? "Dah buat" : "Belum");
-          td.setAttribute("aria-label", v ? "Dah buat" : "Belum");
+    var tot = el("th", "lgd-mx-tot", "Jumlah"); tot.rowSpan = 2; h1.appendChild(tot);
+    acts.forEach(function (a) {
+      var th = el("th", "lgd-mx-num" + (a.j === 1 ? " is-first" : ""), String(a.j));
+      th.dataset.k = a.k;
+      th.title = a.f.n + "." + a.j + " " + a.label;
+      th.addEventListener("mouseenter", function () { capFor(a); });
+      h2.appendChild(th);
+    });
+    var thead = el("thead"); thead.appendChild(h1); thead.appendChild(h2); t.appendChild(thead);
+
+    var tb = el("tbody");
+    rows.map(function (x, i) { return { x: x, lvl: levels[i] }; })
+      .sort(function (a, b) { return b.lvl - a.lvl || (a.x.s.name < b.x.s.name ? -1 : 1); })
+      .forEach(function (o) {
+        var x = o.x, vals = x.s.fasa || [], lvl = o.lvl;
+        var next = phases[lvl];   // the fasa to work on now
+        var r = el("tr");
+        var sc = el("td", "lgd-mx-school");
+        sc.appendChild(el("span", "lgd-mx-name", x.s.name));
+        if (branch === ALL) sc.appendChild(el("small", null, x.cawangan));
+        r.appendChild(sc);
+        var lv = el("td", "lgd-mx-level");
+        lv.appendChild(el("span", "lgd-fz-pill" + (lvl ? " is-on" : ""), "F" + lvl));
+        lv.title = lvl ? "Fasa " + lvl + " · " + phases[lvl - 1].name : "Belum bermula";
+        r.appendChild(lv);
+        acts.forEach(function (a) {
+          var v = vals[a.k] === true;
+          var td = el("td", "lgd-mx-c" + (a.j === 1 ? " is-first" : ""));
+          td.dataset.k = a.k;
+          var box = el("span", "lgd-mx-box" + (v ? " is-yes" : "") + (next && a.f.n === next.n ? " is-next" : ""), v ? "✓" : "");
+          box.setAttribute("aria-label", a.f.n + "." + a.j + " " + a.label + ": " + (v ? "Dah buat" : "Belum"));
+          td.appendChild(box);
+          td.addEventListener("mouseenter", function () { capFor(a, x.s.name, v); });
           r.appendChild(td);
         });
+        var done = vals.filter(function (v) { return v === true; }).length;
+        r.appendChild(el("td", "lgd-mx-tot" + (done ? "" : " is-zero"), done + "/" + N));
+        tb.appendChild(r);
       });
-      mb.appendChild(r);
+    // % done per action
+    var fr = el("tr", "lgd-mx-foot");
+    var fl = el("td", "lgd-mx-school lgd-mx-footlabel", "% siap");
+    fr.appendChild(fl);
+    fr.appendChild(el("td", "lgd-mx-level"));
+    acts.forEach(function (a) {
+      var p = pct(doneBy[a.k], n);
+      var td = el("td", "lgd-mx-pct" + (a.j === 1 ? " is-first" : "") + (p ? "" : " is-zero"), String(p));
+      td.title = a.f.n + "." + a.j + " " + a.label + ": " + doneBy[a.k] + "/" + n + " sekolah";
+      td.addEventListener("mouseenter", function () { capFor(a); });
+      fr.appendChild(td);
     });
-    m.appendChild(mb);
-    mwrap.appendChild(m);
-    mw.appendChild(mwrap);
+    fr.appendChild(el("td"));
+    tb.appendChild(fr);
+    t.appendChild(tb);
+    // highlight the column under the pointer
+    t.addEventListener("mouseover", function (e) {
+      var c = e.target.closest("[data-k]");
+      var k = c ? c.dataset.k : null;
+      Array.prototype.forEach.call(t.querySelectorAll(".is-col"), function (x) { x.classList.remove("is-col"); });
+      if (k !== null) Array.prototype.forEach.call(t.querySelectorAll('[data-k="' + k + '"]'), function (x) { x.classList.add("is-col"); });
+    });
+    t.addEventListener("mouseleave", function () {
+      Array.prototype.forEach.call(t.querySelectorAll(".is-col"), function (x) { x.classList.remove("is-col"); });
+    });
+    wrap.appendChild(t);
+    mw.appendChild(wrap);
+
     var leg = el("div", "lgd-legend");
-    [["#1fbf5b", "Dah buat"], ["#d93a3a", "Belum"]].forEach(function (l) {
-      var s = el("span");
-      s.appendChild(el("i")).style.background = l[0];
-      s.appendChild(document.createTextNode(l[1]));
-      leg.appendChild(s);
-    });
-    leg.appendChild(el("span", "lgd-fz-hint", "Skrol ke tepi untuk lihat semua fasa"));
+    var l1 = el("span"); l1.appendChild(el("span", "lgd-mx-box is-yes lgd-mx-mini", "✓")); l1.appendChild(document.createTextNode("Dah buat")); leg.appendChild(l1);
+    var l2 = el("span"); l2.appendChild(el("span", "lgd-mx-box lgd-mx-mini")); l2.appendChild(document.createTextNode("Belum")); leg.appendChild(l2);
+    var l3 = el("span"); l3.appendChild(el("span", "lgd-mx-box is-next lgd-mx-mini")); l3.appendChild(document.createTextNode("Fasa yang perlu dibuat sekarang")); leg.appendChild(l3);
     mw.appendChild(leg);
+
+    // Full list of actions, by fasa
+    var det = el("details", "lgd-mx-list");
+    det.appendChild(el("summary", null, "Senarai tindakan 1.1 – " + phases[phases.length - 1].n + "." + phases[phases.length - 1].items.length));
+    var cols = el("div", "lgd-mx-listcols");
+    phases.forEach(function (f) {
+      var g = el("div", "lgd-mx-listg");
+      g.appendChild(el("strong", null, "Fasa " + f.n + " · " + f.name));
+      f.items.forEach(function (label, j) { g.appendChild(el("span", null, f.n + "." + (j + 1) + "  " + label)); });
+      cols.appendChild(g);
+    });
+    det.appendChild(cols);
+    mw.appendChild(det);
+
     grid.appendChild(mw);
     grid.appendChild(progressWidget(rows, branch));
   }
