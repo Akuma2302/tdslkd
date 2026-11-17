@@ -1860,3 +1860,13 @@ th.lgd-view-th { padding-bottom: 0.5rem; }
   .lgd-crm-fu-row { grid-template-columns: minmax(0, 1fr) auto; }
   .lgd-crm-fu-extra { grid-column: 1; grid-row: 2; }
 }
+/* Directory cards never grow wider than their column: long names/schools shorten with "…" instead */
+.lgd-crm-list, .lgd-crm-fu-group, .lgd-crm-dir, .lgd-crm-fu { min-width: 0; }
+.lgd-crm-list { grid-template-columns: minmax(0, 1fr); }
+.lgd-crm-person, .lgd-crm-person > summary { min-width: 0; }
+.lgd-crm-who { flex: 1 1 auto; }
+.lgd-crm-checks { grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); }
+@media (max-width: 600px) {
+  .lgd-crm-person > summary { align-items: stretch; }   /* name block takes the card width, shortens with "…" */
+  .lgd-crm-who { width: 100%; }
+}
