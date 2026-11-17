@@ -794,7 +794,7 @@ function saveAlumni(body) {
 //  - each school tab is read once (one getValues, markers found from that same block);
 //  - the result is cached for 6 hours and returned at once; after any save it is only marked out of date
 //    ("stale": true) and the admin page fetches a fresh copy in the background.
-var SUMMARY_KEY = "summary5", SUMMARY_STALE = "summaryStale";   // summary5: planning as [{ perkara, tarikh }]
+var SUMMARY_KEY = "summary6", SUMMARY_STALE = "summaryStale";   // summary6: + crm people per school (CRM sub-tab)
 // The flag holds the time of the last save, so a summary that was already being built before that save does not clear it.
 function markSummaryStale() { CacheService.getScriptCache().put(SUMMARY_STALE, String(Date.now()), 21600); }
 
@@ -856,7 +856,7 @@ function summary(fresh) {
         (pics[text(r[0])] = pics[text(r[0])] || []).push({ nama: text(r[1]), username: u });
       });
     }
-    var schools = [];
+    var schools = [], crmHead = null;   // crmHead: KPI + checklist column titles (row 2 of the first school tab)
     schoolNames(ss).forEach(function (n) {
       var sh = ss.getSheetByName(n);
       var rows = Math.min(sh.getLastRow(), 400);
@@ -864,12 +864,18 @@ function summary(fresh) {
       var a = sh.getRange(1, 1, rows, COL.LAST).getValues();   // the only read for this school
       var m = summaryMarkers(a);
       if (!m) return;
-      var people = 0, aktif = 0, phase = {}, kategori = {}, checks = 0;
+      var people = 0, aktif = 0, phase = {}, kategori = {}, checks = 0, crm = [];
+      if (!crmHead) crmHead = { kpi: a[1].slice(COL.KPI - 1, COL.KPI_CHECK - 1).map(text), checks: a[1].slice(COL.KPI_CHECK - 1, COL.LAST).map(text) };
       a.slice(2, m.crmEnd).forEach(function (r) {
         var named = text(r[3]) !== "";
         if (!named && r[2] !== true) return;
         people++;
         if (r[2] === true) aktif++;
+        // One person, compact: [Entiti, Nama, Telefon, PIC CRM, Ada 1/0, Kategori, Phase, Level, Tarikh kelas, Nota, Video, "checklist bits", Permanfaatan]
+        crm.push([text(r[1]), text(r[3]), text(r[4]), text(r[6]), r[2] === true ? 1 : 0, text(r[7]), text(r[8]), text(r[9]),
+                  r[10] instanceof Date ? iso(r[10]) : text(r[10]), summaryText(r[11]).slice(0, 300), text(r[12]),
+                  r.slice(COL.KPI_CHECK - 1, COL.LAST).map(function (v) { return v === true ? "1" : "0"; }).join(""),
+                  summaryText(r[5]).slice(0, 200)]);
         var ph = text(r[COL.KPI]);       // I = Phase
         var kt = text(r[COL.KPI - 1]);   // H = Kategori
         if (ph) phase[ph] = (phase[ph] || 0) + 1;
@@ -896,10 +902,10 @@ function summary(fresh) {
         alumni: alumniText, alumniAda: alumniAda, analisa: analisaText, planning: planning,
         name: n, people: people, aktif: aktif, phase: phase, kategori: kategori, checks: checks,
         programs: programs, progress: prog[n] || PROGRESS_ITEMS.map(function () { return false; }),
-        note: note[n] || { text: "", updated: "" }, pic: pics[n] || []
+        note: note[n] || { text: "", updated: "" }, pic: pics[n] || [], crm: crm
       });
     });
-    out.cawangan.push({ id: c, ready: true, url: ss.getUrl(), schools: schools });
+    out.cawangan.push({ id: c, ready: true, url: ss.getUrl(), schools: schools, crmHead: crmHead });
   });
   try {
     cache.put(SUMMARY_KEY, zipText(JSON.stringify(out)), 21600);

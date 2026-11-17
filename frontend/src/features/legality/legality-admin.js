@@ -165,7 +165,7 @@
   // link (#legality/program), so a sub-tab can be opened directly.
   var SUBS = [
     { id: "ringkasan", label: "Ringkasan" }, { id: "tindakan", label: "Perlu Tindakan" },
-    { id: "sekolah", label: "Sekolah" }, { id: "program", label: "Program" }, { id: "kronologi", label: "Kronologi" }
+    { id: "sekolah", label: "Sekolah" }, { id: "crm", label: "CRM" }, { id: "program", label: "Program" }, { id: "kronologi", label: "Kronologi" }
   ];
   var SUB_KEY = "lgd-sub";
   function validSub(id) { return SUBS.some(function (s) { return s.id === id; }); }
@@ -187,6 +187,7 @@
     return {
       tindakan: { n: actionItems(rows, branch).length, cls: "is-bad" },
       sekolah: { n: rows.length },
+      crm: { n: sum(rows.map(function (x) { return x.s.people || 0; })), title: "orang CRM" },
       program: { n: progs.filter(function (p) { return progStatus(p, now) === "akan"; }).length, cls: "is-acc", title: "akan datang" },
       kronologi: { n: (kron.entries || []).filter(function (e) {
         return (branch === ALL || e.cawangan === branch) && Date.parse(e.dicatat || e.masa) >= weekAgo;
@@ -241,6 +242,7 @@
     ringkasan: "M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z",
     tindakan: "M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0",
     sekolah: "M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6M12 10h.01",
+    crm: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
     program: "M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2",
     kronologi: "M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"
   };
@@ -361,6 +363,11 @@
         out.push(Object.assign({ group: "planning", text: "Planning Legality masih kosong" }, base));
       if (!(s.pic || []).some(function (p) { return p.username; }))
         out.push(Object.assign({ group: "pic", text: "PIC Legality belum ditetapkan" }, base));
+      if (s.crm) {
+        var fu = crmFollowUps(crmPeople([x]));
+        if (fu.kelas.length) out.push(Object.assign({ group: "crm", crm: true, text: fu.kelas.length + " kelas tambahan dalam 7 hari akan datang" }, base));
+        if (fu.nopic.length) out.push(Object.assign({ group: "crm", crm: true, text: fu.nopic.length + " orang CRM belum ada PIC CRM" }, base));
+      }
     });
     var now = today();
     (state.programs || []).forEach(function (p) {
@@ -382,6 +389,7 @@
     { id: "report", label: "Reporting program", hint: "Selepas program selesai" },
     { id: "planning", label: "Planning Legality", hint: "Tiada perkara dirancang" },
     { id: "pic", label: "PIC Legality", hint: "Bot tidak dapat tag sesiapa" },
+    { id: "crm", label: "CRM", hint: "Kelas tambahan minggu ini · tanpa PIC CRM" },
     { id: "soon", label: "Program 7 hari akan datang", hint: "Untuk makluman" }
   ];
   function actionWidget(rows, branch) {
@@ -404,7 +412,16 @@
         if (branch === ALL) who.appendChild(el("small", null, it.cawangan));
         row.appendChild(who);
         row.appendChild(el("span", "lgd-act-text", it.text));
-        if (it.program) {
+        if (it.crm) {
+          var cb = el("button", "lgd-act-go", "Lihat CRM");
+          cb.type = "button";
+          cb.addEventListener("click", function () {
+            crmF = { q: it.sekolah, phase: "", kat: "", level: "", aktif: "" };
+            setSub("crm");
+            changed();
+          });
+          row.appendChild(cb);
+        } else if (it.program) {
           var b = el("button", "lgd-act-go", "Lihat program");
           b.type = "button";
           b.addEventListener("click", function () {
@@ -427,6 +444,269 @@
     return w;
   }
 
+  // ---------- CRM ----------
+  // Every CRM person of the schools in view, from the summary (compact rows, see summary() in Legality.gs).
+  function crmPeople(rows) {
+    var out = [];
+    rows.forEach(function (x) {
+      (x.s.crm || []).forEach(function (r) {
+        out.push({ cawangan: x.cawangan, sekolah: x.s.name, entiti: r[0], nama: r[1], tel: r[2], pic: r[3], ada: r[4] === 1,
+                   kat: r[5], phase: r[6], level: r[7], tarikh: r[8], nota: r[9], video: r[10], checks: r[11] || "", perm: r[12] || "" });
+      });
+    });
+    return out;
+  }
+  function crmHead(branch) {
+    var c = state.data.cawangan.filter(function (c) { return (branch === ALL || c.id === branch) && c.crmHead; })[0];
+    return (c && c.crmHead) || { kpi: [], checks: [] };
+  }
+  function done(bits) { return (bits.match(/1/g) || []).length; }
+  function waLink(tel) {
+    var d = String(tel || "").replace(/\D/g, "");
+    if (d.length < 9) return "";
+    if (d.charAt(0) === "0") d = "6" + d;
+    return "https://wa.me/" + d;
+  }
+  function isEarlyPhase(ph) { return /^P\s*[01]\b/i.test(ph || ""); }
+  function crmFollowUps(list) {
+    var now = today();
+    return {
+      kelas: list.filter(function (p) { return /^\d{4}-\d{2}-\d{2}$/.test(p.tarikh) && p.tarikh >= now && dayDiff(now, p.tarikh) <= 7; }),
+      nopic: list.filter(function (p) { return !p.pic; }),
+      awal: list.filter(function (p) { return !p.phase || isEarlyPhase(p.phase); }),
+      video: list.filter(function (p) { return p.ada && !p.video; })
+    };
+  }
+  function countBy(list, key) {
+    var o = {};
+    list.forEach(function (p) { var k = p[key] || "Belum ditetapkan"; o[k] = (o[k] || 0) + 1; });
+    return o;
+  }
+  function barsOf(obj, total) {
+    var box = el("div", "hbars");
+    var keys = Object.keys(obj).sort(function (a, b) {
+      if (a === "Belum ditetapkan") return 1;
+      if (b === "Belum ditetapkan") return -1;
+      return a < b ? -1 : a > b ? 1 : 0;
+    });
+    keys.forEach(function (k) { box.appendChild(hbar(k, obj[k], total, pct(obj[k], total) + "%")); });
+    if (!keys.length) box.appendChild(el("p", "empty-text", "Belum ada orang CRM."));
+    return box;
+  }
+  function schoolLink(cawangan, sekolah, text) {
+    var a = el("a", "lgd-crm-school", text || sekolah);
+    a.href = "/legality/database#/" + encodeURIComponent(cawangan) + "/" + encodeURIComponent(sekolah);
+    a.target = "_blank"; a.rel = "noopener";
+    a.title = "Buka halaman sekolah " + sekolah;
+    return a;
+  }
+
+  var crmF = { q: "", phase: "", kat: "", level: "", aktif: "" };
+  function crmTab(grid, rows, branch) {
+    var list = crmPeople(rows);
+    var n = list.length, aktif = list.filter(function (p) { return p.ada; }).length;
+    var noCrm = rows.filter(function (x) { return !x.s.people; }).length;
+    var head = crmHead(branch);
+    var nChecks = head.checks.length || 17;
+
+    // 1. Kad ringkasan
+    grid.appendChild(stat("Orang CRM", String(n), rows.length + " sekolah", true));
+    grid.appendChild(stat("CRM aktif", aktif + " · " + pct(aktif, n) + "%", "Ditanda Ada"));
+    grid.appendChild(stat("Sekolah tanpa CRM", String(noCrm), noCrm ? "Belum ada seorang pun" : "Semua sekolah ada CRM"));
+    grid.appendChild(stat("Purata", rows.length ? (Math.round(n / rows.length * 10) / 10).toString() : "0", "orang setiap sekolah"));
+
+    // 2. Phase CRM  3. Kategori & Level
+    var ph = widget("w-2", "Phase CRM", n + " orang");
+    ph.appendChild(barsOf(countBy(list, "phase"), n));
+    grid.appendChild(ph);
+    var kl = widget("w-2", head.kpi[0] || "Kategori Cikgu", "");
+    kl.appendChild(barsOf(countBy(list, "kat"), n));
+    kl.appendChild(el("h3", "lgd-crm-sub", head.kpi[2] || "Level CRM"));
+    kl.appendChild(barsOf(countBy(list, "level"), n));
+    grid.appendChild(kl);
+
+    // 4. CRM mengikut sekolah
+    var sw = widget("w-4", "CRM mengikut sekolah", rows.length + " sekolah");
+    var wrap = el("div", "tbl-wrap");
+    var t = el("table", "mtable lgd-crm-table");
+    var hr = el("tr");
+    [["Sekolah"], ["Orang", "num"], ["Aktif", "num"], ["Phase paling ramai"], ["Checklist hubungan", "num"]].forEach(function (h) { hr.appendChild(el("th", h[1] || null, h[0])); });
+    var th = el("thead"); th.appendChild(hr); t.appendChild(th);
+    var tb = el("tbody");
+    rows.slice().sort(function (a, b) { return b.s.people - a.s.people || (a.s.name < b.s.name ? -1 : 1); }).forEach(function (x) {
+      var r = el("tr");
+      var c0 = el("td");
+      c0.appendChild(schoolLink(x.cawangan, x.s.name));
+      if (branch === ALL) c0.appendChild(el("small", null, x.cawangan));
+      r.appendChild(c0);
+      r.appendChild(el("td", "num" + (x.s.people ? "" : " muted"), String(x.s.people)));
+      r.appendChild(el("td", "num" + (x.s.aktif ? "" : " muted"), String(x.s.aktif)));
+      var top = Object.keys(x.s.phase || {}).sort(function (a, b) { return x.s.phase[b] - x.s.phase[a]; })[0];
+      r.appendChild(el("td", top ? null : "muted", top ? top + " (" + x.s.phase[top] + ")" : "—"));
+      var max = x.s.people * nChecks;
+      var cell = el("td", "num");
+      if (max) {
+        var p = pct(x.s.checks, max);
+        var bar = el("span", "lgd-crm-meter");
+        bar.appendChild(el("i")).style.width = p + "%";
+        cell.appendChild(bar);
+        cell.appendChild(el("span", "lgd-crm-pct", p + "%"));
+      } else cell.appendChild(el("span", "muted", "—"));
+      r.appendChild(cell);
+      tb.appendChild(r);
+    });
+    t.appendChild(tb); wrap.appendChild(t); sw.appendChild(wrap);
+    grid.appendChild(sw);
+
+    // 6. Perlu follow-up CRM
+    grid.appendChild(crmFollowWidget(list, branch));
+
+    // 5. Direktori CRM
+    grid.appendChild(crmDirectory(list, branch, head));
+  }
+
+  function personLine(p, branch, extra) {
+    var row = el("div", "lgd-crm-fu-row");
+    var who = el("span", "lgd-crm-fu-who", p.nama || "(tiada nama)");
+    who.appendChild(el("small", null, (p.entiti ? p.entiti + " · " : "") + p.sekolah + (branch === ALL ? " · " + p.cawangan : "")));
+    row.appendChild(who);
+    if (extra) row.appendChild(el("span", "lgd-crm-fu-extra", extra));
+    var wa = waLink(p.tel);
+    if (wa) { var a = el("a", "lgd-act-go", "WhatsApp"); a.href = wa; a.target = "_blank"; a.rel = "noopener"; row.appendChild(a); }
+    return row;
+  }
+  function crmFollowWidget(list, branch) {
+    var fu = crmFollowUps(list);
+    var w = widget("w-4 lgd-crm-fu", "Perlu follow-up CRM", "");
+    var groups = [
+      { key: "kelas", label: "Kelas tambahan 7 hari akan datang", open: true, extra: function (p) { return "📅 " + fmtDate(p.tarikh); } },
+      { key: "nopic", label: "Belum ada PIC CRM" },
+      { key: "awal", label: "Masih P0 / P1 atau phase belum ditetapkan", extra: function (p) { return p.phase || "—"; } },
+      { key: "video", label: "Aktif tetapi video feedback belum dikumpul" }
+    ];
+    var any = false;
+    groups.forEach(function (g) {
+      var items = fu[g.key];
+      if (!items.length) return;
+      any = true;
+      var d = el("details", "lgd-crm-fu-group");
+      if (g.open) d.open = true;
+      var s = el("summary", null);
+      s.appendChild(el("span", null, g.label));
+      s.appendChild(el("span", "lgd-act-n", String(items.length)));
+      d.appendChild(s);
+      items.slice(0, 100).forEach(function (p) { d.appendChild(personLine(p, branch, g.extra ? g.extra(p) : "")); });
+      if (items.length > 100) d.appendChild(el("p", "empty-text", "+" + (items.length - 100) + " lagi — guna Direktori CRM di bawah."));
+      w.appendChild(d);
+    });
+    if (!any) w.appendChild(el("p", "lgd-act-clear", "✓ Tiada follow-up CRM tertunggak."));
+    return w;
+  }
+
+  function crmDirectory(list, branch, head) {
+    var w = widget("w-4 lgd-crm-dir", "Direktori CRM", "");
+    var tools = el("div", "lgd-prog-tools");
+    var search = el("input", "borang-input lgd-prog-search");
+    search.type = "search"; search.placeholder = "Cari nama, sekolah, entiti atau PIC"; search.value = crmF.q;
+    search.setAttribute("aria-label", "Cari dalam direktori CRM");
+    tools.appendChild(search);
+    function filterSelect(key, label, values) {
+      var s = el("select", "borang-input lgd-prog-filter");
+      s.setAttribute("aria-label", label);
+      [["", label]].concat(values.map(function (v) { return [v, v]; })).forEach(function (o) {
+        var op = el("option", null, o[1]); op.value = o[0]; s.appendChild(op);
+      });
+      s.value = crmF[key];
+      s.addEventListener("change", function () { crmF[key] = s.value; draw(); });
+      tools.appendChild(s);
+    }
+    function uniq(key) { var o = {}; list.forEach(function (p) { if (p[key]) o[p[key]] = 1; }); return Object.keys(o).sort(); }
+    filterSelect("phase", "Semua phase", uniq("phase"));
+    filterSelect("kat", "Semua kategori", uniq("kat"));
+    filterSelect("level", "Semua level", uniq("level"));
+    var ak = el("select", "borang-input lgd-prog-filter");
+    ak.setAttribute("aria-label", "Aktif");
+    [["", "Aktif & tidak"], ["1", "Aktif sahaja"], ["0", "Tidak aktif"]].forEach(function (o) { var op = el("option", null, o[1]); op.value = o[0]; ak.appendChild(op); });
+    ak.value = crmF.aktif;
+    ak.addEventListener("change", function () { crmF.aktif = ak.value; draw(); });
+    tools.appendChild(ak);
+    var count = el("span", "lgd-prog-count");
+    tools.appendChild(count);
+    w.appendChild(tools);
+    var box = el("div", "lgd-crm-list");
+    w.appendChild(box);
+    var nChecks = head.checks.length || 17, LIMIT = 50, shown = LIMIT;
+
+    function card(p) {
+      var d = el("details", "lgd-crm-person");
+      var s = el("summary");
+      var who = el("span", "lgd-crm-who");
+      who.appendChild(el("strong", null, p.nama || "(tiada nama)"));
+      who.appendChild(el("small", null, (p.entiti ? p.entiti + " · " : "") + p.sekolah + (branch === ALL ? " · " + p.cawangan : "")));
+      s.appendChild(who);
+      var tags = el("span", "lgd-crm-tags");
+      tags.appendChild(el("span", "lgd-crm-tag " + (p.ada ? "is-on" : "is-off"), p.ada ? "Aktif" : "Tidak aktif"));
+      if (p.phase) tags.appendChild(el("span", "lgd-crm-tag" + (isEarlyPhase(p.phase) ? " is-early" : ""), p.phase.split(":")[0]));
+      var k = done(p.checks);
+      tags.appendChild(el("span", "lgd-crm-tag is-check", k + "/" + nChecks));
+      s.appendChild(tags);
+      d.appendChild(s);
+
+      var body = el("div", "lgd-crm-body");
+      var dl = el("dl", "lgd-crm-dl");
+      function row(label, value) { if (!value) return; dl.appendChild(el("dt", null, label)); dl.appendChild(el("dd", null, value)); }
+      row("Telefon", p.tel);
+      row("PIC CRM", p.pic);
+      row(head.kpi[0] || "Kategori Cikgu", p.kat);
+      row(head.kpi[1] || "Phase", p.phase);
+      row(head.kpi[2] || "Level CRM", p.level);
+      row(head.kpi[3] || "Plan Tarikh Kelas Tambahan", /^\d{4}-\d{2}-\d{2}$/.test(p.tarikh) ? fmtDate(p.tarikh) : p.tarikh);
+      row(head.kpi[4] || "Nota", p.nota);
+      row(head.kpi[5] || "Collect Video Feedback", p.video);
+      row("Permanfaatan", p.perm);
+      body.appendChild(dl);
+      if (head.checks.length) {
+        var cl = el("ul", "lgd-crm-checks");
+        head.checks.forEach(function (label, i) {
+          var on = p.checks.charAt(i) === "1";
+          cl.appendChild(el("li", on ? "is-on" : null, (on ? "✓ " : "○ ") + (label || "Langkah " + (i + 1))));
+        });
+        body.appendChild(cl);
+      }
+      var acts = el("div", "lgd-crm-acts");
+      var wa = waLink(p.tel);
+      if (wa) { var a = el("a", "lgd-act-go", "WhatsApp"); a.href = wa; a.target = "_blank"; a.rel = "noopener"; acts.appendChild(a); }
+      acts.appendChild(schoolLink(p.cawangan, p.sekolah, "Buka halaman sekolah ↗"));
+      body.appendChild(acts);
+      d.appendChild(body);
+      return d;
+    }
+
+    function draw() {
+      box.textContent = "";
+      var q = crmF.q.trim().toLowerCase();
+      var rows = list.filter(function (p) {
+        if (crmF.phase && p.phase !== crmF.phase) return false;
+        if (crmF.kat && p.kat !== crmF.kat) return false;
+        if (crmF.level && p.level !== crmF.level) return false;
+        if (crmF.aktif && String(p.ada ? 1 : 0) !== crmF.aktif) return false;
+        return !q || [p.nama, p.sekolah, p.entiti, p.pic, p.cawangan].join(" ").toLowerCase().indexOf(q) > -1;
+      }).sort(function (a, b) { return (a.sekolah + a.nama).localeCompare(b.sekolah + b.nama); });
+      count.textContent = rows.length + " orang";
+      rows.slice(0, shown).forEach(function (p) { box.appendChild(card(p)); });
+      if (!rows.length) box.appendChild(el("p", "empty-text", list.length ? "Tiada orang sepadan." : "Belum ada orang CRM."));
+      if (rows.length > shown) {
+        var more = el("button", "link-btn lgd-kron-more", "Tunjuk lagi (" + (rows.length - shown) + ")");
+        more.type = "button";
+        more.addEventListener("click", function () { shown += LIMIT; draw(); });
+        box.appendChild(more);
+      }
+    }
+    search.addEventListener("input", function () { crmF.q = search.value; shown = LIMIT; draw(); });
+    draw();
+    return w;
+  }
+
   function view(body, branch) {
     body.textContent = "";
     var d = state.data;
@@ -445,6 +725,7 @@
     if (sub === "program") { grid.appendChild(programWidget(branch)); return; }
     if (sub === "kronologi") { grid.appendChild(kronologiWidget(branch)); return; }
     if (sub === "sekolah") { schoolTab(grid, rows, branch, items); return; }
+    if (sub === "crm") { crmTab(grid, rows, branch); return; }
 
     // Ringkasan
     grid.appendChild(stat("Sekolah", String(n), branch === ALL ? "Dalam " + d.cawangan.filter(function (c) { return c.schools.length; }).length + " cawangan" : "Cawangan " + branch, true));
@@ -453,24 +734,11 @@
     grid.appendChild(stat("Tarikh Mentoring", stepCount[3] + "/" + n, pct(stepCount[3], n) + "% sekolah sudah dapat tarikh program"));
 
     // Steps funnel
-    var steps = widget("w-2 lgd-steps", "Progress mengikut langkah", "bilangan sekolah");
+    var steps = widget("w-4 lgd-steps", "Progress mengikut langkah", "bilangan sekolah");
     var bars = el("div", "hbars");
     items.forEach(function (it, i) { bars.appendChild(hbar((i + 1) + ". " + it.short, stepCount[i], n, pct(stepCount[i], n) + "%")); });
     steps.appendChild(bars);
     grid.appendChild(steps);
-
-    // CRM phase
-    var phase = {};
-    rows.forEach(function (x) { Object.keys(x.s.phase).forEach(function (k) { phase[k] = (phase[k] || 0) + x.s.phase[k]; }); });
-    var keys = Object.keys(phase).sort();
-    var ph = widget("w-2", "Phase CRM", people + " orang");
-    var pb = el("div", "hbars");
-    var withPhase = sum(keys.map(function (k) { return phase[k]; }));
-    keys.forEach(function (k) { pb.appendChild(hbar(k, phase[k], people)); });
-    if (people > withPhase) pb.appendChild(hbar("Belum ditetapkan", people - withPhase, people));
-    if (!people) pb.appendChild(el("p", "empty-text", "Belum ada orang CRM."));
-    ph.appendChild(pb);
-    grid.appendChild(ph);
 
     // Per cawangan (only in the all view)
     if (branch === ALL) {
