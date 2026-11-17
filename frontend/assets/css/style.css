@@ -1632,7 +1632,7 @@ th.lgd-view-th { padding-bottom: 0.5rem; }
   /* Delete confirmation: a small solid panel in the card's corner, above the text it covers */
   .lgd-plist .lgd-c-del { z-index: 2; }
   /* While asking, the cell spans the card's top edge: one tidy bar over the date row */
-  .lgd-plist .lgd-c-del.is-asking { left: 0.5rem; right: 0.5rem; top: 0.45rem; }
+  .lgd-plist .lgd-c-del.is-asking { left: 0.5rem; right: 0.5rem; top: 0.45rem; width: auto; display: block; }
   .lgd-plist .lgd-del-ask {
     flex-direction: row; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0.45rem;
     padding: 0.3rem 0.4rem 0.3rem 0.85rem; border: 1px solid rgba(255, 140, 140, 0.4); border-radius: 12px;
