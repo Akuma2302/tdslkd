@@ -1,4 +1,5 @@
 :root {
+  color-scheme: dark;   /* the site is dark only: native scrollbars, dropdown lists and date pickers draw dark too */
   --bg: #0b0b0b;
   --bg-2: #121212;
   --card: #171717;
@@ -234,7 +235,7 @@ h1, h2, p { margin: 0; }
 
 /* ---------- App shell ---------- */
 .app {
-  flex: 1; display: grid; grid-template-columns: 216px minmax(0, 1fr);
+  flex: 1; display: grid; grid-template-columns: 232px minmax(0, 1fr);
   gap: 12px; padding: 12px; align-items: start;
   width: 100%; max-width: 1560px; margin: 0 auto;
 }
@@ -585,7 +586,7 @@ th[aria-sort="descending"] .sort::after { content: " ↓"; color: var(--accent);
 }
 
 @media (max-width: 900px) {
-  .app { grid-template-columns: 184px minmax(0, 1fr); }
+  .app { grid-template-columns: 216px minmax(0, 1fr); }
   .tab { padding-left: 1rem; padding-right: 0.75rem; gap: 0.6rem; }
   .brand, .tab-group, .side-foot { padding-left: 1rem; padding-right: 1rem; }
 }
@@ -1794,3 +1795,11 @@ th.lgd-view-th { padding-bottom: 0.5rem; }
 .side { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.12) transparent; }
 .side:has(.tab-children:not([hidden]) .tab-child + .tab-child) .side-foot { display: none; }   /* room for a longer nested list */
 .tab-children .side-pick-list { left: -1.9rem; right: 0; }   /* uses the indent space, stays inside the sidebar */
+/* Nested items always stay on one line (narrow sidebars shrink the text with "…", never wrap) */
+.tab-child .tab-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab-child .lgd-subtab-n { flex: none; }
+@media (max-width: 900px) {
+  .tab-children { margin-left: 1.05rem; padding-left: 0.4rem; }
+  .tab-child { gap: 0.45rem; padding-left: 0.5rem; padding-right: 0.45rem; }
+  .tab-children .side-pick-list { left: -1.45rem; }
+}
