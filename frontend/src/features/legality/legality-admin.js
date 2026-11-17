@@ -254,15 +254,14 @@
     sideHost.textContent = "";
     if (!state.data) return;
     var branch = currentBranch();
-    sideHost.appendChild(el("p", "tab-group", "Cawangan"));
     sideHost.appendChild(branchPicker(branch));
 
-    sideHost.appendChild(el("p", "tab-group", "Legality"));
     var sub = currentSub();
     var badge = subBadges(schoolsFor(branch), branch);
     SUBS.forEach(function (s) {
-      var b = el("button", "tab side-subtab");
+      var b = el("button", "tab-child");
       b.type = "button";
+      b.dataset.sub = s.id;
       if (s.id === sub) b.setAttribute("aria-current", "page");
       if (window.SIDE_ICON) b.appendChild(window.SIDE_ICON(SUB_ICONS[s.id]));
       b.appendChild(el("span", "tab-name", s.label));
@@ -291,7 +290,8 @@
     btn.setAttribute("aria-expanded", "false");
     btn.setAttribute("aria-label", "Cawangan: " + cur.label);
     if (window.SIDE_ICON) btn.appendChild(window.SIDE_ICON("M6 3v12M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6M18 9a9 9 0 0 1-9 9"));
-    btn.appendChild(el("span", "side-pick-label", cur.label));
+    btn.appendChild(el("span", "side-pick-label", cur.id === ALL ? "Semua" : cur.label));
+    btn.title = "Cawangan: " + cur.label;
     btn.appendChild(el("span", "side-pick-chev"));
     box.appendChild(btn);
 

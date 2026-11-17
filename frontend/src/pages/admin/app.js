@@ -45,6 +45,7 @@
     return s;
   }
   window.SIDE_ICON = icon;
+  var RINGKASAN_ICON = "M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z";
   var views = window.UNIT_VIEWS || {};
   function count(u) {
     var v = views[u.id];
@@ -231,6 +232,25 @@
     tab.appendChild(el("span", "tab-name", shortName(u)));
     tablist.appendChild(tab);
 
+    // The unit's own pages, nested right under it (shown for the open unit only, wide screens).
+    // Default: one "Ringkasan"; a unit view may fill its own list (Legality: Cawangan + 5 parts).
+    if (!u.overview) {
+      var kids = el("div", "tab-children");
+      kids.id = "children-" + u.id;
+      kids.dataset.unit = u.id;
+      kids.hidden = true;
+      if (views[u.id] && views[u.id].sidebar) views[u.id].sidebar(kids);
+      else {
+        var only = el("button", "tab-child");
+        only.type = "button";
+        only.appendChild(icon(RINGKASAN_ICON));
+        only.appendChild(el("span", "tab-name", "Ringkasan"));
+        only.addEventListener("click", function () { select(u.id); window.scrollTo(0, 0); });
+        kids.appendChild(only);
+      }
+      tablist.appendChild(kids);
+    }
+
     var panel = el("section", "panel");
     panel.id = "panel-" + u.id;
     panel.setAttribute("role", "tabpanel");
@@ -306,13 +326,13 @@
     }
     var u = units.filter(function (x) { return x.id === id; })[0];
     document.title = u.name + " — Yosh Junior";
-    // Extra sidebar groups of the open unit (e.g. Legality: Cawangan picker + its sub-tabs)
-    var sideSub = document.getElementById("sideSub");
-    if (sideSub && sideSub.dataset.unit !== id) {
-      sideSub.textContent = "";
-      sideSub.dataset.unit = id;
-      if (views[id] && views[id].sidebar) views[id].sidebar(sideSub);
-    }
+    // Open only this unit's nested items in the sidebar
+    Array.prototype.forEach.call(tablist.querySelectorAll(".tab-children"), function (k) {
+      k.hidden = k.dataset.unit !== id;
+      Array.prototype.forEach.call(k.querySelectorAll(".tab-child:not([data-sub])"), function (b) {
+        if (k.dataset.unit === id) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+      });
+    });
   }
 
   // Phones: the menu button at the top right opens the unit list under the header.
