@@ -1870,3 +1870,10 @@ th.lgd-view-th { padding-bottom: 0.5rem; }
   .lgd-crm-person > summary { align-items: stretch; }   /* name block takes the card width, shortens with "…" */
   .lgd-crm-who { width: 100%; }
 }
+/* CRM mengikut PIC: two columns of bars on wide screens */
+.lgd-crm-picbars { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr)); column-gap: 2rem; }
+.lgd-crm-picbars .hbar.is-none .hbar-label, .lgd-crm-picbars .hbar.is-none .hbar-value { color: #ff8c8c; }
+.lgd-crm-picbars .hbar.is-none .hbar-fill { background: rgba(255, 107, 107, 0.6); }
+.lgd-crm-note { margin: 0.75rem 0 0; color: var(--muted); font-size: 0.74rem; }
+.lgd-crm-picbars .hbar { grid-template-columns: minmax(0, 10rem) minmax(0, 1fr) 2.2rem 4.6rem; }
+.lgd-crm-picbars .hbar-extra { white-space: nowrap; }

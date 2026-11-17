@@ -525,6 +525,9 @@
     kl.appendChild(barsOf(countBy(list, "level"), n));
     grid.appendChild(kl);
 
+    // Jumlah CRM per PIC CRM ("Akmal/Munir" counts for both), busiest first, with the schools they cover
+    grid.appendChild(picWidget(list));
+
     // 4. CRM mengikut sekolah
     var sw = widget("w-4", "CRM mengikut sekolah", rows.length + " sekolah");
     var wrap = el("div", "tbl-wrap");
@@ -563,6 +566,45 @@
 
     // 5. Direktori CRM
     grid.appendChild(crmDirectory(list, branch, head));
+  }
+
+  function picNames(pic) {
+    return String(pic || "").split(/\s*(?:\/|,|&|\+|\bdan\b|\n)\s*/i)
+      .map(function (s) { return s.replace(/^@+/, "").trim(); }).filter(Boolean);
+  }
+  function picWidget(list) {
+    var by = {}, none = 0;
+    list.forEach(function (p) {
+      var names = picNames(p.pic);
+      if (!names.length) { none++; return; }
+      names.forEach(function (nm) {
+        var k = nm.toLowerCase();
+        var o = by[k] = by[k] || { name: nm, n: 0, aktif: 0, schools: {} };
+        o.n++;
+        if (p.ada) o.aktif++;
+        o.schools[p.sekolah] = 1;
+      });
+    });
+    var rows = Object.keys(by).map(function (k) { return by[k]; })
+      .sort(function (a, b) { return b.n - a.n || (a.name < b.name ? -1 : 1); });
+    var w = widget("w-4 lgd-crm-pic", "CRM mengikut PIC", rows.length + " PIC");
+    var max = rows.length ? rows[0].n : 0;
+    var box = el("div", "hbars lgd-crm-picbars");
+    rows.forEach(function (o) {
+      var sch = Object.keys(o.schools).sort();
+      var bar = hbar(o.name, o.n, max, sch.length + " sekolah");
+      bar.title = o.name + ": " + o.n + " orang CRM (" + o.aktif + " aktif)\n" + sch.join(", ");
+      box.appendChild(bar);
+    });
+    if (none) {
+      var nb = hbar("Belum ada PIC CRM", none, Math.max(max, none), "");
+      nb.classList.add("is-none");
+      box.appendChild(nb);
+    }
+    if (!rows.length && !none) box.appendChild(el("p", "empty-text", "Belum ada orang CRM."));
+    w.appendChild(box);
+    w.appendChild(el("p", "lgd-crm-note", "Satu orang CRM dengan dua PIC (cth. \"Akmal/Munir\") dikira untuk kedua-dua PIC. Halakan tetikus pada nama untuk lihat sekolah."));
+    return w;
   }
 
   function personLine(p, branch, extra) {
