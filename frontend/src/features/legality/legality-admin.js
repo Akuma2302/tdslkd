@@ -48,7 +48,18 @@
         state.error = e.message || String(e);
       })
       .then(function () { state.loading = false; changed(); });
-    if (!quiet) loadPrograms();
+    if (!quiet) { loadPrograms(); loadKronologi(); }
+  }
+
+  // Kronologi: every Progress semasa a PIC has saved, with its date and time (admin only).
+  var kron = { entries: null, loading: false, error: "", q: "", school: "" };
+  function loadKronologi() {
+    if (!API || !getKod()) return;
+    kron.loading = true; kron.error = "";
+    Api.get({ action: "kronologi" })
+      .then(function (d) { kron.entries = d.entries || []; })
+      .catch(function (e) { kron.error = e.message || String(e); })
+      .then(function () { kron.loading = false; changed(); });
   }
 
   // Programmes sent from the Program page (program.html), kept in their own Google Sheet.
@@ -257,6 +268,7 @@
     grid.appendChild(progressWidget(rows, branch));
 
     grid.appendChild(programWidget(branch));
+    grid.appendChild(kronologiWidget(branch));
     grid.appendChild(botWidget());
     body.appendChild(grid);
   }
@@ -606,6 +618,138 @@
     if (s === "Menunggu kelulusan") return "semak";
     if (s === "Dibatalkan") return "batal";
     return "proses";
+  }
+
+  // ---------- Kronologi ----------
+  // Timeline of Progress semasa updates, grouped by day, newest first. The date/time of each entry can be changed.
+  function pad2(n) { return ("0" + n).slice(-2); }
+  function localInput(iso) {   // ISO -> "yyyy-MM-ddTHH:mm" in this device's time, for <input type="datetime-local">
+    var d = new Date(iso);
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()) + "T" + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+  }
+  function dayLabel(iso) {
+    return new Date(iso).toLocaleDateString("ms-MY", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  }
+  function timeLabel(iso) {
+    return new Date(iso).toLocaleTimeString("ms-MY", { hour: "2-digit", minute: "2-digit", hour12: true });
+  }
+
+  function kronologiWidget(branch) {
+    var all = (kron.entries || []).filter(function (e) { return branch === ALL || e.cawangan === branch; });
+    var w = widget("w-4 lgd-kron", "Kronologi Progress Legality", "");
+    w.querySelector(".w-head").appendChild(el("span", "lgd-kron-lock", "🔒 Admin sahaja"));
+    if (!kron.entries) {
+      w.appendChild(el("p", "empty-text", kron.error ? "Tidak dapat memuatkan kronologi (" + kron.error + ")."
+        : kron.loading ? "Memuatkan kronologi…" : "Belum dimuatkan."));
+      return w;
+    }
+    if (!all.length) {
+      w.appendChild(el("p", "empty-text", "Belum ada catatan. Setiap kali PIC menyimpan Progress semasa, ia direkod di sini."));
+      return w;
+    }
+
+    var tools = el("div", "lgd-prog-tools");
+    var search = el("input", "borang-input lgd-prog-search");
+    search.type = "search"; search.placeholder = "Cari dalam catatan"; search.value = kron.q;
+    search.setAttribute("aria-label", "Cari dalam kronologi");
+    tools.appendChild(search);
+    var pick = el("select", "borang-input lgd-prog-filter");
+    pick.setAttribute("aria-label", "Sekolah");
+    var names = {};
+    all.forEach(function (e) { names[e.sekolah + (branch === ALL ? " · " + e.cawangan : "")] = e.cawangan + "|" + e.sekolah; });
+    [["", "Semua sekolah"]].concat(Object.keys(names).sort().map(function (k) { return [names[k], k]; })).forEach(function (o) {
+      var op = el("option", null, o[1]); op.value = o[0]; pick.appendChild(op);
+    });
+    pick.value = kron.school;
+    tools.appendChild(pick);
+    var count = el("span", "lgd-prog-count");
+    tools.appendChild(count);
+    w.appendChild(tools);
+
+    var list = el("div", "lgd-kron-list");
+    w.appendChild(list);
+    var LIMIT = 60, shown = LIMIT;
+
+    function draw() {
+      list.textContent = "";
+      var q = kron.q.trim().toLowerCase();
+      var rows = all.filter(function (e) {
+        if (kron.school && e.cawangan + "|" + e.sekolah !== kron.school) return false;
+        return !q || (e.text + " " + e.sekolah).toLowerCase().indexOf(q) > -1;
+      });
+      count.textContent = rows.length + " catatan";
+      var lastDay = "";
+      rows.slice(0, shown).forEach(function (e) {
+        var day = e.masa ? dayLabel(e.masa) : "Tiada tarikh";
+        if (day !== lastDay) { list.appendChild(el("h3", "lgd-kron-day", day)); lastDay = day; }
+        list.appendChild(entry(e));
+      });
+      if (!rows.length) list.appendChild(el("p", "empty-text", "Tiada catatan sepadan."));
+      if (rows.length > shown) {
+        var more = el("button", "link-btn lgd-kron-more", "Tunjuk lagi (" + (rows.length - shown) + ")");
+        more.type = "button";
+        more.addEventListener("click", function () { shown += LIMIT; draw(); });
+        list.appendChild(more);
+      }
+    }
+
+    function entry(e) {
+      var item = el("article", "lgd-kron-item");
+      var head = el("div", "lgd-kron-head");
+      var when = el("div", "lgd-kron-when");
+      head.appendChild(when);
+      var who = el("span", "lgd-kron-school", e.sekolah);
+      if (branch === ALL) who.appendChild(el("small", null, e.cawangan));
+      head.appendChild(who);
+      item.appendChild(head);
+      item.appendChild(el("p", "lgd-kron-text", e.text));
+
+      function show() {
+        when.textContent = "";
+        when.appendChild(el("span", "lgd-kron-time", e.masa ? timeLabel(e.masa) : "—"));
+        var ed = el("button", "lgd-vid-edit", "✎"); ed.type = "button";
+        ed.title = "Ubah tarikh dan masa";
+        ed.setAttribute("aria-label", "Ubah tarikh dan masa catatan " + e.sekolah);
+        ed.addEventListener("click", edit);
+        when.appendChild(ed);
+        if (e.dicatat && e.masa && Math.abs(new Date(e.dicatat) - new Date(e.masa)) > 60000) {
+          when.title = "Dicatat sebenar: " + new Date(e.dicatat).toLocaleString("ms-MY");
+          when.appendChild(el("span", "lgd-kron-moved", "diubah"));
+        }
+      }
+      function edit() {
+        when.textContent = "";
+        var inp = el("input", "borang-input lgd-kron-input");
+        inp.type = "datetime-local"; inp.value = e.masa ? localInput(e.masa) : "";
+        inp.setAttribute("aria-label", "Tarikh dan masa");
+        var save = el("button", "lgd-vid-save", "Simpan"); save.type = "button";
+        var cancel = el("button", "lgd-del-no", "Batal"); cancel.type = "button";
+        var err = el("small", "lgd-vid-err");
+        cancel.addEventListener("click", show);
+        save.addEventListener("click", function () {
+          if (!inp.value) { err.textContent = "Pilih tarikh dan masa."; return; }
+          save.disabled = cancel.disabled = true; save.textContent = "Menyimpan…";
+          Api.post({ action: "saveKronologiMasa", cawangan: e.cawangan, id: e.id, masa: inp.value })
+            .then(function (d) { kron.entries = d.entries || kron.entries; changed(); })
+            .catch(function (x) {
+              save.disabled = cancel.disabled = false; save.textContent = "Simpan";
+              err.textContent = "Tidak dapat menyimpan: " + (x.message || x);
+            });
+        });
+        inp.addEventListener("keydown", function (ev) { if (ev.key === "Escape") show(); });
+        var row = el("div", "lgd-kron-edit");
+        row.appendChild(inp); row.appendChild(save); row.appendChild(cancel); row.appendChild(err);
+        when.appendChild(row);
+        inp.focus();
+      }
+      show();
+      return item;
+    }
+
+    search.addEventListener("input", function () { kron.q = search.value; shown = LIMIT; draw(); });
+    pick.addEventListener("change", function () { kron.school = pick.value; shown = LIMIT; draw(); });
+    draw();
+    return w;
   }
 
   // "Program Sekolah" tracker: every programme the cawangan sent through the Program page.

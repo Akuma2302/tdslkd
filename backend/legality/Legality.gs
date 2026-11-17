@@ -90,6 +90,10 @@ function doGet(e) {
       if (role !== "admin") throw new Error("KOD_SALAH");
       return json(summary(p.fresh === "1"));
     }
+    if (p.action === "kronologi") {   // admin dashboard: history of Progress semasa
+      if (role !== "admin") throw new Error("KOD_SALAH");
+      return json(readKronologi(p.cawangan));
+    }
     return json({ error: "Tindakan tidak dikenali: " + p.action });
   } catch (err) {
     return json({ error: String(err && err.message || err) });
@@ -150,6 +154,10 @@ function doPost(e) {
       if (role !== "admin") throw new Error("Hanya admin boleh memadam program.");
       lock.waitLock(20000);
       return json(deleteProgram(body));
+    }
+    if (body.action === "saveKronologiMasa") {   // admin dashboard: change the date/time of a Kronologi entry
+      if (role !== "admin") throw new Error("Hanya admin boleh mengubah kronologi.");
+      return json(saveKronologiMasa(body));
     }
     if (body.action === "saveProgramVideo") {   // admin dashboard: "+ Link video" on a programme
       if (role !== "admin") throw new Error("Hanya admin boleh mengubah link video.");
@@ -545,10 +553,84 @@ function saveProgressNote(body) {
   var note = String(body.note == null ? "" : body.note).trim().slice(0, 3000);
   if (now !== text(body.old) && now !== note) throw new Error("Ada orang lain telah mengemas kini progress semasa ini. Muat semula halaman dan cuba lagi.");
   if (now !== note) {
-    cell.setValues([[safe(note), new Date()]]);
+    var at = new Date();
+    cell.setValues([[safe(note), at]]);
+    if (note) kronologiAdd(ss, school, note, at);
     markSummaryStale();
   }
   return { ok: true, note: readProgressNote(ss, school) };
+}
+
+// ---------- Kronologi (admin only) ----------
+// Every saved "Progress semasa" is also added, with its date and time, to the "Kronologi" tab of the cawangan
+// sheet: ID | Sekolah | Masa | Progress semasa | Dicatat. The admin dashboard lists it and can change Masa
+// (e.g. when the update was about an earlier day); Dicatat keeps the real save time.
+var KRONOLOGI_TAB = "Kronologi";
+var KRONOLOGI_HEAD = ["ID", "Sekolah", "Masa", "Progress semasa", "Dicatat"];
+function kronologiSheet(ss, create) {
+  var sh = ss.getSheetByName(KRONOLOGI_TAB);
+  if (sh || !create) return sh;
+  sh = ss.insertSheet(KRONOLOGI_TAB, Math.min(4, ss.getSheets().length));
+  sh.getRange(1, 1, 1, KRONOLOGI_HEAD.length).setValues([KRONOLOGI_HEAD])
+    .setBackground("#0b47a1").setFontColor("#ffffff").setFontWeight("bold").setFontSize(10);
+  sh.setFrozenRows(1);
+  sh.setColumnWidth(1, 90); sh.setColumnWidth(2, 140); sh.setColumnWidth(3, 140); sh.setColumnWidth(4, 420); sh.setColumnWidth(5, 140);
+  sh.getRange("C:C").setNumberFormat("d mmm yyyy h:mm");
+  sh.getRange("E:E").setNumberFormat("d mmm yyyy h:mm").setFontColor("#666666");
+  sh.getRange("D:D").setWrap(true).setVerticalAlignment("top");
+  return sh;
+}
+function kronologiAdd(ss, school, note, at) {
+  var sh = kronologiSheet(ss, true);
+  sh.appendRow([Utilities.getUuid().slice(0, 8), school, at, safe(note), at]);
+}
+/** Admin: every entry of every cawangan (or one), newest Masa first: [{ id, cawangan, sekolah, masa, text, dicatat }] */
+function readKronologi(cawangan) {
+  var map = sheetMap(), out = [];
+  CAWANGAN.forEach(function (c) {
+    if (!map[c] || (cawangan && text(cawangan).toUpperCase() !== c)) return;
+    var sh = kronologiSheet(SpreadsheetApp.openById(map[c]), false);
+    if (!sh || sh.getLastRow() < 2) return;
+    sh.getRange(2, 1, sh.getLastRow() - 1, KRONOLOGI_HEAD.length).getValues().forEach(function (r) {
+      if (!text(r[0]) || !text(r[1])) return;
+      out.push({ id: text(r[0]), cawangan: c, sekolah: text(r[1]),
+                 masa: r[2] instanceof Date ? r[2].toISOString() : "", text: text(r[3]),
+                 dicatat: r[4] instanceof Date ? r[4].toISOString() : "" });
+    });
+  });
+  out.sort(function (a, b) { return a.masa < b.masa ? 1 : a.masa > b.masa ? -1 : 0; });
+  return { entries: out };
+}
+/** Admin: body { cawangan, id, masa: "yyyy-MM-ddTHH:mm" (local time) } — changes the date and time of one entry. */
+function saveKronologiMasa(body) {
+  var ss = book(body.cawangan);
+  var sh = kronologiSheet(ss, false);
+  var m = text(body.masa).match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+  if (!m) throw new Error("Tarikh dan masa tidak sah.");
+  if (!sh || sh.getLastRow() < 2) throw new Error("Rekod kronologi tidak dijumpai.");
+  var ids = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues().map(function (r) { return text(r[0]); });
+  var i = ids.indexOf(text(body.id));
+  if (i < 0) throw new Error("Rekod kronologi tidak dijumpai. Muat semula halaman.");
+  sh.getRange(i + 2, 3).setValue(new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]));
+  return readKronologi();
+}
+/** One-off: put each school's current Progress semasa into an empty Kronologi tab, so the list does not start blank. */
+function kronologiBackfill() {
+  var map = sheetMap();
+  CAWANGAN.forEach(function (c) {
+    if (!map[c]) return;
+    var ss = SpreadsheetApp.openById(map[c]);
+    var sh = kronologiSheet(ss, false);
+    if (sh && sh.getLastRow() >= 2) { Logger.log(c + ": Kronologi sudah ada rekod, dilangkau"); return; }
+    var n = 0;
+    schoolNames(ss).forEach(function (school) {
+      var note = readProgressNote(ss, school);
+      if (!note.text) return;
+      kronologiAdd(ss, school, note.text, note.updated ? new Date(note.updated) : new Date());
+      n++;
+    });
+    Logger.log(c + ": " + n + " rekod ditambah");
+  });
 }
 
 /** Admin only. body: { cawangan, sekolah, jenis, status } — does not change the Progress semasa date. */
