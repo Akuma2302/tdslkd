@@ -1616,6 +1616,7 @@
       var td = el("td", "lgd-del-col lgd-c-del");
       function idle() {
         td.textContent = "";
+        td.classList.remove("is-asking");
         var b = el("button", "lgd-del-btn", "🗑");
         b.type = "button";
         b.title = "Padam program ini";
@@ -1625,6 +1626,7 @@
       }
       function ask() {
         td.textContent = "";
+        td.classList.add("is-asking");
         var box = el("div", "lgd-del-ask");
         box.appendChild(el("span", null, "Padam program ini?"));
         var yes = el("button", "lgd-del-yes", "Ya, padam"); yes.type = "button";

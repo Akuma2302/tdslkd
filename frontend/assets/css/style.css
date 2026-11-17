@@ -1631,12 +1631,15 @@ th.lgd-view-th { padding-bottom: 0.5rem; }
   .lgd-plist .lgd-c-rep .lgd-rep-link, .lgd-plist .lgd-c-vid .lgd-rep-link { display: inline-block; margin: 0 0 0 0.4rem; }
   /* Delete confirmation: a small solid panel in the card's corner, above the text it covers */
   .lgd-plist .lgd-c-del { z-index: 2; }
+  /* While asking, the cell spans the card's top edge: one tidy bar over the date row */
+  .lgd-plist .lgd-c-del.is-asking { left: 0.5rem; right: 0.5rem; top: 0.45rem; }
   .lgd-plist .lgd-del-ask {
-    flex-direction: row; flex-wrap: wrap; justify-content: flex-end; align-items: center; max-width: 15rem;
-    padding: 0.55rem 0.65rem; border: 1px solid rgba(255, 140, 140, 0.35); border-radius: 12px;
-    background: var(--bg-2); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55); white-space: normal;
+    flex-direction: row; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0.45rem;
+    padding: 0.3rem 0.4rem 0.3rem 0.85rem; border: 1px solid rgba(255, 140, 140, 0.4); border-radius: 12px;
+    background: #2a1716; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55); white-space: nowrap;
   }
-  .lgd-plist .lgd-del-ask > :first-child { flex-basis: 100%; text-align: right; font-weight: 700; }
+  .lgd-plist .lgd-del-ask > :first-child { margin-right: auto; font-size: 0.85rem; font-weight: 700; color: #ffb3ad; }
+  .lgd-plist .lgd-del-ask button { padding: 0.3rem 0.8rem; }
   .lgd-plist .empty-text { display: block; }
 }
 
