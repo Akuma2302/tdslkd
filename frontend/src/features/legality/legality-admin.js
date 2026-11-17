@@ -255,18 +255,7 @@
     if (!state.data) return;
     var branch = currentBranch();
     sideHost.appendChild(el("p", "tab-group", "Cawangan"));
-    var wrap = el("label", "side-select");
-    var sel = el("select");
-    sel.setAttribute("aria-label", "Cawangan");
-    var all = el("option", null, "Semua cawangan"); all.value = ALL; sel.appendChild(all);
-    state.data.cawangan.forEach(function (c) {
-      var o = el("option", null, c.id + (c.schools.length ? " · " + c.schools.length : "")); o.value = c.id; sel.appendChild(o);
-    });
-    sel.value = branch;
-    sel.addEventListener("change", function () { store("legalityBranch", sel.value); changed(); });
-    if (window.SIDE_ICON) wrap.appendChild(window.SIDE_ICON("M6 3v12M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6M18 9a9 9 0 0 1-9 9"));
-    wrap.appendChild(sel);
-    sideHost.appendChild(wrap);
+    sideHost.appendChild(branchPicker(branch));
 
     sideHost.appendChild(el("p", "tab-group", "Legality"));
     var sub = currentSub();
@@ -288,6 +277,74 @@
     });
   }
   function sidebar(host) { sideHost = host; drawSide(); }
+
+  // Cawangan switcher in the sidebar: a button + dark list (the native <select> list is white on Windows).
+  function branchPicker(branch) {
+    var opts = [{ id: ALL, label: "Semua cawangan", n: schoolsFor(ALL).length }].concat(state.data.cawangan.map(function (c) {
+      return { id: c.id, label: c.id, n: c.schools.length };
+    }));
+    var cur = opts.filter(function (o) { return o.id === branch; })[0] || opts[0];
+    var box = el("div", "side-pick");
+    var btn = el("button", "side-pick-btn");
+    btn.type = "button";
+    btn.setAttribute("aria-haspopup", "listbox");
+    btn.setAttribute("aria-expanded", "false");
+    btn.setAttribute("aria-label", "Cawangan: " + cur.label);
+    if (window.SIDE_ICON) btn.appendChild(window.SIDE_ICON("M6 3v12M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6M18 9a9 9 0 0 1-9 9"));
+    btn.appendChild(el("span", "side-pick-label", cur.label));
+    btn.appendChild(el("span", "side-pick-chev"));
+    box.appendChild(btn);
+
+    var list = el("div", "side-pick-list");
+    list.setAttribute("role", "listbox");
+    list.setAttribute("aria-label", "Cawangan");
+    list.hidden = true;
+    var items = opts.map(function (o) {
+      var it = el("button", "side-pick-opt" + (o.id === cur.id ? " is-on" : ""));
+      it.type = "button";
+      it.setAttribute("role", "option");
+      it.setAttribute("aria-selected", o.id === cur.id ? "true" : "false");
+      it.appendChild(el("span", "side-pick-check", o.id === cur.id ? "✓" : ""));
+      it.appendChild(el("span", "side-pick-name", o.label));
+      var cnt = el("span", "side-pick-n" + (o.n ? "" : " is-zero"), o.n ? String(o.n) : "–");
+      cnt.title = o.n ? o.n + " sekolah" : "Belum ada sekolah";
+      it.appendChild(cnt);
+      it.addEventListener("click", function () {
+        close();
+        if (o.id === cur.id) return;
+        store("legalityBranch", o.id);
+        changed();
+      });
+      list.appendChild(it);
+      return it;
+    });
+    box.appendChild(list);
+
+    function onDoc(e) { if (!box.contains(e.target)) close(); }
+    function open() {
+      list.hidden = false;
+      btn.setAttribute("aria-expanded", "true");
+      box.classList.add("is-open");
+      document.addEventListener("click", onDoc, true);
+      (items.filter(function (x) { return x.classList.contains("is-on"); })[0] || items[0]).focus();
+    }
+    function close() {
+      if (list.hidden) return;
+      list.hidden = true;
+      btn.setAttribute("aria-expanded", "false");
+      box.classList.remove("is-open");
+      document.removeEventListener("click", onDoc, true);
+    }
+    btn.addEventListener("click", function () { if (list.hidden) open(); else close(); });
+    box.addEventListener("keydown", function (e) {
+      var i = items.indexOf(document.activeElement);
+      if (e.key === "Escape") { close(); btn.focus(); e.preventDefault(); }
+      else if (e.key === "ArrowDown") { if (list.hidden) open(); else items[Math.min(items.length - 1, i + 1)].focus(); e.preventDefault(); }
+      else if (e.key === "ArrowUp" && i > -1) { items[Math.max(0, i - 1)].focus(); e.preventDefault(); }
+      else if (e.key === "Tab" && !list.hidden) close();
+    });
+    return box;
+  }
   listeners.push(drawSide);
 
   // ---------- Perlu Tindakan ----------
