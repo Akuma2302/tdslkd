@@ -572,38 +572,66 @@
     return String(pic || "").split(/\s*(?:\/|,|&|\+|\bdan\b|\n)\s*/i)
       .map(function (s) { return s.replace(/^@+/, "").trim(); }).filter(Boolean);
   }
+  var openPics = {};
   function picWidget(list) {
-    var by = {}, none = 0;
+    var by = {}, none = [];
     list.forEach(function (p) {
       var names = picNames(p.pic);
-      if (!names.length) { none++; return; }
+      if (!names.length) { none.push(p); return; }
       names.forEach(function (nm) {
         var k = nm.toLowerCase();
-        var o = by[k] = by[k] || { name: nm, n: 0, aktif: 0, schools: {} };
+        var o = by[k] = by[k] || { name: nm, n: 0, aktif: 0, schools: {}, people: [] };
         o.n++;
         if (p.ada) o.aktif++;
         o.schools[p.sekolah] = 1;
+        o.people.push(p);
       });
     });
     var rows = Object.keys(by).map(function (k) { return by[k]; })
       .sort(function (a, b) { return b.n - a.n || (a.name < b.name ? -1 : 1); });
     var w = widget("w-4 lgd-crm-pic", "CRM mengikut PIC", rows.length + " PIC");
-    var max = rows.length ? rows[0].n : 0;
+    var max = rows.length ? rows[0].n : none.length;   // bars relative to the busiest PIC (the no-PIC bar may fill up)
     var box = el("div", "hbars lgd-crm-picbars");
-    rows.forEach(function (o) {
-      var sch = Object.keys(o.schools).sort();
-      var bar = hbar(o.name, o.n, max, sch.length + " sekolah");
-      bar.title = o.name + ": " + o.n + " orang CRM (" + o.aktif + " aktif)\n" + sch.join(", ");
-      box.appendChild(bar);
-    });
-    if (none) {
-      var nb = hbar("Belum ada PIC CRM", none, Math.max(max, none), "");
-      nb.classList.add("is-none");
-      box.appendChild(nb);
+    // Each PIC row opens the list of their CRM people: name, jawatan (Entiti), level, phase, school.
+    function item(label, n, extra, people, cls) {
+      var d = el("details", "lgd-pic-item" + (cls ? " " + cls : ""));
+      if (openPics[label]) d.open = true;   // stays open when fresh data redraws the page
+      d.addEventListener("toggle", function () { if (d.open) openPics[label] = 1; else delete openPics[label]; });
+      var s = el("summary");
+      var bar = hbar(label, n, max, extra);
+      bar.appendChild(el("span", "lgd-pic-chev"));
+      s.appendChild(bar);
+      s.title = "Tekan untuk lihat senarai CRM " + label;
+      d.appendChild(s);
+      var t = el("div", "lgd-pic-list");
+      people.slice().sort(function (a, b) { return (a.sekolah + a.nama).localeCompare(b.sekolah + b.nama); }).forEach(function (p) {
+        var r = el("div", "lgd-pic-row");
+        var who = el("span", "lgd-pic-who", p.nama || "(tiada nama)");
+        who.appendChild(el("small", null, (p.entiti || "Jawatan tidak diisi") + " · " + p.sekolah));
+        r.appendChild(who);
+        var tags = el("span", "lgd-crm-tags");
+        tags.appendChild(el("span", "lgd-crm-tag" + (p.level ? " is-check" : ""), p.level || "Level —"));
+        if (p.phase) tags.appendChild(el("span", "lgd-crm-tag" + (isEarlyPhase(p.phase) ? " is-early" : ""), p.phase.split(":")[0]));
+        tags.appendChild(el("span", "lgd-crm-tag " + (p.ada ? "is-on" : "is-off"), p.ada ? "Aktif" : "Tidak aktif"));
+        r.appendChild(tags);
+        t.appendChild(r);
+      });
+      // Summary line: how many per level and per jawatan
+      var lv = countBy(people, "level"), jw = countBy(people, "entiti");
+      var sumLine = el("p", "lgd-pic-sum");
+      sumLine.textContent = "Level: " + Object.keys(lv).map(function (k) { return k + " (" + lv[k] + ")"; }).join(", ") +
+        "  ·  Jawatan: " + Object.keys(jw).map(function (k) { return k + " (" + jw[k] + ")"; }).join(", ");
+      t.insertBefore(sumLine, t.firstChild);
+      d.appendChild(t);
+      return d;
     }
-    if (!rows.length && !none) box.appendChild(el("p", "empty-text", "Belum ada orang CRM."));
+    rows.forEach(function (o) {
+      box.appendChild(item(o.name, o.n, Object.keys(o.schools).length + " sekolah", o.people));
+    });
+    if (none.length) box.appendChild(item("Belum ada PIC CRM", none.length, "", none, "is-none"));
+    if (!rows.length && !none.length) box.appendChild(el("p", "empty-text", "Belum ada orang CRM."));
     w.appendChild(box);
-    w.appendChild(el("p", "lgd-crm-note", "Satu orang CRM dengan dua PIC (cth. \"Akmal/Munir\") dikira untuk kedua-dua PIC. Halakan tetikus pada nama untuk lihat sekolah."));
+    w.appendChild(el("p", "lgd-crm-note", "Tekan nama PIC untuk lihat senarai CRM, jawatan dan level. Satu orang CRM dengan dua PIC (cth. \"Akmal/Munir\") dikira untuk kedua-dua PIC."));
     return w;
   }
 
