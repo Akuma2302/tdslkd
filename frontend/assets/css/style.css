@@ -1897,3 +1897,69 @@ th.lgd-view-th { padding-bottom: 0.5rem; }
   .lgd-pic-row { flex-direction: column; align-items: flex-start; gap: 0.3rem; }
   .lgd-pic-who { width: 100%; }
 }
+
+/* School page: Checklist Fasa Legality */
+.lg-fasa-now { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.35rem 0.75rem; margin: 0.4rem 0 0.6rem; }
+.lg-fasa-label { color: var(--muted); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.lg-fasa-level { color: var(--accent); font-family: var(--display); font-size: 1.15rem; font-weight: 800; }
+.lg-fasa-next { flex-basis: 100%; color: var(--muted); font-size: 0.85rem; }
+.lg-fasa-next.is-all { color: #5be08f; font-weight: 700; }
+.lg-fasa-bar { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; margin-bottom: 1rem; }
+.lg-fasa-bar span { height: 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); }
+.lg-fasa-bar span.is-done { background: #1fbf5b; }
+.lg-fasa-bar span.is-next { background: rgba(255, 195, 0, 0.45); }
+.lg-fasa-groups { display: grid; gap: 0.45rem; }
+.lg-fasa { border: 1px solid var(--line); border-radius: 12px; background: var(--bg-2); }
+.lg-fasa.is-current { border-color: rgba(255, 195, 0, 0.45); }
+.lg-fasa.is-done { border-color: rgba(52, 211, 113, 0.35); }
+.lg-fasa > summary { display: flex; align-items: center; gap: 0.7rem; padding: 0.7rem 0.9rem; cursor: pointer; list-style: none; }
+.lg-fasa > summary::-webkit-details-marker { display: none; }
+.lg-fasa > summary::after { content: "▾"; color: var(--muted); transition: transform 0.15s; }
+.lg-fasa[open] > summary::after { transform: rotate(180deg); }
+.lg-fasa-n { display: grid; place-items: center; flex: none; width: 1.8rem; height: 1.8rem; border-radius: 50%; background: rgba(255, 255, 255, 0.07); color: var(--muted); font-size: 0.78rem; font-weight: 800; }
+.lg-fasa.is-current .lg-fasa-n { background: var(--accent); color: var(--on-accent); }
+.lg-fasa.is-done .lg-fasa-n { background: #1fbf5b; color: #0b0b0b; }
+.lg-fasa-title { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.lg-fasa-title strong { font-size: 0.92rem; }
+.lg-fasa-title span { color: var(--muted); font-size: 0.8rem; }
+.lg-fasa-count { flex: none; padding: 0.1rem 0.5rem; border-radius: 999px; background: rgba(255, 255, 255, 0.07); color: var(--muted); font-size: 0.74rem; font-weight: 700; }
+.lg-fasa.is-done .lg-fasa-count { background: rgba(52, 211, 113, 0.16); color: #5be08f; }
+.lg-fasa-items { display: grid; gap: 0.4rem; margin: 0; padding: 0 0.9rem 0.9rem; list-style: none; }
+.lg-fasa-item { width: 100%; }
+
+/* Admin: Checklist Fasa Legality (row 1 fasa, row 2 tindakan; Sekolah + Fasa semasa stay on the left) */
+.lgd-fasa-w { min-width: 0; }
+.lgd-fasa-pills { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-bottom: 0.8rem; }
+.lgd-fasa-pills-label { margin-right: 0.25rem; color: var(--muted); font-size: 0.78rem; }
+.lgd-fasa-pill { padding: 0.12rem 0.55rem; border-radius: 999px; background: rgba(255, 255, 255, 0.06); color: var(--muted); font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
+.lgd-fasa-pill.is-on { background: rgba(255, 195, 0, 0.16); color: var(--accent); }
+.lgd-fasa-table { width: auto; min-width: 0; }
+.lgd-fasa-table th.lgd-fz-phase { background: #7a2e2e; text-transform: none; font-size: 0.74rem; white-space: nowrap; }
+.lgd-fasa-table th.lgd-fz-phase.is-alt { background: #5c2424; }
+.lgd-fasa-table th.lgd-fz-act { min-width: 96px; max-width: 120px; background: #3a3320; color: #ffe599; text-transform: none; font-size: 0.68rem; font-weight: 600; letter-spacing: 0; }
+.lgd-fasa-table th.lgd-fz-act.is-alt { background: #2f2a1b; }
+.lgd-fasa-table td.is-yes, .lgd-fasa-table td.is-no { min-width: 96px; height: 2.6rem; }
+.lgd-fasa-table .is-first { box-shadow: -3px 0 0 0 rgba(255, 255, 255, 0.18); }
+.lgd-fasa-table .lgd-fz-school, .lgd-fasa-table .lgd-fz-level { position: sticky; z-index: 2; }
+.lgd-fasa-table .lgd-fz-school { left: 0; min-width: 150px; max-width: 190px; }
+.lgd-fasa-table .lgd-fz-level { left: 153px; min-width: 104px; }
+.lgd-fasa-table th.lgd-fz-school, .lgd-fasa-table th.lgd-fz-level { z-index: 3; background: #0b47a1; }
+.lgd-fasa-table td.lgd-fz-school, .lgd-fasa-table td.lgd-fz-level { background: var(--card-2); }
+.lgd-fasa-table td.lgd-fz-level small { display: block; margin-top: 0.25rem; color: var(--muted); font-size: 0.7rem; white-space: nowrap; }
+.lgd-fz-pill { display: inline-block; padding: 0.1rem 0.55rem; border-radius: 999px; background: rgba(255, 255, 255, 0.07); color: var(--muted); font-size: 0.74rem; font-weight: 800; }
+.lgd-fz-pill.is-on { background: var(--accent); color: var(--on-accent); }
+.lgd-fz-hint { margin-left: auto; }
+@media (max-width: 600px) {
+  .lgd-fasa-table .lgd-fz-school { min-width: 110px; max-width: 130px; }
+  .lgd-fasa-table .lgd-fz-level { left: 113px; min-width: 88px; }
+  .lgd-fz-hint { display: none; }
+}
+.lgd-fasa-table td.lgd-fz-school, .lgd-fasa-table th.lgd-fz-school { width: 160px; min-width: 160px; max-width: 160px; white-space: normal; }
+.lgd-fasa-table td.lgd-fz-level, .lgd-fasa-table th.lgd-fz-level { left: 163px; width: 104px; min-width: 104px; max-width: 104px; }
+@media (max-width: 600px) {
+  .lgd-fasa-table td.lgd-fz-school, .lgd-fasa-table th.lgd-fz-school { width: 112px; min-width: 112px; max-width: 112px; }
+  .lgd-fasa-table td.lgd-fz-level, .lgd-fasa-table th.lgd-fz-level { left: 115px; width: 90px; min-width: 90px; max-width: 90px; }
+}
+:root { scrollbar-color: rgba(255, 255, 255, 0.22) transparent; }   /* dark scrollbars everywhere (inherited) */
+.lgd-matrix-wrap, .tbl-wrap { scrollbar-width: thin; }
+.lgd-fasa-table .lgd-fz-school, .lgd-fasa-table .lgd-fz-level { box-shadow: 0 -3px 0 0 var(--card), 0 3px 0 0 var(--card), 3px 0 0 0 var(--card); }

@@ -31,6 +31,115 @@ var SECTIONS = {
 var CHECKBOX_COLS = { crm: [3].concat(range_(14, 30)), program: [7] };
 var DATE_COLS = { crm: [11], planning: [2] };
 
+// Fasa Legality: 10 phases, each with its actions (tindakan). A school is at Fasa N once every action of
+// Fasa 1..N is ticked (Fasa 0 = none complete). Ticks live in the "Fasa Legality" tab of each cawangan sheet.
+// This replaced the old 6-step checklist (still in the Progress tab, unused) and started from empty on 2026-11-18.
+var FASA_TAB = "Fasa Legality";
+var FASA = [
+  { n: 1, name: "Initial contact", items: ["Dapatkan background sekolah, admin", "Contact pihak sekolah", "Hantar surat / proposal", "Set up meeting bersama pihak sekolah"] },
+  { n: 2, name: "Intelligence gathering", items: ["Perjumpaan bersama pihak sekolah", "Niche / keperluan sekolah", "Persetujuan melalui draf BnW"] },
+  { n: 3, name: "Suggest the most suitable package", items: ["Follow up BnW", "Persetujuan (tandatangan) BnW", "Set tarikh untuk program", "Set tarikh next meeting"] },
+  { n: 4, name: "Access", items: ["Bentuk kerjasama yang dibuat dengan pihak sekolah", "Pelaksanaan kerjasama yang dibuat (progress)"] },
+  { n: 5, name: "Admit", items: ["Berjaya turunkan admin ke program yang dibuat", "Dapatkan feedback program (video)", "Cikgu share program di socmed", "Meeting reporting program kepada cikgu"] },
+  { n: 6, name: "Affirmation", items: ["Dapatkan fix tarikh untuk program legal", "CRM cikgu biasa (Level CRM 1)"] },
+  { n: 7, name: "Activate", items: ["Mula meeting reporting program berkala", "Cikgu join kempen Yosh"] },
+  { n: 8, name: "Assign", items: ["Mutarabbi digerakkan untuk CRM sekolah"] },
+  { n: 9, name: "Adopt", items: ["Sekolah setuju lanjutkan kontrak legality untuk tahun seterusnya", "Cikgu bagi dan nak join projek dan kempen Yosh"] },
+  { n: 10, name: "Advocate", items: ["Admin promote kita kepada sekolah lain", "Admin promote projek kita kepada ibu bapa dan semua staf", "Sekolah support Yosh"] }
+];
+var FASA_N = FASA.reduce(function (t, f) { return t + f.items.length; }, 0);   // 27 actions
+function fasaLevel(vals) {
+  var i = 0, level = 0;
+  for (var k = 0; k < FASA.length; k++) {
+    var all = FASA[k].items.every(function (_, j) { return vals[i + j] === true; });
+    i += FASA[k].items.length;
+    if (!all) break;
+    level = FASA[k].n;
+  }
+  return level;
+}
+// Tab: A = Sekolah, B.. = 27 checkboxes (row 1 fasa names, row 2 actions), then "Dikemas kini"; data from row 3.
+function fasaSheet(ss, create) {
+  var sh = ss.getSheetByName(FASA_TAB);
+  if (sh || !create) return sh;
+  sh = ss.insertSheet(FASA_TAB, Math.min(3, ss.getSheets().length));
+  if (sh.getMaxColumns() < FASA_N + 2) sh.insertColumnsAfter(sh.getMaxColumns(), FASA_N + 2 - sh.getMaxColumns());
+  var c = 2;
+  FASA.forEach(function (f) {
+    var w = f.items.length;
+    var top = sh.getRange(1, c, 1, w);
+    if (w > 1) top.merge();
+    top.setValue("FASA " + f.n + " (" + f.name.toUpperCase() + ")");
+    sh.getRange(2, c, 1, w).setValues([f.items]);
+    c += w;
+  });
+  sh.getRange(1, 1, 2, 1).merge().setValue("Sekolah");
+  sh.getRange(1, FASA_N + 2, 2, 1).merge().setValue("Dikemas kini");
+  sh.getRange(1, 1, 1, FASA_N + 2).setBackground("#ea9999").setFontWeight("bold").setFontSize(10);
+  sh.getRange(2, 1, 1, FASA_N + 2).setBackground("#ffe599").setFontWeight("bold").setFontSize(9).setWrap(true).setVerticalAlignment("top");
+  sh.getRange(1, 1, 2, 1).setBackground("#0b47a1").setFontColor("#ffffff");
+  sh.setRowHeight(2, 70);
+  sh.setColumnWidth(1, 150);
+  sh.setColumnWidths(2, FASA_N, 120);
+  sh.setColumnWidth(FASA_N + 2, 130);
+  sh.setFrozenRows(2);
+  sh.setFrozenColumns(1);
+  var body = sh.getRange(3, 2, 300, FASA_N);
+  body.insertCheckboxes();
+  var rules = sh.getConditionalFormatRules();
+  rules.push(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied("=AND($A3<>\"\",B3=TRUE)")
+    .setBackground("#00e000").setFontColor("#00e000").setRanges([body]).build());
+  rules.push(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied("=AND($A3<>\"\",B3=FALSE)")
+    .setBackground("#ff0000").setFontColor("#ff0000").setRanges([body]).build());
+  sh.setConditionalFormatRules(rules);
+  sh.getRange(3, FASA_N + 2, 300, 1).setNumberFormat("d mmm yyyy h:mm").setFontColor("#666666");
+  return sh;
+}
+// Every school's ticks in one read: { "SMAPK": [bool x27], … }
+function fasaAll(ss) {
+  var sh = fasaSheet(ss, false), out = {};
+  if (!sh || sh.getLastRow() < 3) return out;
+  sh.getRange(3, 1, sh.getLastRow() - 2, FASA_N + 1).getValues().forEach(function (r) {
+    if (text(r[0])) out[text(r[0])] = r.slice(1).map(function (v) { return v === true; });
+  });
+  return out;
+}
+function noFasa() { var a = []; for (var i = 0; i < FASA_N; i++) a.push(false); return a; }
+function readFasa(ss, school) { return fasaAll(ss)[school] || noFasa(); }
+/** body: { cawangan, sekolah, values: [bool x27], old: [bool x27] } — same "someone else changed it" check as saveProgress. */
+function saveFasa(body) {
+  var ss = book(body.cawangan);
+  var school = text(body.sekolah);
+  if (schoolNames(ss).indexOf(school) < 0) throw new Error("Sekolah tidak dijumpai: " + school);
+  var sh = fasaSheet(ss, true);
+  var last = sh.getLastRow(), r = 0;
+  if (last >= 3) {
+    var names = sh.getRange(3, 1, last - 2, 1).getValues().map(function (x) { return text(x[0]); });
+    var i = names.indexOf(school);
+    if (i > -1) r = i + 3;
+    else { var blank = names.indexOf(""); if (blank > -1) r = blank + 3; }
+  }
+  if (!r) r = Math.max(last, 2) + 1;
+  if (!text(sh.getRange(r, 1).getValue())) sh.getRange(r, 1).setValue(school);
+  var range = sh.getRange(r, 2, 1, FASA_N);
+  var now = range.getValues()[0].map(function (v) { return v === true; });
+  var vals = (body.values || []).map(function (v) { return v === true; });
+  var old = (body.old || []).map(function (v) { return v === true; });
+  var changed = false;
+  var out = now.map(function (cur, k) {
+    if (vals[k] === undefined || vals[k] === cur) return cur;
+    if (old[k] !== cur) throw new Error("Ada orang lain telah mengemas kini checklist fasa ini. Muat semula halaman dan cuba lagi.");
+    changed = true;
+    return vals[k];
+  });
+  if (changed) {
+    range.setValues([out]);
+    sh.getRange(r, FASA_N + 2).setValue(new Date());
+    markSummaryStale();
+  }
+  return { ok: true, values: out, level: fasaLevel(out) };
+}
+
 // Progress Legality: one row per school in the "Progress" tab of each cawangan sheet.
 var PROGRESS_TAB = "Progress";
 var PROGRESS_ITEMS = [
@@ -135,6 +244,7 @@ function doPost(e) {
     if (body.action === "save") return json(saveSection(body));
     if (body.action === "addSchool") return json(addSchool(body.cawangan, body.sekolah));
     if (body.action === "saveProgress") return json(saveProgress(body));
+    if (body.action === "saveFasa") return json(saveFasa(body));
     if (body.action === "saveProgressNote") return json(saveProgressNote(body));
     if (body.action === "saveLegalityStatus") {
       if (role !== "admin") throw new Error("Jenis dan Status Legality hanya boleh diubah oleh admin.");
@@ -276,14 +386,15 @@ function listSchools(cawangan) {
       if (text(r[0])) prog[text(r[0])] = r.slice(1).filter(function (v) { return v === true; }).length;
     });
   }
+  var fz = fasaAll(ss);
   var schools = schoolNames(ss).map(function (n) {
     var sh = ss.getSheetByName(n);
     var m = markers(sh);
     var rows = sh.getRange(3, COL.B, m.crmEnd - 2, 3).getValues(); // B, C, D
     var people = rows.filter(function (r) { return r[1] === true || text(r[2]); }).length;
-    return { name: n, people: people, progress: prog[n] || 0 };
+    return { name: n, people: people, progress: prog[n] || 0, fasa: fasaLevel(fz[n] || []) };
   });
-  return { cawangan: text(cawangan).toUpperCase(), schools: schools, steps: PROGRESS_ITEMS.length };
+  return { cawangan: text(cawangan).toUpperCase(), schools: schools, steps: PROGRESS_ITEMS.length, fasaMax: FASA.length };
 }
 
 // ---------- Layout of a school tab ----------
@@ -438,6 +549,7 @@ function readSchool(cawangan, sekolah) {
     level: dvOptions(kdv[2], memo),
     entiti: Object.keys(entitiOpts)
   };
+  data.fasa = { phases: FASA, values: readFasa(ss, sh.getName()) };
   data.progress = { items: PROGRESS_ITEMS, values: readProgress(ss, sh.getName()), note: readProgressNote(ss, sh.getName()),
                     options: { jenis: LEGALITY_JENIS, status: LEGALITY_STATUS } };
   data.images = listImages(ss, sh.getName());
@@ -794,7 +906,7 @@ function saveAlumni(body) {
 //  - each school tab is read once (one getValues, markers found from that same block);
 //  - the result is cached for 6 hours and returned at once; after any save it is only marked out of date
 //    ("stale": true) and the admin page fetches a fresh copy in the background.
-var SUMMARY_KEY = "summary6", SUMMARY_STALE = "summaryStale";   // summary6: + crm people per school (CRM sub-tab)
+var SUMMARY_KEY = "summary7", SUMMARY_STALE = "summaryStale";   // summary7: + fasa ticks per school (Fasa Legality)
 // The flag holds the time of the last save, so a summary that was already being built before that save does not clear it.
 function markSummaryStale() { CacheService.getScriptCache().put(SUMMARY_STALE, String(Date.now()), 21600); }
 
@@ -832,7 +944,7 @@ function summary(fresh) {
   }
   var startedAt = Date.now();
   var map = sheetMap();
-  var out = { items: PROGRESS_ITEMS, generated: new Date().toISOString(), cawangan: [] };
+  var out = { items: PROGRESS_ITEMS, fasa: FASA, generated: new Date().toISOString(), cawangan: [] };
   CAWANGAN.forEach(function (c) {
     if (!map[c]) { out.cawangan.push({ id: c, ready: false, schools: [] }); return; }
     var ss = SpreadsheetApp.openById(map[c]);
@@ -856,7 +968,7 @@ function summary(fresh) {
         (pics[text(r[0])] = pics[text(r[0])] || []).push({ nama: text(r[1]), username: u });
       });
     }
-    var schools = [], crmHead = null;   // crmHead: KPI + checklist column titles (row 2 of the first school tab)
+    var schools = [], crmHead = null, fz = fasaAll(ss);   // crmHead: KPI + checklist column titles (row 2 of the first school tab)
     schoolNames(ss).forEach(function (n) {
       var sh = ss.getSheetByName(n);
       var rows = Math.min(sh.getLastRow(), 400);
@@ -902,7 +1014,7 @@ function summary(fresh) {
         alumni: alumniText, alumniAda: alumniAda, analisa: analisaText, planning: planning,
         name: n, people: people, aktif: aktif, phase: phase, kategori: kategori, checks: checks,
         programs: programs, progress: prog[n] || PROGRESS_ITEMS.map(function () { return false; }),
-        note: note[n] || { text: "", updated: "" }, pic: pics[n] || [], crm: crm
+        note: note[n] || { text: "", updated: "" }, pic: pics[n] || [], crm: crm, fasa: fz[n] || noFasa()
       });
     });
     out.cawangan.push({ id: c, ready: true, url: ss.getUrl(), schools: schools, crmHead: crmHead });

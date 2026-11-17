@@ -268,7 +268,7 @@
           var b = button("lg-tile", null, function () { go("#/" + encodeURIComponent(d.cawangan) + "/" + encodeURIComponent(s.name)); });
           b.appendChild(el("span", "lg-tile-name", s.name));
           b.appendChild(el("span", "lg-tile-meta", (s.people ? s.people + " orang CRM" : "Belum ada CRM") +
-            (d.steps ? " · Progress " + (s.progress || 0) + "/" + d.steps : "")));
+            (d.fasaMax ? " · Fasa " + (s.fasa || 0) : "")));
           grid.appendChild(b);
         });
         if (!shown.length) grid.appendChild(el("p", "lg-empty", d.schools.length ? "Tiada sekolah sepadan." : "Belum ada sekolah untuk cawangan ini."));
@@ -341,7 +341,7 @@
       root.appendChild(zoneLabel("Tindakan minggu ini", "Dikemas kini setiap minggu"));
       if (d.weekly) root.appendChild(weeklyCard(d.weekly));
       if (d.progress) root.appendChild(noteCard(d.progress.note || { text: "", updated: "" }));
-      if (d.progress) root.appendChild(progressCard(d.progress));
+      if (d.fasa) root.appendChild(fasaCard(d.fasa));
       // Planning, then Analisa, right under the progress cards (worked on together each week).
       TOP_SECTIONS.forEach(function (k) { root.appendChild(foldable(sectionCard(sectionInfo(k)), k)); });
 
@@ -369,7 +369,7 @@
   }
 
   // ---------- Floating save bar: shown while any part has unsaved changes ----------
-  var SAVE_LABELS = { semasa: "Progress semasa", progress: "Checklist", pic: "PIC", crm: "CRM", alumni: "Alumni",
+  var SAVE_LABELS = { semasa: "Progress semasa", progress: "Fasa", pic: "PIC", crm: "CRM", alumni: "Alumni",
                       program: "Program", analisa: "Analisa", planning: "Planning", modul: "Modul", peluang: "Peluang" };
   var saveBar = null;
   function dirtyKeys() { return Object.keys(state.dirty).filter(function (k) { return state.dirty[k]; }); }
@@ -500,7 +500,7 @@
       case "ringkasan": return todoList().length ? "bad" : "ok";
       case "mingguan": return weeklyDone() ? "ok" : (state.school.weekly.week.lastDay ? "bad" : "warn");
       case "semasa": return noteInfo().stale ? "bad" : "ok";
-      case "progress": return (state.school.progress.values || []).every(Boolean) ? "ok" : "warn";
+      case "progress": return state.school.fasa && fasaLevel(state.school.fasa.phases, state.school.fasa.values) === state.school.fasa.phases.length ? "ok" : "warn";
       case "pic": return (state.school.pic || []).some(function (p) { return p.username; }) ? "ok" : "bad";
       case "crm": return crmCounts().people ? "ok" : "warn";
       case "planning": return planningFilled() ? "ok" : "bad";
@@ -574,14 +574,15 @@
     box.appendChild(meta);
 
     var stats = el("div", "lg-ov-stats");
-    var vals = (d.progress && d.progress.values) || [];
-    var done = vals.filter(Boolean).length;
+    var fz = d.fasa || { phases: [], values: [] };
+    var level = fasaLevel(fz.phases, fz.values);
     var s1 = el("div", "lg-ov-stat");
-    s1.appendChild(el("span", "lg-ov-label", "Checklist legality"));
-    s1.appendChild(el("strong", "lg-ov-num", done + " / " + vals.length));
+    s1.appendChild(el("span", "lg-ov-label", "Fasa legality"));
+    s1.appendChild(el("strong", "lg-ov-num", "Fasa " + level + " / " + fz.phases.length));
     var bar = el("div", "lg-ov-steps");
-    vals.forEach(function (v) { bar.appendChild(el("i", v ? "is-done" : "")); });
+    fz.phases.forEach(function (f, i) { bar.appendChild(el("i", i < level ? "is-done" : "")); });
     s1.appendChild(bar);
+    if (fz.phases[level]) s1.appendChild(el("span", "lg-ov-small", "Seterusnya: " + fz.phases[level].name));
     stats.appendChild(s1);
     if (d.weekly) {
       var s2 = el("div", "lg-ov-stat");
@@ -619,7 +620,7 @@
   function buildNav(nav) {
     var items = [{ key: "ringkasan", short: "Ringkasan" }]
       .concat(state.school.weekly ? [{ key: "mingguan", short: "Mingguan" }] : [])
-      .concat([{ key: "semasa", short: "Progress" }, { key: "progress", short: "Checklist" }])
+      .concat([{ key: "semasa", short: "Progress" }, { key: "progress", short: "Fasa" }])
       .concat(TOP_SECTIONS.map(sectionInfo))
       .concat([{ key: "pic", short: "PIC" }])
       .concat(SECTION_INFO.filter(function (s) { return TOP_SECTIONS.indexOf(s.key) < 0; }));
@@ -1098,95 +1099,122 @@
     return card;
   }
 
-  function progressCard(p) {
+  // Fasa level: Fasa N once every action of Fasa 1..N is ticked (same rule as fasaLevel in Legality.gs).
+  function fasaLevel(phases, vals) {
+    var i = 0, level = 0;
+    for (var k = 0; k < phases.length; k++) {
+      var f = phases[k];
+      var all = f.items.every(function (_, j) { return vals[i + j] === true; });
+      i += f.items.length;
+      if (!all) break;
+      level = f.n;
+    }
+    return level;
+  }
+
+  // Checklist Fasa Legality: 10 fasa, each with its actions. Ticking every action of a fasa moves the school up.
+  function fasaCard(fz) {
+    var phases = fz.phases;
     var card = el("section", "borang-card lg-section");
     card.id = "sec-progress";
     var head = el("div", "lg-section-head");
-    head.appendChild(el("h2", "borang-section", "Checklist Progress"));
+    head.appendChild(el("h2", "borang-section", "Checklist Fasa Legality"));
     var badge = el("span", "lg-unsaved", "Belum disimpan");
     badge.hidden = true;
     head.appendChild(badge);
     card.appendChild(head);
-    card.appendChild(el("p", "lg-lead", "Tandakan langkah yang sudah dibuat untuk sekolah ini."));
+    card.appendChild(el("p", "lg-lead", "Tandakan tindakan yang sudah dibuat. Bila semua tindakan dalam satu fasa ditanda, sekolah naik ke fasa itu secara automatik."));
 
-    var orig = p.values.slice();
-    var work = p.values.slice();
-    var list = el("ol", "lg-steps");
-    var count = el("p", "lg-steps-count");
-    var boxes = [];
-    p.items.forEach(function (it, i) {
-      var li = el("li", "lg-step");
-      var lab = el("label", "lg-step-label");
-      var cb = el("input");
-      cb.type = "checkbox";
-      cb.checked = work[i];
-      cb.addEventListener("change", function () { work[i] = cb.checked; refresh(); });
-      boxes.push(cb);
-      lab.appendChild(cb);
-      var txt = el("span", "lg-step-text");
-      txt.appendChild(el("span", "lg-step-num", String(i + 1)));
-      txt.appendChild(el("span", null, it.label));
-      lab.appendChild(txt);
-      lab.appendChild(el("span", "lg-step-state"));
-      li.appendChild(lab);
-      list.appendChild(li);
-    });
-    function refresh() {
-      var done = work.filter(Boolean).length;
-      count.textContent = done + " / " + work.length + " langkah selesai";
-      Array.prototype.forEach.call(list.children, function (li, i) {
-        li.classList.toggle("is-done", work[i]);
-        li.querySelector(".lg-step-state").textContent = work[i] ? "Dah buat" : "Belum";
+    var orig = fz.values.slice(), work = fz.values.slice();
+    var now = el("div", "lg-fasa-now");
+    var bar = el("div", "lg-fasa-bar");
+    bar.setAttribute("aria-hidden", "true");
+    phases.forEach(function (f) { var s = el("span"); s.title = "Fasa " + f.n + " · " + f.name; bar.appendChild(s); });
+    card.appendChild(now);
+    card.appendChild(bar);
+
+    var groups = el("div", "lg-fasa-groups");
+    var start = 0, parts = [];
+    phases.forEach(function (f) {
+      var from = start;
+      start += f.items.length;
+      var d = el("details", "lg-fasa");
+      var sum = el("summary");
+      sum.appendChild(el("span", "lg-fasa-n", String(f.n)));
+      var t = el("span", "lg-fasa-title");
+      t.appendChild(el("strong", null, "Fasa " + f.n));
+      t.appendChild(el("span", null, f.name));
+      sum.appendChild(t);
+      var cnt = el("span", "lg-fasa-count");
+      sum.appendChild(cnt);
+      d.appendChild(sum);
+      var list = el("ul", "lg-fasa-items");
+      f.items.forEach(function (label, j) {
+        var k = from + j;
+        var li = el("li");
+        var lab = el("label", "lg-check lg-fasa-item");
+        var cb = el("input");
+        cb.type = "checkbox";
+        cb.checked = work[k];
+        cb.addEventListener("change", function () { work[k] = cb.checked; refresh(); });
+        lab.appendChild(cb);
+        lab.appendChild(el("span", null, label));
+        li.appendChild(lab);
+        list.appendChild(li);
+        parts.push({ cb: cb, k: k });
       });
-      paintStepper();
+      d.appendChild(list);
+      groups.appendChild(d);
+      parts.push({ group: d, from: from, to: start, cnt: cnt, f: f });
+    });
+    card.appendChild(groups);
+
+    var opened = false;
+    function refresh() {
+      var level = fasaLevel(phases, work);
+      var cur = phases[level - 1], next = phases[level];
+      now.textContent = "";
+      now.appendChild(el("span", "lg-fasa-label", "Fasa semasa"));
+      now.appendChild(el("strong", "lg-fasa-level", level ? "Fasa " + level + " · " + cur.name : "Fasa 0 · Belum bermula"));
+      if (next) {
+        var from = 0;
+        for (var q = 0; q < level; q++) from += phases[q].items.length;
+        var doneN = work.slice(from, from + next.items.length).filter(Boolean).length;
+        now.appendChild(el("span", "lg-fasa-next", "Seterusnya: Fasa " + next.n + " · " + next.name + " (" + doneN + "/" + next.items.length + ")"));
+      } else now.appendChild(el("span", "lg-fasa-next is-all", "✓ Semua fasa selesai"));
+      Array.prototype.forEach.call(bar.children, function (s, i) { s.className = i < level ? "is-done" : i === level ? "is-next" : ""; });
+      parts.forEach(function (p) {
+        if (!p.group) return;
+        var n = work.slice(p.from, p.to).filter(Boolean).length, tot = p.to - p.from;
+        p.cnt.textContent = n + "/" + tot;
+        p.group.classList.toggle("is-done", n === tot);
+        p.group.classList.toggle("is-current", p.f.n === level + 1);
+        if (!opened && p.f.n === level + 1) p.group.open = true;   // open the fasa being worked on, once
+      });
+      opened = true;
       var dirty = work.some(function (v, i) { return v !== orig[i]; });
       state.dirty.progress = dirty;
       badge.hidden = !dirty;
     }
-    // Stepper: 1 → 6, done in green, the next step to do highlighted
-    var stepper = el("div", "lg-stepper");
-    stepper.setAttribute("aria-hidden", "true");
-    var fill = el("span", "lg-stepper-fill");
-    stepper.appendChild(fill);
-    p.items.forEach(function (it, i) {
-      var node = el("span", "lg-stepper-node", String(i + 1));
-      node.title = it.label;
-      stepper.appendChild(node);
-    });
-    var next = el("p", "lg-stepper-next");
-    function paintStepper() {
-      var nxt = work.indexOf(false);
-      stepper.querySelectorAll(".lg-stepper-node").forEach(function (n, i) {
-        n.className = "lg-stepper-node" + (work[i] ? " is-done" : i === nxt ? " is-next" : "");
-      });
-      var lead = 0;
-      while (lead < work.length && work[lead]) lead++;
-      fill.style.setProperty("--f", work.length > 1 ? Math.max(0, lead - 1) / (work.length - 1) : 0);
-      next.textContent = nxt < 0 ? "✓ Semua langkah selesai" : "Langkah seterusnya: " + (nxt + 1) + ". " + p.items[nxt].label;
-      next.classList.toggle("is-all", nxt < 0);
-    }
-    card.appendChild(count);
-    card.appendChild(stepper);
-    card.appendChild(next);
-    card.appendChild(list);
 
     var status = el("p", "borang-error-summary");
     status.hidden = true;
-    var save = button("borang-submit lg-btn-sm", "Simpan Progress", function () {
+    var save = button("borang-submit lg-btn-sm", "Simpan Fasa", function () {
       if (!state.dirty.progress) { toast("Tiada perubahan untuk disimpan."); return; }
       status.hidden = true;
       save.disabled = true; save.textContent = "Menyimpan…";
-      post({ action: "saveProgress", cawangan: state.cawangan, sekolah: state.sekolah, values: work, old: orig })
+      var before = fasaLevel(phases, orig);
+      post({ action: "saveFasa", cawangan: state.cawangan, sekolah: state.sekolah, values: work, old: orig })
         .then(function (d) {
           orig = d.values.slice(); work = d.values.slice();
-          state.school.progress.values = d.values.slice();
+          state.school.fasa.values = d.values.slice();
           setTimeout(schoolChanged);
-          boxes.forEach(function (cb, i) { cb.checked = work[i]; });
+          parts.forEach(function (p) { if (p.cb) p.cb.checked = work[p.k]; });
           refresh();
-          toast("Progress disimpan.", "ok");
+          toast(d.level > before ? "Disimpan. Sekolah naik ke Fasa " + d.level + "." : "Checklist fasa disimpan.", "ok");
         })
         .catch(function (e) { status.hidden = false; status.textContent = "Belum disimpan: " + (e.message || e); })
-        .then(function () { save.disabled = false; save.textContent = "Simpan Progress"; });
+        .then(function () { save.disabled = false; save.textContent = "Simpan Fasa"; });
     });
     var actions = el("div", "lg-actions");
     actions.appendChild(status);
