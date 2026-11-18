@@ -871,6 +871,7 @@
   // small numbered box (1.1 … 10.3), the next fasa of each school outlined, totals per school and % done per action.
   function schoolTab(grid, rows, branch) {
     var n = rows.length, phases = fasaPhases();
+    schoolDash(grid, rows);
     var mw = widget("w-4 lgd-fasa-w", "Checklist Fasa Legality", n + " sekolah");
     if (!n) {
       mw.appendChild(el("p", "empty-text", "Belum ada sekolah untuk paparan ini."));
@@ -1008,6 +1009,28 @@
     grid.appendChild(progressWidget(rows, branch));
   }
 
+  // Sekolah tab dashboard (like the other tabs): summary cards, then Status and Jenis Legality as bars.
+  function schoolDash(grid, rows) {
+    var n = rows.length, now = Date.now();
+    function note(x) { return x.s.note || {}; }
+    var fresh = rows.filter(function (x) { var u = note(x).updated; return u && now - new Date(u).getTime() < STALE_DAYS * 86400000; }).length;
+    var never = rows.filter(function (x) { return !note(x).text; }).length;
+    var legal = rows.filter(function (x) { return /^Legal/.test(note(x).status || ""); }).length;
+    var withBw = rows.filter(function (x) { return note(x).status === "Legal with B&W"; }).length;
+    var noPic = rows.filter(function (x) { return !(x.s.pic || []).some(function (p) { return p.username || p.nama; }); }).length;
+    var alumni = rows.filter(function (x) { return parseAlumni(x.s.alumni).length; }).length;
+    grid.appendChild(stat("Sekolah", String(n), noPic ? noPic + " tanpa PIC Legality" : "Semua ada PIC Legality", true));
+    grid.appendChild(stat("Status legal", legal + "/" + n, withBw + " dengan B&W · " + pct(legal, n) + "%"));
+    grid.appendChild(stat("Progress terkini", fresh + "/" + n, never ? never + " belum pernah ditulis" : "Dikemas kini dalam " + STALE_DAYS + " hari"));
+    grid.appendChild(stat("Ada alumni", alumni + "/" + n, pct(alumni, n) + "% sekolah"));
+    var st = widget("w-2", "Status Legality", n + " sekolah");
+    st.appendChild(barsOf(countBy(rows.map(function (x) { return { v: note(x).status }; }), "v"), n));
+    grid.appendChild(st);
+    var jn = widget("w-2", "Jenis Legality", n + " sekolah");
+    jn.appendChild(barsOf(countBy(rows.map(function (x) { return { v: note(x).jenis ? "Jenis " + note(x).jenis : "" }; }), "v"), n));
+    grid.appendChild(jn);
+  }
+
   // Progress Legality Sekolah: Sekolah · PIC (opens their Telegram) · Progress semasa written on the school page.
   // Most recently updated first; schools without a note at the end. Shows how long ago it was updated;
   // 7+ days is flagged (bot PICO also reminds the PIC then).
@@ -1123,16 +1146,31 @@
       td.appendChild(list);
     } else {
       var people = parseAlumni(s.alumni);
-      if (!people.length) { td.appendChild(el("span", "lgd-prog-empty", "Tiada alumni")); return; }
+      if (!people.length) { td.appendChild(el("span", "lgd-alumni-no", "Tiada")); return; }
+      // Only "Ada · N orang" at first; the names open on click (and stay open when the page redraws).
+      var key = s.name;
+      var d = el("details", "lgd-alum-d");
+      if (openAlumni[key]) d.open = true;
+      var sm = el("summary", "lgd-alumni-sum");
+      sm.appendChild(el("span", "lgd-alumni-yes", "Ada"));
+      sm.appendChild(el("span", "lgd-alumni-n", people.length + " orang"));
+      var hint = sm.appendChild(el("span", "lgd-alumni-hint", d.open ? "Tutup" : "Lihat nama"));
+      d.addEventListener("toggle", function () {
+        if (d.open) openAlumni[key] = 1; else delete openAlumni[key];
+        hint.textContent = d.open ? "Tutup" : "Lihat nama";
+      });
+      d.appendChild(sm);
       var ul = el("ol", "lgd-alumni-list");
       people.forEach(function (a) {
         var li = el("li", null, a.nama || "—");
         if (a.tahun) li.appendChild(el("span", "lgd-alumni-spm", "SPM " + a.tahun));
         ul.appendChild(li);
       });
-      td.appendChild(ul);
+      d.appendChild(ul);
+      td.appendChild(d);
     }
   }
+  var openAlumni = {};
 
   // Same reading as the user form: "1. Adam Harith (SPM 2019)\n2. Wazif" -> [{ nama, tahun }]
   function parseAlumni(t) {

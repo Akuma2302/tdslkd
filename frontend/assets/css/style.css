@@ -1540,6 +1540,20 @@ th.lgd-view-th { padding-bottom: 0.5rem; }
 .lgd-plan-what { display: block; white-space: pre-wrap; }
 .lgd-plan-when { display: inline-block; margin-top: 0.15rem; color: var(--accent); font-size: 0.74rem; font-weight: 700; }
 .lgd-plan-when.is-missing { color: #ff8c8c; font-weight: 600; }
+/* Alumni column: "Ada · N orang" first, names on click */
+.lgd-alumni-no { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999px; background: rgba(255, 255, 255, 0.06); color: var(--muted); font-size: 0.75rem; font-weight: 700; }
+.lgd-alum-d > summary {
+  display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.35rem 0.25rem 0.3rem; border: 1px solid var(--line);
+  border-radius: 999px; cursor: pointer; list-style: none; font-size: 0.78rem;
+}
+.lgd-alum-d > summary::-webkit-details-marker { display: none; }
+.lgd-alum-d > summary:hover, .lgd-alum-d > summary:focus-visible { border-color: rgba(52, 211, 113, 0.5); }
+.lgd-alumni-yes { padding: 0.1rem 0.55rem; border-radius: 999px; background: rgba(52, 211, 113, 0.16); color: #5be08f; font-weight: 700; }
+.lgd-alumni-n { color: var(--text); font-weight: 600; }
+.lgd-alumni-hint { color: var(--muted); font-size: 0.72rem; }
+.lgd-alumni-hint::after { content: " ▾"; }
+.lgd-alum-d[open] .lgd-alumni-hint::after { content: " ▴"; }
+.lgd-alum-d .lgd-alumni-list { margin-top: 0.6rem; padding-left: 1.9rem; }
 .lgd-alumni-spm { margin-left: 0.45rem; padding: 0.05rem 0.4rem; border-radius: 999px; background: rgba(255, 195, 0, 0.14); color: var(--accent); font-size: 0.68rem; font-weight: 700; }
 
 /* Admin: programme filters, status chip, video link */
