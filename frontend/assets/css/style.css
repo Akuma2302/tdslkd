@@ -1370,9 +1370,16 @@ html.ym-lock { overflow: hidden; }
 .lg-status-val.is-empty { color: var(--muted); font-weight: 500; }
 .lg-status-note { margin: -0.4rem 0 0.9rem; color: var(--muted); font-size: 0.75rem; }
 .lgd-sel {
-  padding: 0.35rem 0.55rem; border: 1px solid var(--line-2); border-radius: 10px; background: var(--bg-2);
+  padding: 0.35rem 1.8rem 0.35rem 0.55rem; border: 1px solid var(--line-2); border-radius: 10px; background: var(--bg-2);
   color: inherit; font: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer;
 }
+/* Same arrow on every browser: iOS Safari otherwise draws its own ⌃⌄ control and grey gradient */
+.lgd-sel, select.lgd-view-select {
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a3a3a3' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 0.6rem center; background-size: 12px 12px;
+}
+select.lgd-view-select { background-position: right 0.75rem center; }
 .lgd-sel.is-jenis { color: var(--accent); }
 .lgd-sel.is-ok { color: #5be08f; border-color: rgba(52, 211, 113, 0.45); }
 .lgd-sel.is-mid { color: #f0b429; border-color: rgba(240, 180, 41, 0.45); }

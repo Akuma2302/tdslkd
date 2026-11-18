@@ -324,7 +324,7 @@ function doPost(e) {
   } catch (err) {
     return json({ error: String(err && err.message || err) });
   } finally {
-    try { bumpData(); } catch (x) {}   // anything may have been saved: cached school pages are read again
+    try { touchData(body); } catch (x) {}   // something may have been saved: the cached pages it affects are read again
     // School data saved from the portal (PIC, CRM, alumni, mingguan, gambar…) is also in the admin summary:
     // mark it out of date, so the dashboard fetches a fresh one instead of showing the old values.
     try { if (body && SCHOOL_WRITES.indexOf(body.action) > -1) markSummaryStale(); } catch (x) {}
@@ -362,8 +362,27 @@ function text(v) { return String(v == null ? "" : v).trim(); }
 //  - nothing was saved through the portal since (DATA_GEN changes after every doPost), and
 //  - the cawangan sheet was not edited directly in Google Sheets (Drive "last updated" of the file).
 // The key carries today's date, since the Checklist Mingguan part depends on the current week.
-var DATA_GEN = "dataGen";
+//
+// A save from the portal for one school only marks that school (and the school list of its cawangan) as changed,
+// so the other schools keep their cache. The portal's own writes also change the file's Drive "last updated";
+// so that this does not count as a direct edit, every such save records "portal wrote until <now + PORTAL_SLACK>"
+// for the cawangan, and a Drive time up to then is ignored. (An edit made in Google Sheets within those few
+// seconds after a portal save is picked up on the next change, or by tomorrow's key.)
+var DATA_GEN = "dataGen", PORTAL_SLACK = 20000;
+var PER_SCHOOL = ["save", "saveProgress", "saveFasa", "saveProgressNote", "saveLegalityStatus", "saveAlumni",
+                  "uploadImage", "deleteImage", "saveWeekly", "savePic", "addSchool"];
 function bumpData() { CacheService.getScriptCache().put(DATA_GEN, String(Date.now()), 21600); }
+function genKey(c, name) { return ("gen:" + c + ":" + text(name)).slice(0, 240); }
+function portalKey(c) { return "portalUntil:" + c; }
+function touchData(body) {
+  var c = text(body && body.cawangan).toUpperCase(), s = text(body && body.sekolah);
+  if (!body || !c || !s || PER_SCHOOL.indexOf(body.action) < 0) { bumpData(); return; }   // anything else: all pages
+  var now = Date.now(), o = {};
+  o[genKey(c, s)] = String(now);
+  o[genKey(c, "")] = String(now);   // the school list (fasa, CRM people) of this cawangan
+  o[portalKey(c)] = String(now + PORTAL_SLACK);
+  CacheService.getScriptCache().putAll(o, 21600);
+}
 function cachedRead(kind, cawangan, name, build) {
   var c = text(cawangan).toUpperCase();
   var id = sheetMap()[c];
@@ -371,7 +390,10 @@ function cachedRead(kind, cawangan, name, build) {
   var cache = CacheService.getScriptCache();
   // SUMMARY_KEY changes whenever the data layout changes, so a deploy never serves pages cached by older code
   var key = (kind + ":" + SUMMARY_KEY + ":" + c + ":" + text(name) + ":" + Utilities.formatDate(new Date(), MOM_TZ, "yyyy-MM-dd")).slice(0, 240);
-  var stamp = (cache.get(DATA_GEN) || "0") + "|" + DriveApp.getFileById(id).getLastUpdated().getTime();
+  var g = cache.getAll([DATA_GEN, genKey(c, name), portalKey(c)]);
+  var drive = DriveApp.getFileById(id).getLastUpdated().getTime();
+  var stamp = (g[DATA_GEN] || "0") + "|" + (g[genKey(c, name)] || "0") + "|" +
+              (drive <= +(g[portalKey(c)] || 0) ? "portal" : drive);
   var hit = cache.get(key);
   if (hit) {
     try { var o = JSON.parse(hit); if (o.s === stamp) return o.d; } catch (e) {}

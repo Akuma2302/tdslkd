@@ -85,6 +85,33 @@
   function memoPut(q, d) {
     try { localStorage.setItem(memoKey(q), JSON.stringify(d)); } catch (e) {}
   }
+  // ---------- Saving without waiting ----------
+  // Progress semasa, PIC and Fasa are shown as saved at once and sent in the background; if the server refuses,
+  // undo() puts the edit back as unsaved and the reason is shown. After every save the copy kept in this browser
+  // is updated, and a few seconds later the school is read once quietly so the server cache is warm again.
+  var pendingSaves = 0, warmTimer = 0;
+  function schoolQ() { return { action: "school", cawangan: state.cawangan, sekolah: state.sekolah }; }
+  function saved(q, school) {
+    if (school) memoPut(q, school);
+    clearTimeout(warmTimer);
+    warmTimer = setTimeout(function () {
+      if (pendingSaves) return;
+      get(q).then(function (d) { memoPut(q, d); }).catch(function () {});
+    }, 4000);
+  }
+  function bgSave(body, onOk, undo) {
+    var q = schoolQ(), school = state.school;
+    pendingSaves++;
+    return post(body)
+      .then(function (d) { if (onOk) onOk(d); saved(q, school); })
+      .catch(function (e) {
+        if (e && e.kod) return askKod(true);
+        if (undo) undo(e);
+        toast("Belum disimpan: " + ((e && e.message) || e), "warn");
+      })
+      .then(function () { pendingSaves--; });
+  }
+
   var refreshPill = null;
   function refreshing(on) {
     if (on && !refreshPill) {
@@ -106,6 +133,7 @@
       refreshing(false);
       memoPut(q, d);
       if (memo && JSON.stringify(memo) === JSON.stringify(d)) return;
+      if (pendingSaves) return;   // a save of this page is still on its way; its own result is what counts
       if (memo && anyDirty()) { toast("Ada data lebih baharu di sheet. Simpan perubahan anda, kemudian muat semula halaman.", "warn"); return; }
       var typing = document.activeElement;
       if (memo && typing && root.contains(typing) && /^(INPUT|TEXTAREA|SELECT)$/.test(typing.tagName) && typing.value) return;   // do not wipe what is being typed
@@ -180,7 +208,7 @@
 
   window.addEventListener("hashchange", function () { state.dirty = {}; route(); });
   window.addEventListener("beforeunload", function (e) {
-    if (anyDirty()) { e.preventDefault(); e.returnValue = ""; }
+    if (anyDirty() || pendingSaves) { e.preventDefault(); e.returnValue = ""; }   // edits, or a save still being sent
   });
 
   function anyDirty() { return Object.keys(state.dirty).some(function (k) { return state.dirty[k]; }); }
@@ -779,6 +807,7 @@
           state.school.sections[info.key].rows = d.data.rows;
           draw();
           schoolChanged();
+          saved(schoolQ(), state.school);
           toast(info.short + " disimpan.", "ok");
         })
         .catch(function (e) {
@@ -864,19 +893,26 @@
       var bad = current().filter(function (r) { return r.username && !/^[A-Za-z0-9_]{3,40}$/.test(r.username); })[0];
       if (bad) { status.hidden = false; status.textContent = "Username Telegram tidak sah: @" + bad.username; return; }
       status.hidden = true;
-      save.disabled = true; save.textContent = "Menyimpan…";
-      post({ action: "savePic", cawangan: state.cawangan, sekolah: state.sekolah, pics: current() })
-        .then(function (d) {
-          orig = JSON.stringify(d.pic);
-          rows = d.pic.map(function (p) { return { nama: p.nama, username: p.username }; });
-          state.school.pic = d.pic;
-          setTimeout(schoolChanged);
-          state.dirty.pic = false; badge.hidden = true;
-          draw();
-          toast("PIC Legality disimpan.", "ok");
-        })
-        .catch(function (e) { status.hidden = false; status.textContent = "Belum disimpan: " + (e.message || e); })
-        .then(function () { save.disabled = false; save.textContent = "Simpan PIC"; });
+      // Shown as saved at once; the server's copy replaces it when it arrives (unless edited again meanwhile).
+      var sent = JSON.stringify(current()), before = { orig: orig, pic: state.school.pic };
+      orig = sent;
+      state.school.pic = current();
+      state.dirty.pic = false; badge.hidden = true;
+      setTimeout(schoolChanged);
+      toast("PIC Legality disimpan.", "ok");
+      bgSave({ action: "savePic", cawangan: state.cawangan, sekolah: state.sekolah, pics: JSON.parse(sent) }, function (d) {
+        state.school.pic = d.pic;
+        if (JSON.stringify(current()) !== sent) return;   // edited again since: keep what is on screen
+        orig = JSON.stringify(d.pic.map(function (p) { return { nama: p.nama, username: p.username }; }));
+        rows = d.pic.map(function (p) { return { nama: p.nama, username: p.username }; });
+        draw();
+        markDirty();
+      }, function (e) {
+        orig = before.orig; state.school.pic = before.pic;
+        markDirty();
+        status.hidden = false; status.textContent = "Belum disimpan: " + (e.message || e);
+        setTimeout(schoolChanged);
+      });
     });
     var actions = el("div", "lg-actions");
     actions.appendChild(status);
@@ -977,27 +1013,40 @@
       if (!state.dirty.semasa) { auto = false; toast("Tiada perubahan untuk disimpan."); return; }
       var wasAuto = auto;
       auto = false;
-      autoNote.textContent = " · menyimpan…";
       status.hidden = true;
-      save.disabled = true; save.textContent = "Menyimpan…";
-      post({ action: "saveProgressNote", cawangan: state.cawangan, sekolah: state.sekolah, note: ta.value, old: orig.text })
-        .then(function (d) {
-          orig = { text: d.note.text };
-          ta.value = orig.text;
-          showWhen(d.note.updated);
-          state.dirty.semasa = false; badge.hidden = true;
-          if (state.school.progress) state.school.progress.note = d.note;
-          schoolChanged();
-          if (!when.contains(autoNote)) when.appendChild(autoNote);
-          autoNote.textContent = wasAuto ? " · disimpan automatik ✓" : "";
-          if (!wasAuto) toast("Progress semasa disimpan.", "ok");
-        })
-        .catch(function (e) {
-          autoNote.textContent = "";
-          status.hidden = false; status.textContent = "Belum disimpan: " + (e.message || e);
-        })
-        .then(function () { save.disabled = false; save.textContent = "Simpan Progress Semasa"; });
+      // One save at a time (the server checks "old" against what it has): typed during a save → sent right after.
+      if (sending) { again = true; return; }
+      sending = true;
+      var sent = ta.value, before = orig;
+      // Shown as saved at once; the server's reply only fills in the time.
+      orig = { text: sent.trim() };
+      state.dirty.semasa = false; badge.hidden = true;
+      showWhen(new Date().toISOString());
+      if (state.school.progress) state.school.progress.note = { text: sent.trim(), updated: new Date().toISOString(),
+        jenis: (note.jenis || ""), status: (note.status || "") };
+      schoolChanged();
+      if (!when.contains(autoNote)) when.appendChild(autoNote);
+      autoNote.textContent = wasAuto ? " · disimpan automatik ✓" : "";
+      if (!wasAuto) toast("Progress semasa disimpan.", "ok");
+      bgSave({ action: "saveProgressNote", cawangan: state.cawangan, sekolah: state.sekolah, note: sent, old: before.text }, function (d) {
+        orig = { text: d.note.text };
+        if (state.school.progress) state.school.progress.note = d.note;
+        if (ta.value === sent) { ta.value = orig.text; showWhen(d.note.updated); }
+        markDirty();
+      }, function (e) {
+        orig = before;
+        if (state.school.progress) state.school.progress.note = note;
+        markDirty();
+        autoNote.textContent = "";
+        status.hidden = false; status.textContent = "Belum disimpan: " + (e.message || e);
+        schoolChanged();
+        again = false;
+      }).then(function () {
+        sending = false;
+        if (again) { again = false; markDirty(); if (state.dirty.semasa) save.click(); }
+      });
     });
+    var sending = false, again = false;
     var actions = el("div", "lg-actions");
     actions.appendChild(status);
     actions.appendChild(save);
@@ -1075,6 +1124,7 @@
             draw(now);
             state.school.weekly = d.weekly;
             schoolChanged();
+            saved(schoolQ(), state.school);
             toast(it.label + " ditanda selesai. Menghantar ke group…", "ok");
             return sendPico().then(function (r) {
               if (r.ok && r.dryRun) { toast("Ditanda selesai. (Ujian: mesej tidak dihantar.)", "ok"); return; }
@@ -1202,20 +1252,34 @@
     var save = button("borang-submit lg-btn-sm", "Simpan Fasa", function () {
       if (!state.dirty.progress) { toast("Tiada perubahan untuk disimpan."); return; }
       status.hidden = true;
-      save.disabled = true; save.textContent = "Menyimpan…";
-      var before = fasaLevel(phases, orig);
-      post({ action: "saveFasa", cawangan: state.cawangan, sekolah: state.sekolah, values: work, old: orig })
-        .then(function (d) {
-          orig = d.values.slice(); work = d.values.slice();
-          state.school.fasa.values = d.values.slice();
-          setTimeout(schoolChanged);
+      // One save at a time (the server checks "old"); shown as saved at once.
+      if (fSending) { toast("Simpanan sebelum ini masih dihantar. Cuba sebentar lagi.", "warn"); return; }
+      fSending = true;
+      var before = fasaLevel(phases, orig), prev = orig.slice(), sent = work.slice();
+      orig = sent.slice();
+      state.school.fasa.values = sent.slice();
+      setTimeout(schoolChanged);
+      refresh();
+      var lvl = fasaLevel(phases, sent);
+      toast(lvl > before ? "Disimpan. Sekolah naik ke Fasa " + lvl + "." : "Checklist fasa disimpan.", "ok");
+      bgSave({ action: "saveFasa", cawangan: state.cawangan, sekolah: state.sekolah, values: sent, old: prev }, function (d) {
+        orig = d.values.slice();
+        state.school.fasa.values = d.values.slice();
+        if (JSON.stringify(work) === JSON.stringify(sent)) {
+          work = d.values.slice();
           parts.forEach(function (p) { if (p.cb) p.cb.checked = work[p.k]; });
-          refresh();
-          toast(d.level > before ? "Disimpan. Sekolah naik ke Fasa " + d.level + "." : "Checklist fasa disimpan.", "ok");
-        })
-        .catch(function (e) { status.hidden = false; status.textContent = "Belum disimpan: " + (e.message || e); })
-        .then(function () { save.disabled = false; save.textContent = "Simpan Fasa"; });
+        }
+        refresh();
+        setTimeout(schoolChanged);
+      }, function (e) {
+        orig = prev;
+        state.school.fasa.values = prev.slice();
+        refresh();
+        status.hidden = false; status.textContent = "Belum disimpan: " + (e.message || e);
+        setTimeout(schoolChanged);
+      }).then(function () { fSending = false; });
     });
+    var fSending = false;
     var actions = el("div", "lg-actions");
     actions.appendChild(status);
     actions.appendChild(save);
