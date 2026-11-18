@@ -1,3 +1,6 @@
+/* Netlify (free plan) injects a "Powered by Netlify" badge into every page: hide it */
+#nl-badge-frame, #nl-hud-frame { display: none !important; }
+
 :root {
   color-scheme: dark;   /* the site is dark only: native scrollbars, dropdown lists and date pickers draw dark too */
   --bg: #0b0b0b;
