@@ -792,6 +792,18 @@ a.lg-crumb:hover { color: var(--accent); }
 .lg-field textarea.borang-input { min-height: 0; }
 .lg-field .borang-input:disabled { opacity: 0.5; }
 input[type="date"].borang-input { color-scheme: dark; }
+/* Date / time fields look the same on every device: iOS Safari otherwise centres the text, gives the field its
+   own minimum width (so it sticks out of the card) and a different height from the other inputs. */
+input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"] {
+  -webkit-appearance: none; appearance: none; display: block; width: 100%; min-width: 0; max-width: 100%;
+  min-height: 2.9rem; text-align: left; line-height: 1.3;
+}
+input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-date-and-time-value,
+input[type="datetime-local"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(0.8); cursor: pointer; }
+/* Same text rendering on iPhone and Android: no automatic text enlarging, form controls use the page font */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+input, select, textarea, button { font-family: inherit; }
 
 .lg-check { display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.55rem 0.7rem; border-radius: 10px; cursor: pointer; font-size: 0.88rem; line-height: 1.4; }
 .lg-check:hover { background: rgba(255, 255, 255, 0.04); }

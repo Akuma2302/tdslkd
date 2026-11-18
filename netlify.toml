@@ -1,6 +1,9 @@
 # Netlify serves only the frontend/ folder. Backend (Apps Script) and tools are not published.
 [build]
   publish = "frontend"
+  # Adds ?v=<commit> to every CSS / JS file an HTML page loads, so each deploy is fetched fresh on every device
+  # (tools/stamp-assets.mjs). Only the published copy changes, not the files in git.
+  command = "node tools/stamp-assets.mjs"
 
 # Serverless function for the Program form (/legality/program): sends the programme details to
 # Telegram (backend/program/hantar.mjs). Needs TELEGRAM_BOT_TOKEN and GROUP_* environment variables.

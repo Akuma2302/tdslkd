@@ -105,11 +105,20 @@
     return post(body)
       .then(function (d) { if (onOk) onOk(d); saved(q, school); })
       .catch(function (e) {
-        if (e && e.kod) return askKod(true);
-        if (undo) undo(e);
+        if (undo) undo(e);   // back to "Belum disimpan", whatever the reason
+        if (e && e.kod) { relogin(); return; }
         toast("Belum disimpan: " + ((e && e.message) || e), "warn");
       })
       .then(function () { pendingSaves--; });
+  }
+  // The access code was refused while saving (changed by admin, or this browser lost it): ask for it again over
+  // the page, keeping everything typed; afterwards the person presses Simpan again.
+  function relogin() {
+    if (!window.YoshGate) { toast("Kod akses tidak sah. Muat semula halaman dan masukkan kod.", "warn"); return; }
+    window.YoshGate.show("Sesi tamat. Masukkan kod akses semula — apa yang anda isi tidak hilang.");
+    window.YoshGate.ready(function () {
+      toast("Dah log masuk semula. Tekan Simpan sekali lagi untuk bahagian yang bertanda Belum disimpan.", "ok");
+    });
   }
 
   // ---------- Pre-load the school pages ----------
@@ -842,6 +851,7 @@
         .catch(function (e) {
           status.hidden = false;
           status.textContent = "Belum disimpan: " + (e.message || e);
+          if (e && e.kod) relogin();
         })
         .then(function () { save.disabled = false; save.textContent = "Simpan " + info.short; });
     });
@@ -1164,8 +1174,8 @@
             });
           })
           .catch(function (e) {
-            if (e && e.kod) return askKod(true);
             up.disabled = false; up.textContent = "📷 Muat naik screenshot";
+            if (e && e.kod) { relogin(); return; }
             toast("Belum ditanda: " + ((e && e.message) || e), "warn");
           });
       });
