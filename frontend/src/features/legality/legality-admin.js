@@ -1199,7 +1199,8 @@
     bar.appendChild(viewSelect());
     w.appendChild(bar);
     var wrap = el("div", "tbl-wrap");
-    var t = el("table", "mtable lgd-prog-table");
+    var t = el("table", "mtable lgd-prog-table lgd-ps is-view-" + view);
+    var viewLabel = (PROG_VIEWS.filter(function (v) { return v.id === view; })[0] || {}).label || "";
     var hr = el("tr");
     ["Sekolah", "Jenis Legality", "Status Legality", "PIC"].forEach(function (h) { hr.appendChild(el("th", null, h)); });
     var vth = el("th", "lgd-view-th");
@@ -1224,11 +1225,13 @@
       // Jenis Legality (A/B/C) and Status Legality: set here by admin only, saved as soon as they change
       var jenisTd = el("td", "lgd-prog-jenis");
       var statusTd = el("td", "lgd-prog-status");
+      jenisTd.dataset.label = "Jenis"; statusTd.dataset.label = "Status";   // labels shown on phones only
       legalitySelects(x, jenisTd, statusTd);
       r.appendChild(jenisTd);
       r.appendChild(statusTd);
 
       var picTd = el("td", "lgd-prog-pic");
+      picTd.dataset.label = "PIC";
       var pics = x.s.pic || [];
       if (!pics.length) picTd.appendChild(el("span", "lgd-prog-empty", "Belum ada PIC"));
       pics.forEach(function (p) {
@@ -1245,6 +1248,7 @@
       r.appendChild(picTd);
 
       var noteTd = el("td", "lgd-prog-note");
+      noteTd.dataset.label = viewLabel;
       viewCell(noteTd, x.s, view, now);
       r.appendChild(noteTd);
       tb.appendChild(r);

@@ -1326,6 +1326,36 @@ html.ym-lock { overflow: hidden; }
 .lgd-status.is-no { background: rgba(255, 107, 107, 0.16); color: #ff8c8c; }
 @media (max-width: 900px) {
   .lgd-prog-table td.lgd-prog-jenis, .lgd-prog-table td.lgd-prog-status { display: inline-block; margin-right: 0.4rem; }
+  /* Progress dan Status on phones: one card per school —
+       name · cawangan
+       Jenis | Status
+       PIC
+       ─────────
+       Progress / Analisa / Planning / Alumni                                   */
+  .lgd-ps tbody { display: grid; gap: 0.65rem; }
+  .lgd-ps tr {
+    display: grid; grid-template-columns: 5.6rem minmax(0, 1fr); column-gap: 0.6rem; row-gap: 0.6rem;
+    grid-template-areas: "school school" "jenis status" "pic pic" "note note";
+    padding: 0.85rem 0.9rem; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-2);
+  }
+  .lgd-ps td { padding: 0; min-width: 0; }
+  .lgd-ps td.lgd-prog-school { grid-area: school; display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.5rem; white-space: normal; font-size: 0.98rem; }
+  .lgd-ps .lgd-prog-school small { margin: 0; }
+  .lgd-ps .lgd-prog-school .lgd-alumni { margin: 0 0 0 auto; }
+  .lgd-ps.is-view-alumni .lgd-prog-school .lgd-alumni { display: none; }   /* the Alumni column already says it */
+  .lgd-ps td.lgd-prog-jenis, .lgd-ps td.lgd-prog-status, .lgd-ps td.lgd-prog-pic { display: block; margin: 0; min-width: 0; }
+  .lgd-ps td.lgd-prog-jenis { grid-area: jenis; }
+  .lgd-ps td.lgd-prog-status { grid-area: status; }
+  .lgd-ps td.lgd-prog-pic { grid-area: pic; display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; }
+  .lgd-ps td.lgd-prog-pic .lgd-pic-link, .lgd-ps td.lgd-prog-pic .lgd-pic-name { margin: 0; }
+  .lgd-ps td.lgd-prog-note { grid-area: note; padding-top: 0.65rem; border-top: 1px solid var(--line); }
+  .lgd-ps .lgd-sel { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; padding-top: 0.5rem; padding-bottom: 0.5rem; }
+  /* small label above each value */
+  .lgd-ps td[data-label]::before {
+    content: attr(data-label); display: block; margin-bottom: 0.3rem; color: var(--muted); line-height: 1.2;
+    font-size: 0.64rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .lgd-ps td.lgd-prog-pic::before { flex-basis: 100%; margin-bottom: 0; }
 }
 
 /* Jenis / Status Legality: read-only on the school page, dropdowns for admin */
