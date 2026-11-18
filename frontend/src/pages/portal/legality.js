@@ -112,6 +112,34 @@
       .then(function () { pendingSaves--; });
   }
 
+  // ---------- Pre-load the school pages ----------
+  // When a cawangan's school list is shown, every school page of it is fetched quietly (two at a time) and kept in
+  // this browser, so opening any school is instant. At most once an hour per cawangan on this device; skipped when
+  // the browser asks to save data. The server answers these from its warm cache (warmCache trigger).
+  var PREFETCH_EVERY = 60 * 60 * 1000, prefetching = {};
+  function prefetchSchools(cawangan, names) {
+    var key = "legality:prefetch:" + cawangan, last = 0;
+    try { last = +(localStorage.getItem(key) || 0); } catch (e) {}
+    if (prefetching[cawangan] || Date.now() - last < PREFETCH_EVERY) return;
+    if (navigator.connection && navigator.connection.saveData) return;
+    prefetching[cawangan] = true;
+    var queue = names.slice(), running = 0, ok = 0;
+    function next() {
+      if (!queue.length) {
+        if (!running) {
+          prefetching[cawangan] = false;
+          if (ok) { try { localStorage.setItem(key, String(Date.now())); } catch (e) {} }
+        }
+        return;
+      }
+      var q = { action: "school", cawangan: cawangan, sekolah: queue.shift() };
+      running++;
+      get(q).then(function (d) { memoPut(q, d); ok++; }).catch(function () {})
+        .then(function () { running--; next(); });
+    }
+    next(); next();
+  }
+
   var refreshPill = null;
   function refreshing(on) {
     if (on && !refreshPill) {
@@ -313,6 +341,7 @@
         if (want && want !== "1") addCard.querySelector("input").value = want.toUpperCase().slice(0, 40);
         addCard.scrollIntoView({ behavior: "smooth", block: "center" });
       }
+      prefetchSchools(d.cawangan, d.schools.map(function (s) { return s.name; }));
     });
   }
 

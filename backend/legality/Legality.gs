@@ -403,6 +403,45 @@ function cachedRead(kind, cawangan, name, build) {
   return data;
 }
 
+// ---------- Keep the cache warm ----------
+// Run by a time trigger every 10 minutes (installWarmTrigger, once): reads every school page and school list
+// through cachedRead, so whatever is out of date (a save, a direct sheet edit, a new day, 6 h expiry) is built
+// here instead of by the first person who opens it. Up-to-date pages cost only a cache check. Stops before the
+// Apps Script time limit; the next run starts where this one stopped.
+var WARM_BUDGET = 4.5 * 60 * 1000, WARM_AT = "warmAt";
+function warmCache() {
+  var started = Date.now(), map = sheetMap(), cache = CacheService.getScriptCache();
+  var jobs = [];
+  CAWANGAN.forEach(function (c) {
+    if (!map[c]) return;
+    var names;
+    try { names = schoolNames(SpreadsheetApp.openById(map[c])); } catch (e) { return; }
+    jobs.push({ c: c, n: "" });   // the school list
+    names.forEach(function (n) { jobs.push({ c: c, n: n }); });
+  });
+  if (!jobs.length) return { done: 0, total: 0 };
+  var from = (+(cache.get(WARM_AT) || 0)) % jobs.length, done = 0, built = 0;
+  for (var i = 0; i < jobs.length; i++) {
+    if (Date.now() - started > WARM_BUDGET) break;
+    var j = jobs[(from + i) % jobs.length], t = Date.now();
+    try {
+      if (j.n) cachedRead("school", j.c, j.n, function () { return readSchool(j.c, j.n); });
+      else cachedRead("schools", j.c, "", function () { return listSchools(j.c); });
+    } catch (e) { console.warn("warmCache " + j.c + "/" + j.n + ": " + e); }
+    if (Date.now() - t > 1500) built++;   // took long enough to have been rebuilt
+    done++;
+  }
+  cache.put(WARM_AT, String((from + done) % jobs.length), 21600);
+  console.log("warmCache: " + done + "/" + jobs.length + " checked, ~" + built + " rebuilt, " + Math.round((Date.now() - started) / 1000) + " s");
+  return { done: done, total: jobs.length, rebuilt: built };
+}
+/** Run once from the editor: adds the 10-minute trigger for warmCache (and never a second copy). */
+function installWarmTrigger() {
+  var has = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === "warmCache"; });
+  if (!has) ScriptApp.newTrigger("warmCache").timeBased().everyMinutes(10).create();
+  return has ? "Trigger warmCache sudah ada." : "Trigger warmCache dipasang (setiap 10 minit).";
+}
+
 function listCawangan() {
   var map = sheetMap();
   return { cawangan: CAWANGAN.map(function (c) { return { id: c, ready: !!map[c] }; }) };
