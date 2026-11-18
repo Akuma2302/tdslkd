@@ -325,9 +325,14 @@ function doPost(e) {
     return json({ error: String(err && err.message || err) });
   } finally {
     try { bumpData(); } catch (x) {}   // anything may have been saved: cached school pages are read again
+    // School data saved from the portal (PIC, CRM, alumni, mingguan, gambar…) is also in the admin summary:
+    // mark it out of date, so the dashboard fetches a fresh one instead of showing the old values.
+    try { if (body && SCHOOL_WRITES.indexOf(body.action) > -1) markSummaryStale(); } catch (x) {}
     try { lock.releaseLock(); } catch (x) {}
   }
 }
+var SCHOOL_WRITES = ["save", "addSchool", "saveProgress", "saveFasa", "saveProgressNote", "saveLegalityStatus", "saveAlumni",
+                     "uploadImage", "saveWeekly", "saveProgram", "savePic", "deleteImage", "deleteProgram", "saveKronologiMasa", "saveProgramVideo"];
 
 function json(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
