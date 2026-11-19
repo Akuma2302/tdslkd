@@ -1,7 +1,7 @@
 // Legality API service: every call to the Unit Legality Apps Script goes through here.
 // Shared by the user portal (pages/portal/legality.js), the admin dashboard
 // (features/legality/legality-admin.js) and the access-code gate (components/gate.js).
-// Backend: backend/legality/Legality.gs.
+// Backend: backend/apps-script/legality/Legality.gs.
 (function () {
   "use strict";
 

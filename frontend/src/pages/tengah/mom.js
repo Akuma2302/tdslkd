@@ -1,7 +1,7 @@
 // Tengah page (/tengah): MOM (minutes of meeting) for cawangan Tengah.
 // Each item: Tarikh MOM · Tindakan · Tarikh Due · Masa Due · Unit · PIC (one or more) · Reminder (one or more).
 // Each item has its own "Simpan MOM" button and is saved on its own to the "MOM" tab of the TENGAH sheet
-// (backend/legality/Legality.gs: readMom / saveMomItem / deleteMomItem). When a NEW item is saved the page asks
+// (backend/apps-script/legality/Legality.gs: readMom / saveMomItem / deleteMomItem). When a NEW item is saved the page asks
 // the Netlify function mom-hantar to post it to Telegram (bot SU Tengah, the unit's topic) once; edits are not
 // posted again. Reminders go out later through the same function, called by the Apps Script trigger momReminderTick.
 (function () {

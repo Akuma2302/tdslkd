@@ -1,5 +1,5 @@
 // Alumni (user portal): pick a cawangan, then view, add and update the "Alumni Back to School"
-// entries in that cawangan's tab of the Alumni sheet. Backend: backend/legality/Legality.gs (readAlumni / saveAlumni).
+// entries in that cawangan's tab of the Alumni sheet. Backend: backend/apps-script/legality/Legality.gs (readAlumni / saveAlumni).
 (function () {
   "use strict";
 

@@ -3,7 +3,7 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
 (function () {
   const $ = (id) => document.getElementById(id);
 
-  // Intro, login and navbar come from the portal (components/intro.js, gate.js, portalNav.js).
+  // Intro, login and navbar come from the portal (components/intro.js, gate.js, appShell.js).
 
   // ── Cawangan branding ─────────────────────────
   // Picked from ?cawangan=..., else the last branch used on this device, else Tengah.

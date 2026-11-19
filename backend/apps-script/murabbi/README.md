@@ -6,14 +6,14 @@ The form page (`frontend/borang.html`) and the Unit Murabbi dashboard read and w
 
 1. Create a new Google Sheet, e.g. **"Yosh Junior · Borang Murabbi"**.
 2. In the Sheet: **Extensions → Apps Script**.
-3. Delete everything in `Code.gs` there and paste the whole of `backend/murabbi/Code.gs` from this project. Save.
+3. Delete everything in `Code.gs` there and paste the whole of `backend/apps-script/murabbi/Code.gs` from this project. Save.
 4. In the function list at the top choose **`setup`** and press **Run**. Allow the permissions it asks for (it only uses this Sheet).
 
 The Sheet now has four tabs: **Tetapan**, **Soalan**, **Murabbi**, **Jawapan**.
 
 ## 2. Fill in the murabbi list
 
-Open `backend/murabbi/senarai-murabbi.csv` (the murabbi list by cawangan), copy all the rows **except the header** and paste them into the **Murabbi** tab starting at cell A2.
+Open `database/seeds/senarai-murabbi.csv` (the murabbi list by cawangan), copy all the rows **except the header** and paste them into the **Murabbi** tab starting at cell A2.
 
 - **Cawangan**: as you want it shown (TENGAH, UTARA, PT, INDONESIA, BORNEO…)
 - **Nama**: exactly as it should appear in the form

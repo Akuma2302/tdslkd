@@ -1,9 +1,9 @@
 // POST /.netlify/functions/mom-hantar
 // Called by the /tengah page right after "Simpan MOM": bot SU Tengah posts the new MOM items to each unit's
-// topic (and the list to "MOM Keseluruhan"), plus any reminder that is due. See backend/lib/mom-bot.mjs.
+// topic (and the list to "MOM Keseluruhan"), plus any reminder that is due. See backend/functions/lib/mom-bot.mjs.
 // Body: { kod: <Tengah or admin code> }
 
-import { runMomBot } from '../lib/mom-bot.mjs';
+import { runMomBot } from './lib/mom-bot.mjs';
 
 const json = (status, body) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });

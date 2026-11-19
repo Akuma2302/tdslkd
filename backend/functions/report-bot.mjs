@@ -1,11 +1,11 @@
 // POST /.netlify/functions/report-bot
-// Reporting program: posts the reminders / follow-ups that are due to the Reporting topic (see backend/lib/report-bot.mjs).
+// Reporting program: posts the reminders / follow-ups that are due to the Reporting topic (see backend/functions/lib/report-bot.mjs).
 // Called every minute by the Legality Apps Script trigger (only when something is due).
 // Body: { kod }                      send what is due (any Tengah / admin code)
 //       { kod: <admin>, setup: true } point the bot's webhook at telegram-webhook (run once)
 //       { kod: <admin>, test: true }  make a test programme (testing topic 62) and send its first reminder now
 //       { kod: <admin>, testClear: true } remove the test programmes
-import { api, tg, json, keyboard, send, webhookSecret, whereFor, LEGALITY_API } from '../lib/report-bot.mjs';
+import { api, tg, json, keyboard, send, webhookSecret, whereFor, LEGALITY_API } from './lib/report-bot.mjs';
 
 export default async (req) => {
   if (req.method !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });

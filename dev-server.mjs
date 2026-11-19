@@ -1,4 +1,4 @@
-// Local stand-in for Netlify: serves frontend/ (with its _redirects) and runs backend/program/*.mjs
+// Local stand-in for Netlify: serves frontend/ (with its _redirects) and runs backend/functions/*.mjs
 // at /.netlify/functions/<name>, so the Program form can be tried end to end.
 //
 //   node dev-server.mjs --dry-run   build + check the Telegram message, send nothing (safe for testing)
@@ -42,7 +42,7 @@ createServer(async (req, res) => {
 
   const fn = url.pathname.match(/^\/\.netlify\/functions\/([\w-]+)$/);
   if (fn) {
-    const file = join(HERE, 'backend', 'program', `${fn[1]}.mjs`);
+    const file = join(HERE, 'backend', 'functions', `${fn[1]}.mjs`);
     if (!existsSync(file)) { res.writeHead(404).end('No such function'); return; }
     const chunks = [];
     for await (const c of req) chunks.push(c);

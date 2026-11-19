@@ -9,7 +9,7 @@
   var crumbs = document.getElementById("crumbs");
   var toastEl = document.getElementById("toast");
 
-  // Column order of each section, matching SECTIONS in backend/legality/Legality.gs.
+  // Column order of each section, matching SECTIONS in backend/apps-script/legality/Legality.gs.
   var COLS = {
     crm: [2, 3, 4, 5, 6, 7].concat(seq(8, 30)),
     alumni: [2],
@@ -229,7 +229,7 @@
     state.sekolah = parts[1] || null;
     renderCrumbs();
     if (!API) {
-      message("Borang belum disambungkan", "Pentadbir perlu memasukkan pautan Apps Script Legality dalam src/config/config.js. Lihat backend/legality/README.md.", "warn");
+      message("Borang belum disambungkan", "Pentadbir perlu memasukkan pautan Apps Script Legality dalam src/config/config.js. Lihat backend/apps-script/legality/README.md.", "warn");
       return;
     }
     if (!getKod()) return askKod(false);

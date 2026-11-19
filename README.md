@@ -17,7 +17,7 @@ Laman web statik (HTML/CSS/JavaScript biasa, tiada build) di **https://tdslkd.ne
 
 ## Log masuk
 
-Selepas intro, semua halaman minta kod. Kod user → portal (`/`), kod admin → `/admin`, kod Tengah → `/tengah`. Kod hanya disimpan untuk sesi browser semasa: tutup tab atau browser, dan kod perlu dimasukkan semula. Butang **Log keluar** ada di portal dan admin. Butiran kod: `backend/legality/README.md`.
+Selepas intro, semua halaman minta kod. Kod user → portal (`/`), kod admin → `/admin`, kod Tengah → `/tengah`. Kod hanya disimpan untuk sesi browser semasa: tutup tab atau browser, dan kod perlu dimasukkan semula. Butang **Log keluar** ada di portal dan admin. Butiran kod: `backend/apps-script/legality/README.md`.
 
 ## Struktur folder
 
@@ -38,36 +38,45 @@ tdslkd/
 │   ├── _redirects               /admin → admin.html, /legality → /legality/database, pautan lama
 │   ├── assets/
 │   │   ├── css/style.css        gaya portal & admin
-│   │   ├── css/chrome.css       navbar & skrin log masuk (dikongsi semua halaman)
+│   │   ├── css/chrome.css       bar atas, tab bawah & skrin log masuk (dikongsi semua halaman)
 │   │   ├── css/program.css      gaya borang Program Sekolah
-│   │   └── images/logo.png
+│   │   └── images/, icons/
 │   └── src/
 │       ├── config/config.js     pautan API Apps Script
 │       ├── services/            panggilan API (legalityApi.js: kod akses, get/post)
-│       ├── components/          UI boleh guna semula (intro.js, gate.js: log masuk/keluar, portalNav.js: navbar portal user dengan dropdown, slides.js)
+│       ├── layout/              appShell.js: bar atas + tab bawah portal user, menu Lagi, cip (YoshChips), ikon
+│       ├── components/          UI boleh guna semula (intro.js, gate.js: log masuk/keluar, modal.js, slides.js)
 │       ├── features/            modul ikut unit (legality/, murabbi/) untuk dashboard admin
-│       ├── pages/               skrip utama setiap halaman (home/, portal/, program/, alumni/, admin/, borang/)
+│       ├── pages/               skrip utama setiap halaman (home/, portal/, program/, alumni/, admin/, borang/, tengah/)
 │       │                        program/template.js dikongsi dengan fungsi Telegram di backend
-│       └── data/                kandungan statik (units.js, murabbi-reports.js)
-├── backend/                     Google Apps Script (tidak dipublish ke Netlify)
-│   ├── legality/                Legality.gs + README (setup, kod akses, sheet cawangan, Program Sekolah)
-│   ├── program/                 fungsi Netlify: hantar.mjs (borang program → Telegram), semak-legality.mjs (bot Legality Tds Tengah),
-│   │                            mom-hantar.mjs (bot SU Tengah: MOM selepas simpan; reminder dipanggil oleh trigger Apps Script setiap minit)
-│   │                            pico.mjs (bot PICO: Checklist Mingguan — screenshot, reminder 8 pagi, ringkasan Sabtu)
-│   ├── lib/                     kod dikongsi fungsi Netlify (mom-bot.mjs)
-│   └── murabbi/                 Code.gs + README + senarai-murabbi.csv
+│       ├── data/                kandungan statik (units.js, murabbi-reports.js)
+│       └── utils/               (dirancang) fungsi kongsi: el(), format tarikh
+├── backend/                     tidak dipublish sebagai halaman
+│   ├── functions/               Netlify Functions (/.netlify/functions/<nama>):
+│   │   ├── hantar.mjs           borang program → Telegram
+│   │   ├── pico.mjs             bot PICO: Checklist Mingguan (screenshot, reminder 8 pagi, ringkasan Sabtu)
+│   │   ├── semak-legality.mjs   bot Legality Tds Tengah
+│   │   ├── mom-hantar.mjs       bot SU Tengah: MOM selepas simpan (reminder dipanggil trigger Apps Script)
+│   │   ├── report-bot.mjs, telegram-webhook.mjs   bot reporting program
+│   │   └── lib/                 kod kongsi bot (mom-bot.mjs, report-bot.mjs) — bukan function
+│   └── apps-script/             Google Apps Script (deploy dalam editor Apps Script, bukan git push)
+│       ├── legality/            Legality.gs + README (API Legality: setup, kod akses, sheet cawangan, Program)
+│       └── murabbi/             Code.gs + README
+├── database/                    Google Sheets yang digunakan (sheet, tab, cache) + seeds/senarai-murabbi.csv
+├── docs/                        cara deploy, peraturan UI
+├── tools/                       stamp-assets.mjs (versi fail setiap deploy), import_murabbi.py
 ├── dev-server.mjs               pelayan ujian tempatan (halaman + fungsi Telegram)
-├── tools/                       skrip pembantu (import_murabbi.py)
+├── .env.example                 contoh environment variables
 └── netlify.toml
 ```
 
 ### Tambah tab baru dalam portal user
 
-Tambah satu entri dalam `frontend/src/components/portalNav.js` (label, link, tajuk, penerangan, sumber data, status, dan `menu` untuk dropdown navbar). Item dropdown dengan `soon: true` dipapar sebagai "Akan datang". Navbar dan kad di halaman Utama dibina dari senarai yang sama. Kemudian buat halamannya (salin `pembinaan.html`, tukar `data-tab` dan tajuk).
+Tambah satu entri dalam `frontend/src/layout/appShell.js` (label, link, tajuk, penerangan, sumber data, status, dan `menu` untuk dropdown navbar). Item dropdown dengan `soon: true` dipapar sebagai "Akan datang". Navbar dan kad di halaman Utama dibina dari senarai yang sama. Kemudian buat halamannya (salin `pembinaan.html`, tukar `data-tab` dan tajuk).
 
 ### Susunan skrip dalam HTML
 
-Tiada bundler, jadi setiap halaman memuatkan skrip mengikut turutan: `config` → `services` / `components` → `data` / `features` → `pages`. Modul unit dalam admin mendaftar diri dalam `window.UNIT_VIEWS` sebelum `pages/admin/app.js` dimuatkan.
+Tiada bundler, jadi setiap halaman memuatkan skrip mengikut turutan: `config` → `services` / `components` / `layout` → `data` / `features` → `pages`. Modul unit dalam admin mendaftar diri dalam `window.UNIT_VIEWS` sebelum `pages/admin/app.js` dimuatkan.
 
 ## Uji di komputer
 
@@ -79,9 +88,9 @@ Buka http://localhost:4321/ (portal), http://localhost:4321/legality/database, h
 
 ## Deploy
 
-Push ke `main` → Netlify bina semula secara automatik dari folder `frontend/` (dan fungsi dalam `netlify/functions/`).
+Push ke `main` → Netlify bina semula secara automatik dari folder `frontend/` (dan fungsi dalam `backend/functions/`). Langkah penuh: `docs/README.md`.
 
 Fungsi Telegram untuk borang Program perlukan environment variables dalam Netlify (**Site configuration → Environment variables**):
 `TELEGRAM_BOT_TOKEN`, `GROUP_TENGAH`, `GROUP_UTARA`, `GROUP_PANTAI_TIMUR`, `GROUP_BORNEO`, `GROUP_INDONESIA`, `GROUP_MEA` (pilihan; tanpanya MEA hanya dihantar ke topik MEA dalam group kompilasi) (pilihan: `DRY_RUN=1` untuk uji tanpa hantar mesej). Selepas menukarnya, buat **Deploys → Trigger deploy**.
 
-Backend Apps Script dikemas kini berasingan: tampal fail `.gs` ke editor Apps Script, kemudian **Deploy → Manage deployments → Edit → New version**. Lihat README dalam `backend/legality/` dan `backend/murabbi/`.
+Backend Apps Script dikemas kini berasingan: tampal fail `.gs` ke editor Apps Script, kemudian **Deploy → Manage deployments → Edit → New version**. Lihat README dalam `backend/apps-script/legality/` dan `backend/apps-script/murabbi/`.

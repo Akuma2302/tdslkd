@@ -1,6 +1,6 @@
 // POST /.netlify/functions/telegram-webhook
 // Telegram calls this for the Program bot (TELEGRAM_BOT_TOKEN) when someone taps a reporting button or replies to
-// one of the bot's reporting questions. Set up once with report-bot { setup: true }. See backend/lib/report-bot.mjs.
+// one of the bot's reporting questions. Set up once with report-bot { setup: true }. See backend/functions/lib/report-bot.mjs.
 //
 // Buttons (callback_data "rp:<step>:<programme id>"):
 //   rp:ya     "Ya, berjalan"    → 1st question answered: asks to duplicate the template [Reporting topic]
@@ -12,7 +12,7 @@
 //   rp:baiki  "Perlu baiki"     → asks the admin what to fix (reply)          [Program Tengah]
 // Replies to the bot's questions carry a tag in the question: "#RP-LINK-<id>" (Canva link) or "#RP-FIX-<id>" (comment).
 // After "Siap duplicate" the PIC can also just paste the link as a normal message (remembered for 1 hour per person).
-import { api, tg, json, keyboard, send, head, notify, canvaProblem, webhookSecret, whereFor, APPROVAL, TEMPLATE } from '../lib/report-bot.mjs';
+import { api, tg, json, keyboard, send, head, notify, canvaProblem, webhookSecret, whereFor, APPROVAL, TEMPLATE } from './lib/report-bot.mjs';
 
 const ID = '[A-Za-z0-9_-]{8,60}';
 const who = (u) => (u && u.username ? '@' + u.username : [u?.first_name, u?.last_name].filter(Boolean).join(' ') || 'seseorang');

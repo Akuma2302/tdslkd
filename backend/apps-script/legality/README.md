@@ -2,7 +2,7 @@
 
 Portal user di `https://tdslkd.netlify.app/` (`frontend/index.html`, tab **Database Legality**) ialah borang untuk ahli cawangan. Dashboard admin di `https://tdslkd.netlify.app/admin` (`frontend/admin.html`). Mereka pilih **cawangan → sekolah**, kemudian lihat dan kemas kini CRM (dengan KPI), Alumni, Program, Analisa, Planning, Modul dan Peluang. Data ditulis terus ke tab sekolah dalam Google Sheet cawangan masing-masing, jadi format sheet kekal sama dan tab CRM / Program dalam sheet terus update sendiri.
 
-Backend: `backend/legality/Legality.gs`, dipasang sebagai projek Apps Script berasingan (akaun pemilik sheet), dan dipublish sebagai **Web app** (Execute as: Me, Who has access: Anyone). Pautan `/exec` diletak dalam `frontend/src/config/config.js` → `legalityApi`.
+Backend: `backend/apps-script/legality/Legality.gs`, dipasang sebagai projek Apps Script berasingan (akaun pemilik sheet), dan dipublish sebagai **Web app** (Execute as: Me, Who has access: Anyone). Pautan `/exec` diletak dalam `frontend/src/config/config.js` → `legalityApi`.
 
 ## Sheet setiap cawangan
 
@@ -74,7 +74,7 @@ Kad **PIC Legality** di atas Progress dalam halaman sekolah menyimpan nama dan u
 
 Bot ini menyemak setiap sekolah **TENGAH**. Jika **Planning Legality** atau **Peluang Lain Tahun Depan** masih kosong, ia menghantar satu mesej ke group dan tag PIC Legality setiap sekolah (dari tab *PIC Legality*). Planning dikira terisi bila ada tulisan (bukan teks contoh "*Tulis …") atau gambar; Peluang dikira terisi bila lajur **Peluang** ada isi.
 
-Semakan dibuat oleh Apps Script (tindakan `reminder`, kod admin sahaja). Mesej dihantar oleh fungsi Netlify `backend/program/semak-legality.mjs`, yang memegang token bot.
+Semakan dibuat oleh Apps Script (tindakan `reminder`, kod admin sahaja). Mesej dihantar oleh fungsi Netlify `backend/functions/semak-legality.mjs`, yang memegang token bot.
 
 Persediaan (sekali sahaja), dalam **Netlify → tdslkd → Environment variables**:
 - `LEGALITY_BOT_TENGAH`: token bot Legality Tds Tengah (dari @BotFather).

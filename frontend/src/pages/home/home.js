@@ -4,7 +4,7 @@
 //   ·  #program    every programme still to come, grouped by month, with a filter:
 //                  Semua · Hari ini · Minggu ini · Bulan ini · Tahun ini
 // Programmes come from the Program sheet (backend upcomingPrograms, GET action "upcoming"); the last copy is
-// kept in this browser and shown at once. The units come from window.PORTAL_TABS (components/portalNav.js).
+// kept in this browser and shown at once. The units come from window.PORTAL_TABS (layout/appShell.js).
 (function () {
   "use strict";
 
