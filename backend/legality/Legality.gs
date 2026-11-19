@@ -1364,7 +1364,8 @@ function saveProgram(body) {
 function iso2(v) { return v instanceof Date ? iso(v) : text(v); }
 
 /**
- * Portal Utama "Program akan datang": programmes still to come or running today, soonest first (at most 12).
+ * Portal Utama "Program akan datang": programmes still to come or running today, soonest first (at most 300;
+ * Utama shows 3, "Lihat semua" lists them all with a Hari ini / Minggu / Bulan / Tahun filter).
  * Only what is public: name, type, school, negeri, cawangan, dates and time (no PIC, teachers or students).
  * Cached 5 minutes (cleared when a programme is saved or deleted).
  */
@@ -1384,7 +1385,7 @@ function upcomingPrograms() {
     });
   }
   list.sort(function (a, b) { return a.mula < b.mula ? -1 : a.mula > b.mula ? 1 : 0; });
-  var out = { today: today, programs: list.slice(0, 12), total: list.length };
+  var out = { today: today, programs: list.slice(0, 300), total: list.length };
   try { cache.put(UPCOMING_KEY, JSON.stringify(out), 300); } catch (e) {}
   return out;
 }

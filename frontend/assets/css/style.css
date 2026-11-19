@@ -2214,3 +2214,24 @@ select.yc-hidden { display: none !important; }
 .hm-prog-foot { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.55rem; }
 .hm-prog-chip { padding: 0.15rem 0.55rem; border-radius: 999px; border: 1px solid var(--line-2); color: var(--muted); font-size: 0.72rem; font-weight: 600; }
 @media (min-width: 861px) { .hm-board-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Utama: "Lihat semua" and the full programme list with its period filter (pages/home/home.js) */
+.hm-board-head { align-items: center; }
+.hm-board-more { color: var(--accent); font-size: 0.85rem; font-weight: 700; text-decoration: none; }
+.hm-board-all {
+  display: flex; align-items: center; justify-content: center; gap: 0.3rem; min-height: 48px; margin-top: 0.6rem;
+  border: 1px solid var(--line-2); border-radius: 14px; color: var(--text); font-weight: 700; font-size: 0.92rem; text-decoration: none;
+}
+.hm-board-all:hover { border-color: var(--accent); color: var(--accent); }
+.hm-board-all .ab-icon { width: 18px; height: 18px; }
+.hm-filter { display: flex; gap: 0.4rem; margin: 0 -16px 0.4rem; padding: 0 16px 0.4rem; overflow-x: auto; scrollbar-width: none; }
+.hm-filter::-webkit-scrollbar { display: none; }
+.hm-filter-chip {
+  flex: none; display: inline-flex; align-items: center; gap: 0.45rem; min-height: 40px; padding: 0 0.95rem;
+  border: 1px solid var(--line-2); border-radius: 999px; background: var(--bg-2); color: var(--text);
+  font: inherit; font-size: 0.88rem; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.hm-filter-chip.is-on { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+.hm-filter-n { min-width: 1.4rem; padding: 0 0.35rem; border-radius: 999px; background: rgba(255, 255, 255, 0.1); font-size: 0.72rem; font-weight: 800; text-align: center; }
+.hm-filter-chip.is-on .hm-filter-n { background: rgba(0, 0, 0, 0.15); }
+.hm-month { margin-top: 1.1rem; }
