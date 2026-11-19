@@ -227,6 +227,7 @@ function doGet(e) {
       return json(readMom());
     }
     if (role === "tengah") throw new Error("KOD_SALAH");   // the Tengah code opens the MOM page only
+    if (p.action === "upcoming") return json(upcomingPrograms());   // portal Utama: Program akan datang
     if (p.action === "alumni") return json(readAlumni(p.cawangan));
     if (p.action === "cawangan") return json(listCawangan());
     if (p.action === "schools") return json(cachedRead("schools", p.cawangan, "", function () { return listSchools(p.cawangan); }));
@@ -1356,11 +1357,37 @@ function saveProgram(body) {
   }
   sh.getRange(r, 1, 1, row.length).setVerticalAlignment("top").setWrap(true);
   startReporting(sh, r, row[2], body.telegram, row);   // reporting reminders (Tengah, new programmes)
-  CacheService.getScriptCache().remove("programs");
+  CacheService.getScriptCache().removeAll(["programs", UPCOMING_KEY]);
   return { ok: true, id: id };
 }
 
 function iso2(v) { return v instanceof Date ? iso(v) : text(v); }
+
+/**
+ * Portal Utama "Program akan datang": programmes still to come or running today, soonest first (at most 12).
+ * Only what is public: name, type, school, negeri, cawangan, dates and time (no PIC, teachers or students).
+ * Cached 5 minutes (cleared when a programme is saved or deleted).
+ */
+var UPCOMING_KEY = "upcoming";
+function upcomingPrograms() {
+  var cache = CacheService.getScriptCache();
+  var today = iso(new Date());
+  var hit = cache.get(UPCOMING_KEY);
+  if (hit) { try { var o = JSON.parse(hit); if (o.today === today) return o; } catch (e) {} }
+  var sh = programSheet(), list = [];
+  if (sh.getLastRow() > 1) {
+    sh.getRange(2, 1, sh.getLastRow() - 1, 10).getValues().forEach(function (r) {
+      var mula = iso2(r[7]), tamat = iso2(r[8]) || mula;
+      if (!text(r[5]) || !/^\d{4}-\d{2}-\d{2}$/.test(mula) || tamat < today) return;
+      list.push({ nama: text(r[5]), jenis: text(r[6]), sekolah: text(r[3]), negeri: text(r[4]), cawangan: text(r[2]),
+                  mula: mula, tamat: tamat, masa: text(r[9]) });
+    });
+  }
+  list.sort(function (a, b) { return a.mula < b.mula ? -1 : a.mula > b.mula ? 1 : 0; });
+  var out = { today: today, programs: list.slice(0, 12), total: list.length };
+  try { cache.put(UPCOMING_KEY, JSON.stringify(out), 300); } catch (e) {}
+  return out;
+}
 
 /** Admin: every programme, newest first. */
 function listPrograms() {
@@ -1405,7 +1432,7 @@ function deleteProgram(body) {
     sh.deleteRow(i + 2);
     SpreadsheetApp.flush();
     CacheService.getScriptCache().remove(REPORT_NEXT);
-    CacheService.getScriptCache().remove("programs");
+    CacheService.getScriptCache().removeAll(["programs", UPCOMING_KEY]);
     return { ok: true, removed: { id: text(r[0]), sekolah: text(r[3]), nama: text(r[5]) } };
   }
   throw new Error("Program tidak dijumpai (mungkin sudah dipadam). Muat semula halaman.");

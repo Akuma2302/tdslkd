@@ -40,6 +40,95 @@
   });
   root.appendChild(actions);
 
+  // ---------- Program akan datang (bulletin) ----------
+  // Programmes still to come or running today, soonest first, from the Program sheet (backend upcomingPrograms).
+  // The last copy is kept in this browser and shown at once; refreshed when the page opens.
+  var board = el("section", "hm-board");
+  var boardHead = el("div", "hm-board-head");
+  boardHead.appendChild(el("h2", "hm-board-title", "Program akan datang"));
+  var boardCount = el("span", "hm-board-count");
+  boardHead.appendChild(boardCount);
+  board.appendChild(boardHead);
+  var boardList = el("div", "hm-board-list");
+  boardList.appendChild(el("p", "hm-board-empty", "Memuatkan…"));
+  board.appendChild(boardList);
+  root.appendChild(board);
+
+  // "PROGRAM KEPIMPINAN pelajar" → "Program kepimpinan pelajar"
+  function sentence(s) {
+    s = String(s || "").trim().replace(/\s+/g, " ").toLowerCase();
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+  var BULAN = ["Jan", "Feb", "Mac", "Apr", "Mei", "Jun", "Jul", "Ogo", "Sep", "Okt", "Nov", "Dis"];
+  var HARI = ["Ahad", "Isnin", "Selasa", "Rabu", "Khamis", "Jumaat", "Sabtu"];
+  function dateOf(ymd) { var p = ymd.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function dayText(a, b) {
+    var x = dateOf(a), y = dateOf(b || a);
+    var one = HARI[x.getDay()] + ", " + x.getDate() + " " + BULAN[x.getMonth()] + " " + x.getFullYear();
+    if (!b || a === b) return one;
+    if (x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth()) return x.getDate() + "–" + y.getDate() + " " + BULAN[x.getMonth()] + " " + x.getFullYear();
+    return x.getDate() + " " + BULAN[x.getMonth()] + " – " + y.getDate() + " " + BULAN[y.getMonth()] + " " + y.getFullYear();
+  }
+  function whenTag(p) {
+    var now = new Date(); now.setHours(0, 0, 0, 0);
+    var d = Math.round((dateOf(p.mula) - now) / 86400000);
+    if (d <= 0) return { text: dateOf(p.tamat) > now || d === 0 ? "Hari ini" : "Sedang berjalan", hot: true };
+    if (d === 1) return { text: "Esok", hot: true };
+    if (d < 7) return { text: "Dalam " + d + " hari", hot: false };
+    return null;
+  }
+  function placeText(p) {
+    var negeri = String(p.negeri || "").trim();
+    return [String(p.sekolah || "").trim(), negeri ? sentence(negeri).replace(/\b(\w)/g, function (c) { return c.toUpperCase(); }) : ""].filter(String).join(", ");
+  }
+  function drawBoard(d) {
+    boardList.textContent = "";
+    var list = (d && d.programs) || [];
+    boardCount.textContent = d && d.total ? d.total + " program" : "";
+    if (!list.length) { boardList.appendChild(el("p", "hm-board-empty", "Tiada program akan datang buat masa ini.")); return; }
+    list.forEach(function (p) {
+      var x = dateOf(p.mula);
+      var row = el("article", "hm-prog");
+      var cal = el("div", "hm-prog-date");
+      cal.appendChild(el("span", "hm-prog-day", String(x.getDate())));
+      cal.appendChild(el("span", "hm-prog-mon", BULAN[x.getMonth()]));
+      row.appendChild(cal);
+      var body = el("div", "hm-prog-body");
+      var top = el("div", "hm-prog-top");
+      top.appendChild(el("h3", "hm-prog-name", sentence(p.nama)));
+      var tag = whenTag(p);
+      if (tag) top.appendChild(el("span", "hm-prog-tag" + (tag.hot ? " is-hot" : ""), tag.text));
+      body.appendChild(top);
+      var meta = el("dl", "hm-prog-meta");
+      [["Tarikh", dayText(p.mula, p.tamat)], ["Masa", p.masa || "—"], ["Tempat", placeText(p) || "—"]].forEach(function (m) {
+        var line = el("div", "hm-prog-line");
+        line.appendChild(el("dt", null, m[0]));
+        line.appendChild(el("dd", null, m[1]));
+        meta.appendChild(line);
+      });
+      body.appendChild(meta);
+      var foot = el("div", "hm-prog-foot");
+      if (p.jenis) foot.appendChild(el("span", "hm-prog-chip", p.jenis));
+      if (p.cawangan) foot.appendChild(el("span", "hm-prog-chip", p.cawangan));
+      if (foot.children.length) body.appendChild(foot);
+      row.appendChild(body);
+      boardList.appendChild(row);
+    });
+  }
+  var MEMO = "legality:memo:upcoming";
+  try { var m = JSON.parse(localStorage.getItem(MEMO) || "null"); if (m) drawBoard(m); } catch (e) {}
+  function loadBoard() {
+    var Api = window.LegalityApi;
+    if (!Api || !Api.configured) { board.hidden = true; return; }
+    Api.get({ action: "upcoming" }).then(function (d) {
+      try { localStorage.setItem(MEMO, JSON.stringify(d)); } catch (e) {}
+      drawBoard(d);
+    }).catch(function () {
+      if (!boardList.querySelector(".hm-prog")) { boardList.textContent = ""; boardList.appendChild(el("p", "hm-board-empty", "Tidak dapat memuatkan program. Cuba muat semula halaman.")); }
+    });
+  }
+  if (window.YoshGate) window.YoshGate.ready(loadBoard); else loadBoard();
+
   root.appendChild(el("p", "app-label", "Unit"));
   var list = el("div", "app-list");
   var ICONS = { legality: "sekolah", alumni: "alumni", pentajmikan: "panduan", pembinaan: "panduan" };

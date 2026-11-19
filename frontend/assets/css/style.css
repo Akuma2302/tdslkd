@@ -2186,3 +2186,31 @@ select.yc-hidden { display: none !important; }
 .lg-autosave-hint { margin-right: auto; color: var(--muted); font-size: 0.78rem; }
 .lg-section.is-saving { pointer-events: none; }
 .lg-section.is-saving .lg-section-body { opacity: 0.6; transition: opacity 0.15s; }
+
+/* Utama: "Program akan datang" bulletin (pages/home/home.js) */
+.hm-board { margin-top: 1.4rem; }
+.hm-board[hidden] { display: none; }
+.hm-board-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.6rem; }
+.hm-board-title { margin: 0; font-family: var(--display); font-weight: 800; font-size: 1.1rem; }
+.hm-board-count { color: var(--muted); font-size: 0.8rem; }
+.hm-board-list { display: flex; flex-direction: column; gap: 0.6rem; }
+.hm-board-empty { margin: 0; padding: 1rem; border: 1px dashed var(--line-2); border-radius: 16px; color: var(--muted); font-size: 0.9rem; text-align: center; }
+.hm-prog { display: flex; gap: 0.85rem; padding: 0.9rem; border: 1px solid var(--line); border-radius: 16px; background: var(--card); }
+.hm-prog-date {
+  flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 54px; height: 58px;
+  border-radius: 13px; background: rgba(255, 195, 0, 0.12); color: var(--accent);
+}
+.hm-prog-day { font-family: var(--display); font-weight: 900; font-size: 1.35rem; line-height: 1; }
+.hm-prog-mon { margin-top: 0.15rem; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.hm-prog-body { flex: 1; min-width: 0; }
+.hm-prog-top { display: flex; align-items: flex-start; gap: 0.5rem; }
+.hm-prog-name { flex: 1; min-width: 0; margin: 0; font-size: 1rem; font-weight: 700; line-height: 1.35; }
+.hm-prog-tag { flex: none; padding: 0.15rem 0.55rem; border-radius: 999px; background: rgba(255, 255, 255, 0.07); color: var(--muted); font-size: 0.7rem; font-weight: 700; white-space: nowrap; }
+.hm-prog-tag.is-hot { background: var(--accent); color: var(--on-accent); }
+.hm-prog-meta { display: grid; gap: 0.2rem; margin: 0.5rem 0 0; }
+.hm-prog-line { display: grid; grid-template-columns: 4.2rem minmax(0, 1fr); gap: 0.4rem; font-size: 0.84rem; line-height: 1.4; }
+.hm-prog-line dt { color: var(--muted); }
+.hm-prog-line dd { margin: 0; color: var(--text); overflow-wrap: anywhere; }
+.hm-prog-foot { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.55rem; }
+.hm-prog-chip { padding: 0.15rem 0.55rem; border-radius: 999px; border: 1px solid var(--line-2); color: var(--muted); font-size: 0.72rem; font-weight: 600; }
+@media (min-width: 861px) { .hm-board-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } }
