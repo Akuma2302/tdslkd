@@ -752,6 +752,7 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
     if (bad.length) {
       formError.textContent = '⚠️ Sila lengkapkan borang program sebelum jana template!';
       formError.classList.add('show');
+      if (stepper.reveal(bad[0])) return;   // went back to the step that is not complete
       const top = bad[0].getBoundingClientRect().top + window.scrollY - 80;
       window.scrollTo({ top, behavior: 'smooth' });
       return;
@@ -852,4 +853,79 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
     copyBtn.textContent = '✓ Copied!';
     copyBtn.classList.add('copied');
   });
+
+  // ── App-style steps: one part at a time ───────
+  // 0 Ketetapan · 1 Maklumat asas · 2 Tarikh & masa · 3 Guru & pelajar · 4 Manpower · 5 PIC.
+  // "Seterusnya" checks the part first; on the last part it becomes "Jana template & hantar".
+  function makeStepper() {
+    const ketetapan = $('ketetapan'), borang = $('borang'), picBox = $('pic');
+    const parts = [ketetapan].concat([...form.querySelectorAll('.form-step')]);
+    const TITLES = ['Ketetapan Virality', 'Maklumat asas', 'Tarikh dan masa', 'Guru dan pelajar', 'Manpower', 'PIC program'];
+    let at = 0;
+
+    document.body.classList.add('pg-stepped');
+    const head = document.createElement('div');
+    head.className = 'pg-stephead';
+    head.innerHTML = '<div class="pg-stephead-row"><span class="pg-stephead-n"></span><strong class="pg-stephead-t"></strong></div>' +
+      '<div class="pg-stephead-bar"><span></span></div>';
+    ketetapan.parentNode.insertBefore(head, ketetapan);
+    const nav = document.createElement('div');
+    nav.className = 'pg-stepnav';
+    nav.innerHTML = '<button type="button" class="pg-stepnav-back">Kembali</button><button type="button" class="pg-stepnav-next">Seterusnya</button>';
+    document.body.appendChild(nav);
+    const backBtn = nav.querySelector('.pg-stepnav-back'), nextBtn = nav.querySelector('.pg-stepnav-next');
+
+    function show(i, focus) {
+      at = Math.max(0, Math.min(parts.length - 1, i));
+      parts.forEach((p, j) => p.classList.toggle('pg-off', j !== at));
+      ketetapan.hidden = at !== 0;
+      borang.hidden = at === 0;
+      if (picBox) picBox.hidden = at !== 0;   // "Hubungi PIC" as help on the first screen only
+      form.classList.toggle('pg-last', at === parts.length - 1);
+      head.querySelector('.pg-stephead-n').textContent = `Langkah ${at + 1}/${parts.length}`;
+      head.querySelector('.pg-stephead-t').textContent = TITLES[at];
+      head.querySelector('.pg-stephead-bar span').style.width = `${((at + 1) / parts.length) * 100}%`;
+      backBtn.hidden = at === 0;
+      nextBtn.textContent = at === parts.length - 1 ? 'Jana template & hantar' : 'Seterusnya';
+      window.scrollTo({ top: 0 });
+      if (focus) { const f = parts[at].querySelector('input:not([type=hidden]):not([type=checkbox]):not([type=radio]), select, textarea, .tile'); if (f) f.focus({ preventScroll: true }); }
+    }
+    // Is part i complete? If not, mark what is missing in it (only in it) and say so.
+    function check(i) {
+      if (i === 0) {
+        const ok = amanahBoxes.every((c) => c.checked);
+        $('amanahError').classList.toggle('show', !ok);
+        return ok;
+      }
+      if (STEP_CHECKS[i]()) return true;
+      form.querySelectorAll('.error').forEach((el) => el.classList.remove('error'));
+      validate();
+      form.querySelectorAll('.error').forEach((el) => { if (!parts[i].contains(el)) el.classList.remove('error'); });
+      $('amanahError').classList.remove('show');
+      const first = parts[i].querySelector('.error');
+      if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return false;
+    }
+    nextBtn.addEventListener('click', () => {
+      if (!check(at)) return;
+      if (at === parts.length - 1) { form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit', { cancelable: true })); return; }
+      show(at + 1, true);
+    });
+    backBtn.addEventListener('click', () => show(at - 1));
+    // "Teruskan ke borang" after the three amanah are ticked
+    document.querySelectorAll('a[href="#borang"]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); nextBtn.click(); }));
+    show(0);
+    return {
+      // Jump to the part holding el; true if it had to move.
+      reveal(el) {
+        const i = parts.findIndex((p) => p.contains(el) || p === el);
+        if (i < 0 || i === at) return false;
+        show(i);
+        setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+        return true;
+      }
+    };
+  }
+  const stepper = makeStepper();
+  if (window.YoshShell) window.YoshShell.setTitle('Hantar program');
 })();

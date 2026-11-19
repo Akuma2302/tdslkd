@@ -2050,3 +2050,139 @@ th.lgd-view-th { padding-bottom: 0.5rem; }
   .lgd-mx .lgd-mx-school { min-width: 96px; max-width: 104px; }
   .lgd-mx .lgd-mx-level { left: 98px; }
 }
+
+/* ===================================================================================================
+   App-style user portal (Utama, Sekolah, school page with tabs, Alumni). Shell: chrome.css · portalNav.js
+   =================================================================================================== */
+.app-page { padding-top: 1.25rem; }
+.app-page > .borang-head:has(.lg-crumbs) { display: none; }   /* the top bar shows the title and ← */
+.app-h1 { margin: 0; font-family: var(--display); font-weight: 900; font-size: clamp(1.6rem, 6vw, 2rem); letter-spacing: -0.02em; line-height: 1.1; }
+.app-lead { margin: 0.3rem 0 1.1rem; color: var(--muted); font-size: 0.92rem; }
+.app-label { margin: 1.4rem 0 0.5rem; color: var(--muted); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.02em; }
+.app-empty { margin: 0; padding: 1rem; color: var(--muted); font-size: 0.9rem; }
+
+/* Search box with icon */
+.app-search {
+  display: flex; align-items: center; gap: 0.6rem; min-height: 50px; padding: 0 0.9rem;
+  border: 1px solid var(--line-2); border-radius: 14px; background: var(--bg-2); color: var(--muted); cursor: text;
+}
+.app-search:focus-within { border-color: var(--accent); }
+.app-search .ab-icon { flex: none; width: 20px; height: 20px; }
+.app-search input { flex: 1; min-width: 0; height: 48px; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 1rem; outline: none; }
+.app-search input::-webkit-search-cancel-button { filter: invert(0.7); }
+.app-results { margin-top: 0.6rem; }
+
+/* Grouped list of rows (iOS settings style) */
+.app-list { display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--card); }
+.app-list[hidden], .app-label[hidden] { display: none; }
+.app-row {
+  display: flex; align-items: center; gap: 0.8rem; width: 100%; min-height: 58px; padding: 0.55rem 0.9rem 0.55rem 1rem;
+  border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--text);
+  font: inherit; text-align: left; text-decoration: none; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.app-list > :first-child { border-top: 0; }
+.app-row:hover { background: rgba(255, 255, 255, 0.03); }
+.app-row:active { background: rgba(255, 255, 255, 0.06); }
+.app-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.app-row-icon { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; background: rgba(255, 195, 0, 0.12); color: var(--accent); }
+.app-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.12rem; }
+.app-row-title { font-weight: 600; font-size: 0.98rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-row-sub { color: var(--muted); font-size: 0.8rem; line-height: 1.35; }
+.app-row-tag { flex: none; padding: 0.15rem 0.5rem; border-radius: 999px; background: rgba(255, 255, 255, 0.07); color: var(--muted); font-size: 0.7rem; font-weight: 700; }
+.app-row-go { flex: none; color: var(--muted); }
+.app-row-go .ab-icon { width: 18px; height: 18px; }
+.app-row.is-soon { cursor: default; opacity: 0.55; }
+.app-row.is-soon:hover { background: transparent; }
+.app-row-add { color: var(--accent); }
+.app-row-add .app-row-title { color: var(--accent); }
+.app-row-add .app-row-icon { width: 30px; height: 30px; border-radius: 9px; }
+
+/* Utama */
+.hm-head { margin-bottom: 1.2rem; }
+.hm-date { margin: 0; color: var(--muted); font-size: 0.85rem; }
+.hm-hello { margin: 0.1rem 0 0; font-family: var(--display); font-weight: 900; font-size: clamp(1.7rem, 7vw, 2.2rem); letter-spacing: -0.02em; }
+.hm-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem; }
+.hm-action {
+  display: flex; flex-direction: column; gap: 0.2rem; min-height: 128px; padding: 1rem;
+  border: 1px solid var(--line-2); border-radius: 18px; background: var(--card); color: var(--text); text-decoration: none;
+}
+.hm-action:active { transform: scale(0.985); }
+.hm-action-icon { display: grid; place-items: center; width: 42px; height: 42px; margin-bottom: auto; border-radius: 13px; background: rgba(255, 255, 255, 0.07); }
+.hm-action-label { margin-top: 0.8rem; font-family: var(--display); font-weight: 800; font-size: 1.02rem; }
+.hm-action-hint { color: var(--muted); font-size: 0.78rem; }
+.hm-action.is-main { border-color: transparent; background: var(--accent); color: var(--on-accent); }
+.hm-action.is-main .hm-action-icon { background: rgba(0, 0, 0, 0.12); }
+.hm-action.is-main .hm-action-hint { color: rgba(11, 11, 11, 0.7); }
+
+/* School page: compact header, wide-screen tab switch, panes, "perlu dibuat" strip */
+.sc-head { margin-bottom: 1rem; }
+.sc-name { margin: 0; font-family: var(--display); font-weight: 900; font-size: clamp(1.5rem, 6vw, 2rem); letter-spacing: -0.02em; line-height: 1.1; }
+.sc-sub { margin: 0.2rem 0 0.7rem; color: var(--muted); font-size: 0.85rem; }
+.sc-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.sc-tag {
+  display: inline-flex; align-items: center; gap: 0.3rem; min-height: 30px; padding: 0 0.7rem;
+  border: 1px solid var(--line-2); border-radius: 999px; background: transparent; color: var(--text);
+  font: inherit; font-size: 0.78rem; font-weight: 700; text-decoration: none; cursor: default;
+}
+button.sc-tag, a.sc-tag { cursor: pointer; }
+.sc-tag.is-fasa { border-color: rgba(255, 195, 0, 0.5); color: var(--accent); }
+.sc-tag.is-empty { color: var(--muted); }
+.sc-tag.is-ok { color: #5be08f; border-color: rgba(52, 211, 113, 0.45); }
+.sc-tag.is-mid { color: #f0b429; border-color: rgba(240, 180, 41, 0.45); }
+.sc-tag.is-no { color: #ff8c8c; border-color: rgba(255, 107, 107, 0.45); }
+.sc-tag.is-warn { color: #f0b429; border-color: rgba(240, 180, 41, 0.45); background: rgba(240, 180, 41, 0.08); }
+.sc-tag.is-tg { color: #6cc4f3; border-color: rgba(42, 171, 238, 0.4); background: rgba(42, 171, 238, 0.08); }
+.sc-lock { font-size: 0.7rem; }
+.sc-seg { display: none; }
+@media (min-width: 861px) {
+  .sc-seg {
+    position: sticky; top: calc(var(--ab-top, 56px) + 8px); z-index: 20; display: flex; gap: 4px; margin: 0 0 1rem; padding: 4px;
+    border: 1px solid var(--line-2); border-radius: 14px; background: rgba(18, 18, 18, 0.94); backdrop-filter: blur(10px);
+  }
+  .sc-seg-btn {
+    position: relative; flex: 1; height: 40px; border: 0; border-radius: 10px; background: transparent; color: var(--muted);
+    font: inherit; font-size: 0.9rem; font-weight: 700; cursor: pointer;
+  }
+  .sc-seg-btn:hover { color: var(--text); }
+  .sc-seg-btn.is-on { background: var(--accent); color: var(--on-accent); }
+  .sc-seg-dot { position: absolute; top: 8px; right: 12px; width: 8px; height: 8px; border-radius: 50%; }
+  .sc-seg-dot.bad { background: #ff6b6b; }
+  .sc-seg-dot.warn { background: #f0b429; }
+}
+.sc-pane { display: flex; flex-direction: column; gap: 0.9rem; }
+.sc-pane[hidden] { display: none; }
+.sc-pane > .borang-card { margin: 0; }
+.sc-todo { padding: 0.85rem 0.9rem; border: 1px solid rgba(240, 180, 41, 0.4); border-radius: 16px; background: rgba(240, 180, 41, 0.07); }
+.sc-todo.is-clear { border-color: rgba(52, 211, 113, 0.4); background: rgba(52, 211, 113, 0.07); }
+.sc-todo-title { margin: 0; color: #f0b429; font-weight: 800; font-size: 0.95rem; }
+.sc-todo.is-clear .sc-todo-title { color: #5be08f; }
+.sc-todo-list { display: flex; flex-direction: column; margin-top: 0.5rem; }
+.sc-todo-row {
+  display: flex; align-items: center; gap: 0.6rem; min-height: 44px; padding: 0.35rem 0; border: 0; border-top: 1px solid rgba(240, 180, 41, 0.18);
+  background: transparent; color: var(--text); font: inherit; font-size: 0.9rem; text-align: left; cursor: pointer;
+}
+.sc-todo-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #f0b429; }
+.sc-todo-text { flex: 1; min-width: 0; }
+.sc-todo-go { flex: none; padding: 0.3rem 0.75rem; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 0.78rem; font-weight: 800; }
+
+/* Floating bars sit above the bottom tabs on phones */
+@media (max-width: 860px) {
+  .app-shell .lg-savebar { bottom: calc(var(--ab-tabs) + env(safe-area-inset-bottom, 0px) + 8px); }
+  .app-shell .lg-toast { bottom: calc(var(--ab-tabs) + env(safe-area-inset-bottom, 0px) + 12px); }
+}
+
+/* Chips for short choices (window.YoshChips in components/portalNav.js) */
+select.yc-hidden { display: none !important; }
+.yc-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.yc-chip {
+  min-height: 40px; padding: 0 0.9rem; border: 1px solid var(--line-2); border-radius: 999px; background: var(--bg-2);
+  color: var(--text); font: inherit; font-size: 0.88rem; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.yc-chip:hover { border-color: rgba(255, 195, 0, 0.5); }
+.yc-chip.is-on { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+.yc-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Autosave: hint beside the Simpan button, and the part locked while its save is on the way */
+.lg-autosave-hint { margin-right: auto; color: var(--muted); font-size: 0.78rem; }
+.lg-section.is-saving { pointer-events: none; }
+.lg-section.is-saving .lg-section-body { opacity: 0.6; transition: opacity 0.15s; }

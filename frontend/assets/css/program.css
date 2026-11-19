@@ -693,3 +693,35 @@
 .pg .field .label-row { margin-bottom: .55rem; }
 .pg .add-school { flex: none; padding: .3rem .75rem; border: 1px solid rgba(255, 195, 0, .5); border-radius: 999px; color: var(--accent); font-size: .78rem; font-weight: 700; text-decoration: none; white-space: nowrap; }
 .pg .add-school:hover { background: rgba(255, 195, 0, .12); }
+
+/* ── App-style steps (src/pages/program/app.js · makeStepper) ── */
+body.pg-stepped .pg > .borang-head, body.pg-stepped .pg > .lg-sectnav, body.pg-stepped .form-progress,
+body.pg-stepped #programForm > .btn-primary { display: none; }
+body.pg-stepped .pg-off { display: none !important; }
+body.pg-stepped .pg-block[hidden] { display: none; }
+body.pg-stepped .pg .form-step { margin: 0; padding-top: 0; border: 0; }
+body.pg-stepped .pg .step-head { display: none; }   /* the step header above says which part this is */
+.pg-stephead { margin: 0 0 1rem; }
+.pg-stephead-row { display: flex; flex-direction: column; gap: 0.15rem; }
+.pg-stephead-n { color: var(--muted); font-size: 0.8rem; font-weight: 700; }
+.pg-stephead-t { font-family: var(--display); font-weight: 900; font-size: clamp(1.4rem, 6vw, 1.8rem); letter-spacing: -0.02em; }
+.pg-stephead-bar { height: 4px; margin-top: 0.7rem; border-radius: 4px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.pg-stephead-bar span { display: block; height: 100%; border-radius: 4px; background: var(--accent); transition: width 0.25s ease; }
+.pg-stepnav {
+  position: fixed; left: 50%; bottom: 16px; z-index: 44; transform: translateX(-50%); display: flex; gap: 0.6rem;
+  width: min(720px, calc(100% - 24px)); padding: 0.6rem; border: 1px solid var(--line-2); border-radius: 18px;
+  background: rgba(18, 18, 18, 0.96); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
+body.gated .pg-stepnav { display: none; }
+.pg-stepnav button {
+  min-height: 50px; padding: 0 1.1rem; border-radius: 14px; font: inherit; font-weight: 800; font-size: 0.98rem; cursor: pointer;
+}
+.pg-stepnav-back { flex: none; border: 1px solid var(--line-2); background: transparent; color: var(--text); }
+.pg-stepnav-back[hidden] { display: none; }
+.pg-stepnav-next { flex: 1; border: 0; background: var(--accent); color: var(--on-accent); }
+.pg-stepnav-next:active { transform: scale(0.99); }
+body.pg-stepped main.pg { padding-bottom: 7rem; }
+@media (max-width: 860px) {
+  .pg-stepnav { bottom: calc(var(--ab-tabs, 64px) + env(safe-area-inset-bottom, 0px) + 8px); }
+  body.pg-stepped main.pg { padding-bottom: 9rem; }
+}

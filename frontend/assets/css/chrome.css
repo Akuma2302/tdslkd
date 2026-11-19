@@ -130,3 +130,92 @@ a.site-drop-link:focus-visible { outline: 2px solid var(--accent); outline-offse
   .site-item.is-open .site-drop { display: block; transform: none; }
   .site-drop-list { background: transparent; border: 0; box-shadow: none; padding: 0; border-left: 1px solid var(--line-2); border-radius: 0; }
 }
+
+/* ===================================================================================================
+   App shell (components/portalNav.js): top bar, bottom tab bar on phones, "Lagi" sheet.
+   =================================================================================================== */
+body.app-shell { --ab-top: 56px; --ab-tabs: 64px; }
+.ab-bar {
+  display: flex; align-items: center; gap: 0.5rem;
+  width: min(1120px, 100%); height: var(--ab-top); margin: 0 auto; padding: 0 16px;
+}
+.ab-brand { flex: none; display: flex; align-items: center; }
+.ab-brand img { display: block; height: 28px; width: auto; }
+.ab-brand[hidden], .ab-title[hidden], .ab-back[hidden] { display: none; }
+.ab-back {
+  flex: none; display: grid; place-items: center; width: 40px; height: 40px; margin-left: -8px;
+  border: 0; border-radius: 12px; background: transparent; color: var(--text); cursor: pointer;
+}
+.ab-back:hover { background: rgba(255, 255, 255, 0.06); }
+.ab-back .ab-icon { width: 22px; height: 22px; }
+.ab-title {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--display); font-weight: 800; font-size: 1.05rem; letter-spacing: -0.01em;
+}
+.ab-links { display: flex; align-items: center; gap: 0.2rem; margin-left: auto; }
+.ab-link {
+  height: 38px; padding: 0 0.85rem; border: 0; border-radius: 10px; background: transparent;
+  display: inline-flex; align-items: center; color: var(--muted); font: inherit; font-size: 0.9rem; font-weight: 600;
+  text-decoration: none; cursor: pointer;
+}
+.ab-link:hover { color: var(--text); background: rgba(255, 255, 255, 0.05); }
+.ab-link.is-on { color: var(--on-accent); background: var(--accent); }
+.ab-logout {
+  flex: none; margin-left: 0.4rem; padding: 0.45rem 0.9rem; border: 1px solid var(--line-2); border-radius: 999px;
+  background: transparent; color: var(--muted); font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+}
+.ab-logout:hover { color: var(--text); border-color: #ff8c8c; }
+.ab-link:focus-visible, .ab-logout:focus-visible, .ab-back:focus-visible, .ab-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.ab-tabbar { display: none; }
+.ab-icon { display: block; width: 22px; height: 22px; }
+
+/* Phones and small tablets: tabs at the bottom, nothing else in the top bar */
+@media (max-width: 860px) {
+  .ab-links, .ab-logout { display: none; }
+  body.app-shell { padding-bottom: calc(var(--ab-tabs) + env(safe-area-inset-bottom, 0px)); }
+  .ab-tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; display: flex;
+    height: calc(var(--ab-tabs) + env(safe-area-inset-bottom, 0px)); padding: 0 4px env(safe-area-inset-bottom, 0px);
+    background: rgba(14, 14, 14, 0.94); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border-top: 1px solid var(--line);
+  }
+  body.gated .ab-tabbar { display: none; }
+  .ab-tab {
+    flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    border: 0; background: transparent; color: var(--muted); font: inherit; text-decoration: none; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ab-tab-icon { position: relative; display: grid; place-items: center; width: 52px; height: 30px; border-radius: 999px; transition: background 0.15s; }
+  .ab-tab-label { font-size: 0.68rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .ab-tab.is-on { color: var(--text); }
+  .ab-tab.is-on .ab-tab-icon { background: rgba(255, 195, 0, 0.16); color: var(--accent); }
+  .ab-dot { position: absolute; top: 3px; right: 10px; width: 8px; height: 8px; border-radius: 50%; border: 2px solid #0e0e0e; }
+  .ab-dot.bad { background: #ff6b6b; }
+  .ab-dot.warn { background: #f0b429; }
+}
+
+/* "Lagi" sheet */
+.ab-sheet { position: fixed; inset: 0; z-index: 80; display: flex; align-items: flex-end; justify-content: center; background: rgba(0, 0, 0, 0.55); }
+.ab-sheet[hidden] { display: none; }
+body.ab-sheet-open { overflow: hidden; }
+.ab-sheet-panel {
+  width: min(520px, 100%); padding: 0.6rem 16px calc(1rem + env(safe-area-inset-bottom, 0px));
+  background: var(--card); border: 1px solid var(--line-2); border-bottom: 0; border-radius: 22px 22px 0 0;
+  animation: abUp 0.22s ease;
+}
+@media (min-width: 861px) { .ab-sheet { align-items: center; } .ab-sheet-panel { border-radius: 22px; border-bottom: 1px solid var(--line-2); } }
+@keyframes abUp { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.ab-sheet-grip { display: block; width: 40px; height: 4px; margin: 0 auto 0.8rem; border-radius: 4px; background: var(--line-2); }
+.ab-sheet-title { margin: 0 0 0.5rem; color: var(--muted); font-size: 0.78rem; font-weight: 700; }
+.ab-sheet-list { display: flex; flex-direction: column; }
+.ab-sheet-item {
+  display: flex; align-items: center; gap: 0.8rem; min-height: 52px; padding: 0 0.4rem;
+  border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--text);
+  font: inherit; font-size: 0.98rem; text-align: left; text-decoration: none; cursor: pointer;
+}
+.ab-sheet-item:first-child { border-top: 0; }
+.ab-sheet-item .ab-icon { color: var(--muted); }
+.ab-sheet-label { flex: 1; }
+.ab-sheet-item.is-danger, .ab-sheet-item.is-danger .ab-icon { color: #ff8c8c; }
+.ab-soon { padding: 0.15rem 0.5rem; border-radius: 999px; background: rgba(255, 255, 255, 0.07); color: var(--muted); font-size: 0.7rem; font-weight: 700; }

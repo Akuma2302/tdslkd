@@ -78,25 +78,30 @@
 
   // ---------- Step 1: cawangan ----------
 
+  var icon = window.YOSH_ICON || function () { return document.createTextNode(""); };
+  function shell(title, back) {
+    if (window.YoshShell) window.YoshShell.setTitle(title, back ? function () { go(back); } : null);
+  }
+
   function showCawangan() {
+    shell(null);
     root.textContent = "";
-    var card = el("section", "borang-card");
-    card.appendChild(el("h2", "borang-section", "Pilih cawangan"));
-    card.appendChild(el("p", "lg-lead", "Senarai alumni yang turun ke sekolah (Alumni Back to School) mengikut cawangan."));
-    var grid = el("div", "lg-grid");
-    var last = null;
-    try { last = localStorage.getItem("alumni:cawangan"); } catch (e) {}
+    root.appendChild(el("h1", "app-h1", "Alumni"));
+    root.appendChild(el("p", "app-lead", "Alumni Back to School: alumni yang turun ke sekolah, mengikut cawangan."));
+    root.appendChild(el("p", "app-label", "Cawangan"));
+    var list = el("div", "app-list");
     CAWANGAN.forEach(function (c) {
-      var b = button("lg-tile" + (c === last ? " is-last" : ""), null, function () {
+      var r = button("app-row", null, function () {
         try { localStorage.setItem("alumni:cawangan", c); } catch (e) {}
         go("#/" + encodeURIComponent(c));
       });
-      b.appendChild(el("span", "lg-tile-name", c));
-      b.appendChild(el("span", "lg-tile-meta", c === last ? "Terakhir dibuka" : "Buka"));
-      grid.appendChild(b);
+      var txt = el("span", "app-row-text");
+      txt.appendChild(el("span", "app-row-title", c));
+      r.appendChild(txt);
+      var ch = el("span", "app-row-go"); ch.appendChild(icon("chevron")); r.appendChild(ch);
+      list.appendChild(r);
     });
-    card.appendChild(grid);
-    root.appendChild(card);
+    root.appendChild(list);
   }
 
   // ---------- Step 2: alumni list ----------
@@ -104,6 +109,7 @@
   function hasContent(vals) { return vals.some(function (v) { return v !== "" && v !== false; }); }
 
   function showList() {
+    shell("Alumni · " + state.cawangan, "#/");
     root.textContent = "";
     root.appendChild(el("p", "borang-status", "Memuatkan alumni " + state.cawangan + "…"));
     Api.get({ action: "alumni", cawangan: state.cawangan }).then(function (d) {
@@ -117,9 +123,10 @@
   function draw() {
     var cols = state.data.columns;
     root.textContent = "";
-    var card = el("section", "borang-card lg-section");
+    root.appendChild(el("h1", "app-h1", state.cawangan));
+    var card = el("section", "borang-card lg-section al-card");
     var head = el("div", "lg-section-head");
-    head.appendChild(el("h2", "borang-section", "Alumni Back to School · " + state.cawangan));
+    head.appendChild(el("h2", "borang-section", "Alumni Back to School"));
     var badge = el("span", "lg-unsaved", "Belum disimpan");
     badge.hidden = true;
     head.appendChild(badge);
@@ -215,6 +222,7 @@
         input.id = id;
         box.appendChild(label);
         box.appendChild(input);
+        if (input.tagName === "SELECT" && window.YoshChips) window.YoshChips(input);
         grid.appendChild(box);
       });
       form.appendChild(el("h3", "ym-sec", "Maklumat"));
@@ -235,7 +243,7 @@
         title: sm.name, titleEmpty: sm.empty, subtitle: sm.meta,
         body: form, focusFirst: isNew,
         actions: [{ label: "Simpan", primary: true, onClick: function (m) { m.close(); save.click(); } }],
-        onClose: drawList
+        onClose: function () { drawList(); if (state.dirty) save.click(); }   // saved automatically when closed
       });
     }
 

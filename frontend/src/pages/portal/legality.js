@@ -224,6 +224,7 @@
 
   function route() {
     var parts = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent).filter(String);
+    if (parts[0] === "cari") parts = [];   // #/cari: the first screen with the search box focused
     state.cawangan = parts[0] || null;
     state.sekolah = parts[1] || null;
     renderCrumbs();
@@ -270,27 +271,101 @@
 
   // ---------- Step 1: cawangan ----------
 
+  // ---------- App-style pieces (rows, search) shared by the list screens ----------
+  var icon = window.YOSH_ICON || function () { return document.createTextNode(""); };
+  function shell(titleText, back) {
+    if (!window.YoshShell) return;
+    window.YoshShell.setTabs(null);
+    window.YoshShell.setTitle(titleText, back ? function () { go(back); } : null);
+  }
+  function appRow(titleText, sub, onClick, opts) {
+    opts = opts || {};
+    var r = button("app-row" + (opts.disabled ? " is-soon" : ""), null, opts.disabled ? null : onClick);
+    if (opts.disabled) r.disabled = true;
+    var txt = el("span", "app-row-text");
+    txt.appendChild(el("span", "app-row-title", titleText));
+    if (sub) txt.appendChild(el("span", "app-row-sub", sub));
+    r.appendChild(txt);
+    if (opts.tag) r.appendChild(el("span", "app-row-tag", opts.tag));
+    if (!opts.disabled) { var ch = el("span", "app-row-go"); ch.appendChild(icon("chevron")); r.appendChild(ch); }
+    return r;
+  }
+  function searchBox(placeholder) {
+    var wrap = el("label", "app-search");
+    wrap.appendChild(icon("cari"));
+    var input = el("input");
+    input.type = "search";
+    input.placeholder = placeholder;
+    input.setAttribute("aria-label", placeholder);
+    input.autocomplete = "off";
+    wrap.appendChild(input);
+    wrap.input = input;
+    return wrap;
+  }
+  function openSchool(cawangan, name) {
+    try { localStorage.setItem("legality:cawangan", cawangan); } catch (e) {}
+    go("#/" + encodeURIComponent(cawangan) + "/" + encodeURIComponent(name));
+  }
+
+  // Every school of every ready cawangan, for the search on the first screen (names only, cached on the server).
+  var allSchools = null;
+  function loadAllSchools(cawangan) {
+    if (allSchools) return allSchools;
+    allSchools = Promise.all(cawangan.filter(function (c) { return c.ready; }).map(function (c) {
+      var q = { action: "schoolList", cawangan: c.id };
+      var memo = memoGet(q);
+      var fresh = get(q).then(function (d) { memoPut(q, d); return d; });
+      return (memo ? Promise.resolve(memo) : fresh).then(function (d) {
+        return (d.schools || []).map(function (n) { return { cawangan: c.id, name: n }; });
+      }).catch(function () { return []; });
+    })).then(function (lists) { return [].concat.apply([], lists); });
+    allSchools.catch(function () { allSchools = null; });
+    return allSchools;
+  }
+
   function showCawangan() {
-    load({ action: "cawangan" }, "Memuatkan cawangan…", function (d) {
+    shell(null);
+    load({ action: "cawangan" }, "Memuatkan…", function (d) {
       root.textContent = "";
-      var card = el("section", "borang-card");
-      card.appendChild(el("h2", "borang-section", "Pilih cawangan"));
-      card.appendChild(el("p", "lg-lead", "Pilih cawangan yang anda ingin kemas kini."));
-      var grid = el("div", "lg-grid");
-      var last = null;
-      try { last = localStorage.getItem("legality:cawangan"); } catch (e) {}
+      root.appendChild(el("h1", "app-h1", "Sekolah"));
+      root.appendChild(el("p", "app-lead", "Cari sekolah, atau pilih cawangan."));
+
+      // Search across all cawangan
+      var box = searchBox("Cari sekolah, contoh: SAS");
+      root.appendChild(box);
+      var results = el("div", "app-list app-results");
+      results.hidden = true;
+      root.appendChild(results);
+      function find() {
+        var q = box.input.value.trim().toLowerCase();
+        results.hidden = !q;
+        list.hidden = !!q;
+        label.hidden = !!q;
+        if (!q) return;
+        results.textContent = "";
+        results.appendChild(el("p", "app-empty", "Mencari…"));
+        loadAllSchools(d.cawangan).then(function (all) {
+          if (box.input.value.trim().toLowerCase() !== q) return;
+          results.textContent = "";
+          var hits = all.filter(function (s) { return s.name.toLowerCase().indexOf(q) > -1; }).slice(0, 30);
+          hits.forEach(function (s) { results.appendChild(appRow(s.name, null, function () { openSchool(s.cawangan, s.name); }, { tag: s.cawangan })); });
+          if (!hits.length) results.appendChild(el("p", "app-empty", "Tiada sekolah sepadan. Pilih cawangan di bawah untuk menambah sekolah."));
+        });
+      }
+      box.input.addEventListener("input", find);
+      box.input.addEventListener("focus", function () { loadAllSchools(d.cawangan); }, { once: true });
+
+      var label = el("p", "app-label", "Cawangan");
+      root.appendChild(label);
+      var list = el("div", "app-list");
       d.cawangan.forEach(function (c) {
-        var b = button("lg-tile" + (c.id === last ? " is-last" : ""), null, function () {
+        list.appendChild(appRow(c.id, c.ready ? null : "Belum disediakan", function () {
           try { localStorage.setItem("legality:cawangan", c.id); } catch (e) {}
           go("#/" + encodeURIComponent(c.id));
-        });
-        b.appendChild(el("span", "lg-tile-name", c.id));
-        b.appendChild(el("span", "lg-tile-meta", c.ready ? (c.id === last ? "Terakhir dibuka" : "Buka") : "Belum disediakan"));
-        if (!c.ready) b.disabled = true;
-        grid.appendChild(b);
+        }, { disabled: !c.ready }));
       });
-      card.appendChild(grid);
-      root.appendChild(card);
+      root.appendChild(list);
+      if (location.hash === "#/cari") setTimeout(function () { box.input.focus(); }, 50);
     });
   }
 
@@ -298,50 +373,42 @@
 
   function showSchools() {
     if (saveBar) { saveBar.remove(); saveBar = null; document.body.classList.remove("has-savebar"); }
+    shell(state.cawangan, "#/");
     load({ action: "schools", cawangan: state.cawangan }, "Memuatkan sekolah " + state.cawangan + "…", function (d) {
       root.textContent = "";
-      var card = el("section", "borang-card");
-      card.appendChild(el("h2", "borang-section", "Sekolah · " + d.cawangan));
+      root.appendChild(el("h1", "app-h1", d.cawangan));
+      root.appendChild(el("p", "app-lead", d.schools.length + " sekolah"));
 
-      var tools = el("div", "lg-tools");
-      var search = el("input", "borang-input lg-search");
-      search.type = "search";
-      search.placeholder = "Cari sekolah";
-      search.setAttribute("aria-label", "Cari sekolah");
-      var addBtn = button("lg-add-btn", "+ Tambah sekolah");
-      var searchRow = el("div", "lg-search-row");
-      searchRow.appendChild(search);
-      searchRow.appendChild(addBtn);
-      tools.appendChild(searchRow);
-      card.appendChild(tools);
-      // The add-school form opens right under the search bar.
+      var box = searchBox("Cari sekolah di " + d.cawangan);
+      var search = box.input;
+      root.appendChild(box);
+      // The add-school form opens at the end of the list ("+ Tambah sekolah").
       var addCard = addSchoolCard(d.cawangan, d.schools);
       addCard.hidden = true;
-      card.appendChild(addCard);
-      addBtn.addEventListener("click", function () {
+      var addBtn = button("app-row app-row-add", null, function () {
         addCard.hidden = !addCard.hidden;
-        addBtn.classList.toggle("is-open", !addCard.hidden);
-        if (!addCard.hidden) addCard.querySelector("input").focus();
+        if (!addCard.hidden) { addCard.querySelector("input").focus(); addCard.scrollIntoView({ behavior: "smooth", block: "center" }); }
       });
+      var plus = el("span", "app-row-icon"); plus.appendChild(icon("tambah"));
+      addBtn.appendChild(plus);
+      addBtn.appendChild(el("span", "app-row-title", "Tambah sekolah"));
 
-      var grid = el("div", "lg-grid");
+      var grid = el("div", "app-list");
       function draw() {
         grid.textContent = "";
         var q = search.value.trim().toLowerCase();
         var shown = d.schools.filter(function (s) { return !q || s.name.toLowerCase().indexOf(q) > -1; });
         shown.forEach(function (s) {
-          var b = button("lg-tile", null, function () { go("#/" + encodeURIComponent(d.cawangan) + "/" + encodeURIComponent(s.name)); });
-          b.appendChild(el("span", "lg-tile-name", s.name));
-          b.appendChild(el("span", "lg-tile-meta", (s.people ? s.people + " orang CRM" : "Belum ada CRM") +
-            (d.fasaMax ? " · Fasa " + (s.fasa || 0) : "")));
-          grid.appendChild(b);
+          grid.appendChild(appRow(s.name, (d.fasaMax ? "Fasa " + (s.fasa || 0) + " · " : "") + (s.people ? s.people + " orang CRM" : "Belum ada CRM"),
+            function () { go("#/" + encodeURIComponent(d.cawangan) + "/" + encodeURIComponent(s.name)); }));
         });
-        if (!shown.length) grid.appendChild(el("p", "lg-empty", d.schools.length ? "Tiada sekolah sepadan." : "Belum ada sekolah untuk cawangan ini."));
+        if (!shown.length) grid.appendChild(el("p", "app-empty", d.schools.length ? "Tiada sekolah sepadan." : "Belum ada sekolah untuk cawangan ini."));
+        grid.appendChild(addBtn);
       }
       search.addEventListener("input", draw);
       draw();
-      card.appendChild(grid);
-      root.appendChild(card);
+      root.appendChild(grid);
+      root.appendChild(addCard);
       // Opened from the Program form's "+ Tambah sekolah": open the add form, with the typed name if any.
       var want = new URLSearchParams(location.search).get("tambah");
       if (want !== null) {
@@ -394,28 +461,46 @@
       state.school = d;
       state.dirty = {};
       root.textContent = "";
+      shell(d.sekolah, "#/" + encodeURIComponent(d.cawangan));
 
-      // Sticky chips (with a status dot each), the summary card, then two zones:
-      // "Tindakan minggu ini" (open) and "Data sekolah" (each part folded to one line until opened).
-      var nav = el("nav", "lg-sectnav");
-      nav.setAttribute("aria-label", "Bahagian");
-      root.appendChild(nav);
-      var summary = el("section", "borang-card lg-overview");
-      summary.id = "sec-ringkasan";
-      root.appendChild(summary);
-
-      root.appendChild(zoneLabel("Tindakan minggu ini", "Dikemas kini setiap minggu"));
-      if (d.weekly) root.appendChild(weeklyCard(d.weekly));
-      if (d.progress) root.appendChild(noteCard(d.progress.note || { text: "", updated: "" }));
-      if (d.fasa) root.appendChild(fasaCard(d.fasa));
-      // Planning, then Analisa, right under the progress cards (worked on together each week).
-      TOP_SECTIONS.forEach(function (k) { root.appendChild(foldable(sectionCard(sectionInfo(k)), k)); });
-
-      root.appendChild(zoneLabel("Data sekolah", "Tekan untuk buka"));
-      root.appendChild(foldable(picCard(d.pic || []), "pic"));
-      SECTION_INFO.forEach(function (s) {
-        if (TOP_SECTIONS.indexOf(s.key) < 0) root.appendChild(foldable(sectionCard(s), s.key));
+      // Compact header, then the three tabs (bottom tab bar on phones, a switch on wide screens):
+      //   Minggu ini — what to do (strip), Mingguan, Progress semasa, Fasa, Planning
+      //   Cikgu      — PIC Legality, CRM, Alumni
+      //   Rancangan  — Analisa, Program lepas, Modul, Peluang
+      var head = el("header", "sc-head");
+      head.id = "sc-head";
+      root.appendChild(head);
+      var seg = el("div", "sc-seg");
+      seg.setAttribute("role", "tablist");
+      root.appendChild(seg);
+      PANES = {};
+      SC_TABS.forEach(function (t) {
+        var p = el("div", "sc-pane");
+        p.dataset.tab = t.id;
+        p.setAttribute("role", "tabpanel");
+        root.appendChild(p);
+        PANES[t.id] = p;
+        var b = button("sc-seg-btn", null, function () { setTab(t.id); });
+        b.setAttribute("role", "tab");
+        b.dataset.tab = t.id;
+        b.appendChild(document.createTextNode(t.label));
+        b.appendChild(el("i", "sc-seg-dot"));
+        seg.appendChild(b);
       });
+
+      var summary = el("section", "sc-todo");
+      summary.id = "sec-ringkasan";
+      PANES.minggu.appendChild(summary);
+      if (d.progress) PANES.minggu.appendChild(noteCard(d.progress.note || { text: "", updated: "" }));
+      if (d.weekly) PANES.minggu.appendChild(weeklyCard(d.weekly));
+      if (d.fasa) PANES.minggu.appendChild(fasaCard(d.fasa));
+      PANES.minggu.appendChild(sectionCard(sectionInfo("planning")));
+
+      PANES.cikgu.appendChild(picCard(d.pic || []));
+      PANES.cikgu.appendChild(sectionCard(sectionInfo("crm")));
+      PANES.cikgu.appendChild(sectionCard(sectionInfo("alumni")));
+
+      ["analisa", "program", "modul", "peluang"].forEach(function (k) { PANES.rancangan.appendChild(sectionCard(sectionInfo(k))); });
 
       // Parts the Legality bot checks (it tags the PIC when they are empty or out of date)
       ["semasa", "planning", "peluang"].forEach(function (k) {
@@ -428,10 +513,52 @@
       });
       root.appendChild(schoolNav());
 
-      buildNav(nav);
+      if (window.YoshShell) window.YoshShell.setTabs(SC_TABS.map(function (t) {
+        return { id: t.id, label: t.label, icon: t.icon, onClick: function () { setTab(t.id); } };
+      }), state.tab);
+      setTab(SC_TABS.some(function (t) { return t.id === state.tab; }) ? state.tab : "minggu", true);
+      buildNav();
       buildSaveBar();
       schoolChanged();
     });
+  }
+
+  // ---------- School page tabs ----------
+  var SC_TABS = [
+    { id: "minggu", label: "Minggu ini", icon: "minggu", keys: ["ringkasan", "semasa", "mingguan", "progress", "planning"] },
+    { id: "cikgu", label: "Cikgu", icon: "cikgu", keys: ["pic", "crm", "alumni"] },
+    { id: "rancangan", label: "Rancangan", icon: "rancangan", keys: ["analisa", "program", "modul", "peluang"] }
+  ];
+  var PANES = {};
+  state.tab = "minggu";
+  function tabOf(key) {
+    var t = SC_TABS.filter(function (x) { return x.keys.indexOf(key) > -1; })[0];
+    return t ? t.id : "minggu";
+  }
+  function setTab(id, quiet) {
+    if (state.tab !== id && PANES[state.tab]) {
+      PANES[state.tab].querySelectorAll(".lg-section").forEach(function (c) { c.dispatchEvent(new Event("yc-leave")); });
+    }
+    state.tab = id;
+    Object.keys(PANES).forEach(function (k) { PANES[k].hidden = k !== id; });
+    root.querySelectorAll(".sc-seg-btn").forEach(function (b) {
+      var on = b.dataset.tab === id;
+      b.classList.toggle("is-on", on);
+      b.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    if (window.YoshShell) window.YoshShell.setActive(id);
+    if (!quiet) window.scrollTo({ top: 0 });
+  }
+  // Worst status among a tab's parts: "bad" (needs action) > "warn" (unsaved / to do) > ""
+  function tabTone(t) {
+    var tone = "";
+    t.keys.forEach(function (k) {
+      if (k === "ringkasan" || k === "progress") return;   // the strip itself, and Fasa (always "to do" until the end)
+      var s = sectionStatus(k);
+      if (s === "bad") tone = "bad";
+      else if (s === "warn" && tone !== "bad") tone = "warn";
+    });
+    return tone;
   }
 
   // ---------- Floating save bar: shown while any part has unsaved changes ----------
@@ -593,144 +720,78 @@
   function goTo(key) {
     var sec = document.getElementById("sec-" + key);
     if (!sec) return;
-    if (sec.openFold) sec.openFold(true);
-    sec.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (PANES[tabOf(key)] && PANES[tabOf(key)].hidden) setTab(tabOf(key), true);
+    setTimeout(function () { sec.scrollIntoView({ behavior: "smooth", block: "start" }); }, 30);
   }
 
+  // Compact header (name, cawangan, Fasa · Jenis/Status · PIC) and the "perlu dibuat" strip of Minggu ini.
   function renderSummary() {
+    var d = state.school;
+    var head = document.getElementById("sc-head");
+    if (head) {
+      head.textContent = "";
+      head.appendChild(el("h1", "sc-name", d.sekolah));
+      head.appendChild(el("p", "sc-sub", "Cawangan " + d.cawangan));
+      var tags = el("div", "sc-tags");
+      var fz = d.fasa || { phases: [], values: [] };
+      var level = fasaLevel(fz.phases, fz.values);
+      var ft = button("sc-tag is-fasa", "Fasa " + level + "/" + fz.phases.length, function () { goTo("progress"); });
+      ft.title = fz.phases[level] ? "Seterusnya: " + fz.phases[level].name : "Semua fasa selesai";
+      tags.appendChild(ft);
+      var n = (d.progress && d.progress.note) || {};
+      var st = n.status || "";
+      var stTag = el("span", "sc-tag " + (st === "Legal with B&W" ? "is-ok" : st === "Legal w/o B&W" ? "is-mid" : st === "Tidak Legal" ? "is-no" : "is-empty"),
+        (n.jenis ? "Jenis " + n.jenis + " · " : "") + (st || "Status belum ditetapkan"));
+      stTag.title = "Jenis dan Status Legality ditetapkan oleh admin";
+      stTag.insertBefore(el("span", "sc-lock", "🔒"), stTag.firstChild);
+      tags.appendChild(stTag);
+      var pics = (d.pic || []).filter(function (p) { return p.username; });
+      if (!pics.length) tags.appendChild(button("sc-tag is-warn", "PIC belum ditetapkan", function () { goTo("pic"); }));
+      pics.forEach(function (p) {
+        var a = el("a", "sc-tag is-tg", "@" + p.username);
+        a.href = "https://t.me/" + encodeURIComponent(p.username); a.target = "_blank"; a.rel = "noopener";
+        a.title = (p.nama ? p.nama + " · " : "") + "Buka Telegram";
+        tags.appendChild(a);
+      });
+      head.appendChild(tags);
+    }
+
     var box = document.getElementById("sec-ringkasan");
     if (!box) return;
-    var d = state.school;
     box.textContent = "";
-
-    var top = el("div", "lg-ov-top");
-    var name = el("div");
-    name.appendChild(el("h2", "lg-ov-name", d.sekolah));
-    name.appendChild(el("p", "lg-ov-sub", "Cawangan " + d.cawangan));
-    top.appendChild(name);
-    var tags = el("div", "lg-ov-tags");
-    var n = (d.progress && d.progress.note) || {};
-    var st = n.status || "";
-    tags.appendChild(el("span", "lg-ov-tag is-jenis", n.jenis ? "Jenis " + n.jenis : "Jenis —"));
-    tags.appendChild(el("span", "lg-ov-tag " + (st === "Legal with B&W" ? "is-ok" : st === "Legal w/o B&W" ? "is-mid" : st === "Tidak Legal" ? "is-no" : "is-empty"), st || "Status belum ditetapkan"));
-    var lock = el("span", "lg-ov-lock", "🔒");
-    lock.title = "Jenis dan Status Legality ditetapkan oleh admin";
-    tags.appendChild(lock);
-    top.appendChild(tags);
-    box.appendChild(top);
-
-    var meta = el("div", "lg-ov-meta");
-    var picLine = el("span", "lg-ov-pic");
-    picLine.appendChild(document.createTextNode("PIC "));
-    var pics = (d.pic || []).filter(function (p) { return p.username; });
-    if (!pics.length) picLine.appendChild(el("span", "lg-ov-none", "belum ditetapkan"));
-    pics.forEach(function (p) {
-      var a = el("a", "lg-ov-tg", "@" + p.username);
-      a.href = "https://t.me/" + encodeURIComponent(p.username); a.target = "_blank"; a.rel = "noopener";
-      a.title = p.nama || "";
-      picLine.appendChild(a);
-    });
-    var editPic = button("lg-ov-edit", "✏️", function () { goTo("pic"); });
-    editPic.setAttribute("aria-label", "Ubah PIC Legality");
-    picLine.appendChild(editPic);
-    meta.appendChild(picLine);
-    var ni = noteInfo();
-    meta.appendChild(el("span", "lg-ov-when" + (ni.stale ? " is-stale" : ""),
-      ni.has ? "Progress dikemas kini " + agoText(n.updated) : "Progress belum pernah dikemas kini"));
-    box.appendChild(meta);
-
-    var stats = el("div", "lg-ov-stats");
-    var fz = d.fasa || { phases: [], values: [] };
-    var level = fasaLevel(fz.phases, fz.values);
-    var s1 = el("div", "lg-ov-stat");
-    s1.appendChild(el("span", "lg-ov-label", "Fasa legality"));
-    s1.appendChild(el("strong", "lg-ov-num", "Fasa " + level + " / " + fz.phases.length));
-    var bar = el("div", "lg-ov-steps");
-    fz.phases.forEach(function (f, i) { bar.appendChild(el("i", i < level ? "is-done" : "")); });
-    s1.appendChild(bar);
-    if (fz.phases[level]) s1.appendChild(el("span", "lg-ov-small", "Seterusnya: " + fz.phases[level].name));
-    stats.appendChild(s1);
-    if (d.weekly) {
-      var s2 = el("div", "lg-ov-stat");
-      s2.appendChild(el("span", "lg-ov-label", "Mingguan · " + d.weekly.week.label));
-      var wd = weeklyDone();
-      s2.appendChild(el("strong", "lg-ov-num " + (wd ? "is-ok" : "is-warn"), wd ? "✓ Selesai" : "Belum"));
-      s2.appendChild(el("span", "lg-ov-small", d.weekly.items.map(function (it) { return it.label; }).join(", ")));
-      stats.appendChild(s2);
-    }
-    var cc = crmCounts();
-    var s3 = el("div", "lg-ov-stat");
-    s3.appendChild(el("span", "lg-ov-label", "CRM"));
-    s3.appendChild(el("strong", "lg-ov-num", cc.people + " orang"));
-    s3.appendChild(el("span", "lg-ov-small", cc.aktif + " aktif"));
-    stats.appendChild(s3);
-    box.appendChild(stats);
-
     var todo = todoList();
-    var act = el("div", "lg-ov-todo" + (todo.length ? "" : " is-clear"));
+    box.className = "sc-todo" + (todo.length ? "" : " is-clear");
     if (!todo.length) {
-      act.appendChild(el("p", "lg-ov-todo-title", "✓ Tiada tindakan tertunggak. Teruskan!"));
-    } else {
-      act.appendChild(el("p", "lg-ov-todo-title", "⚠️ Perlu tindakan (" + todo.length + ")"));
-      todo.forEach(function (t) {
-        var row = el("div", "lg-ov-todo-row");
-        row.appendChild(el("span", null, t.text));
-        row.appendChild(button("lg-ov-go", t.label, function () { goTo(t.key); }));
-        act.appendChild(row);
-      });
+      box.appendChild(el("p", "sc-todo-title", "✓ Semua tugasan minggu ini selesai"));
+      return;
     }
-    box.appendChild(act);
+    box.appendChild(el("p", "sc-todo-title", todo.length + " perkara perlu dibuat"));
+    var list = el("div", "sc-todo-list");
+    todo.forEach(function (t) {
+      var row = button("sc-todo-row", null, function () { goTo(t.key); });
+      row.appendChild(el("span", "sc-todo-dot"));
+      row.appendChild(el("span", "sc-todo-text", t.text));
+      row.appendChild(el("span", "sc-todo-go", t.label));
+      list.appendChild(row);
+    });
+    box.appendChild(list);
   }
 
-  var NAV = [], navTimer = 0, navObserver = null;
-  function buildNav(nav) {
-    var items = [{ key: "ringkasan", short: "Ringkasan" }]
-      .concat(state.school.weekly ? [{ key: "mingguan", short: "Mingguan" }] : [])
-      .concat([{ key: "semasa", short: "Progress" }, { key: "progress", short: "Fasa" }])
-      .concat(TOP_SECTIONS.map(sectionInfo))
-      .concat([{ key: "pic", short: "PIC" }])
-      .concat(SECTION_INFO.filter(function (s) { return TOP_SECTIONS.indexOf(s.key) < 0; }));
-    NAV = items.map(function (s) {
-      var a = el("a", "lg-chip");
-      a.href = "#sec-" + s.key;
-      var dot = el("i", "lg-dot");
-      a.appendChild(dot);
-      a.appendChild(document.createTextNode(s.short));
-      a.addEventListener("click", function (e) { e.preventDefault(); goTo(s.key); });
-      nav.appendChild(a);
-      return { key: s.key, a: a, dot: dot };
-    });
-    // Keep the chips just under the site navbar, and mark the chip of the part being read.
-    var site = document.getElementById("siteNav");
-    function place() { nav.style.top = (site ? site.offsetHeight : 0) + "px"; }
-    place();
-    window.addEventListener("resize", place);
-    if ("IntersectionObserver" in window) {
-      var seen = {};
-      if (navObserver) navObserver.disconnect();
-      var io = navObserver = new IntersectionObserver(function (entries) {
-        entries.forEach(function (en) { seen[en.target.id] = en.isIntersecting ? en.boundingClientRect.top : null; });
-        var best = null;
-        Object.keys(seen).forEach(function (id) { if (seen[id] != null && (best == null || seen[id] < seen[best])) best = id; });
-        NAV.forEach(function (n) {
-          var on = "sec-" + n.key === best;
-          n.a.classList.toggle("is-current", on);
-          if (on && n.a.scrollIntoView && nav.scrollWidth > nav.clientWidth) {
-            nav.scrollTo({ left: n.a.offsetLeft - nav.clientWidth / 2 + n.a.offsetWidth / 2, behavior: "smooth" });
-          }
-        });
-      }, { rootMargin: "-120px 0px -55% 0px" });
-      NAV.forEach(function (n) { var s = document.getElementById("sec-" + n.key); if (s) io.observe(s); });
-    }
-    // Unsaved changes turn a chip yellow straight away.
+  // Status dots on the tabs (bottom bar and the wide-screen switch), refreshed every second and after saves.
+  var navTimer = 0;
+  function buildNav() {
     clearInterval(navTimer);
     navTimer = setInterval(paintNav, 1000);
   }
   function paintNav() {
-    if (!state.school) return;
-    NAV.forEach(function (n) { n.dot.className = "lg-dot " + sectionStatus(n.key); });
+    if (!state.school || !document.getElementById("sc-head")) return;
+    SC_TABS.forEach(function (t) {
+      var tone = tabTone(t);
+      if (window.YoshShell) window.YoshShell.setDot(t.id, tone);
+      var b = root.querySelector('.sc-seg-btn[data-tab="' + t.id + '"] .sc-seg-dot');
+      if (b) b.className = "sc-seg-dot " + tone;
+    });
     paintSaveBar();
-    document.querySelectorAll(".lg-fold").forEach(function (card) { if (card.paintFold) card.paintFold(); });
   }
   // Called after anything is saved on this page, so the summary, chips and folded lines stay current.
   function schoolChanged() { renderSummary(); paintNav(); }
@@ -810,7 +871,32 @@
       var d = isDirty(model);
       state.dirty[info.key] = d;
       badge.hidden = !d;
+      if (d) scheduleAuto();
     }
+    // Saved automatically: 2.5 s after the last change, once the cursor is no longer in a text box of this part
+    // (so nothing being typed is redrawn away), or as soon as focus leaves the part. The part is locked while
+    // the save is on its way. The Simpan button still works too.
+    var autoT = 0, auto = false;
+    function typingHere() {
+      if (document.querySelector("dialog.ym")) return true;   // a pop-up editor (CRM person…) is still open
+      var a = document.activeElement;
+      return a && card.contains(a) && /^(INPUT|TEXTAREA)$/.test(a.tagName) && a.type !== "checkbox";
+    }
+    function scheduleAuto(ms) {
+      clearTimeout(autoT);
+      autoT = setTimeout(function tryAuto() {
+        if (!state.dirty[info.key] || save.disabled || !document.body.contains(card)) return;
+        if (typingHere()) { autoT = setTimeout(tryAuto, 2500); return; }
+        auto = true;
+        save.click();
+      }, ms == null ? 2500 : ms);
+    }
+    card.addEventListener("focusout", function (e) {
+      if (state.dirty[info.key] && !card.contains(e.relatedTarget)) scheduleAuto(400);
+    });
+    // Leaving the tab saves this part straight away (switching tabs is "I'm done here")
+    card.addEventListener("yc-leave", function () { if (state.dirty[info.key]) scheduleAuto(0); });
+    actions.insertBefore(el("span", "lg-autosave-hint", "Disimpan automatik"), save);
     function draw() {
       body.textContent = "";
       headTools.textContent = "";
@@ -834,10 +920,14 @@
     draw();
 
     save.addEventListener("click", function () {
+      var wasAuto = auto;
+      auto = false;
+      clearTimeout(autoT);
       var payload = diff(info.key, model);
-      if (!payload.edits.length && !payload.adds.length) { toast("Tiada perubahan untuk disimpan."); return; }
+      if (!payload.edits.length && !payload.adds.length) { if (!wasAuto) toast("Tiada perubahan untuk disimpan."); return; }
       status.hidden = true;
       save.disabled = true; save.textContent = "Menyimpan…";
+      card.classList.add("is-saving");
       post({ action: "save", cawangan: state.cawangan, sekolah: state.sekolah, section: info.key,
              edits: payload.edits, adds: payload.adds })
         .then(function (d) {
@@ -846,14 +936,14 @@
           draw();
           schoolChanged();
           saved(schoolQ(), state.school);
-          toast(info.short + " disimpan.", "ok");
+          toast(info.short + (wasAuto ? " disimpan automatik." : " disimpan."), "ok");
         })
         .catch(function (e) {
           status.hidden = false;
           status.textContent = "Belum disimpan: " + (e.message || e);
           if (e && e.kod) relogin();
         })
-        .then(function () { save.disabled = false; save.textContent = "Simpan " + info.short; });
+        .then(function () { card.classList.remove("is-saving"); save.disabled = false; save.textContent = "Simpan " + info.short; });
     });
     return card;
   }
@@ -1448,6 +1538,7 @@
     s.addEventListener("change", function () { row.w[i] = s.value; onChange(); });
     box.appendChild(lab);
     box.appendChild(s);
+    if (window.YoshChips) window.YoshChips(s);   // up to 6 choices: tap chips instead of a dropdown
     return box;
   }
 
