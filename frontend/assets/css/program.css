@@ -725,3 +725,28 @@ body.pg-stepped main.pg { padding-bottom: 7rem; }
   .pg-stepnav { bottom: calc(var(--ab-tabs, 64px) + env(safe-area-inset-bottom, 0px) + 8px); }
   body.pg-stepped main.pg { padding-bottom: 9rem; }
 }
+
+/* ── Template pop-up: above every bar, actions always in view, a full sheet on phones ── */
+body.pg-modal-open { overflow: hidden; }
+body.pg-modal-open main.pg { z-index: 70; }   /* the pop-up lives inside main: lift main over the top bar and tabs */
+body.pg-modal-open .pg-stepnav, body.pg-modal-open .ab-tabbar { display: none; }
+.pg .modal-card { display: flex; flex-direction: column; padding-bottom: 0; }
+.pg .modal-card > #templateBox { flex: none; }
+.pg .modal-actions {
+  position: sticky; bottom: 0; z-index: 1; display: flex; gap: 0.6rem; margin: 1rem -1.6rem 0; padding: 0.8rem 1.6rem 1.2rem;
+  background: var(--card); border-top: 1px solid var(--line);
+}
+.pg .modal-actions .btn-primary, .pg .modal-actions .btn-secondary { margin: 0; min-height: 52px; }
+.pg .modal-actions .btn-primary { flex: 1; width: auto; white-space: nowrap; letter-spacing: 0.03em; font-size: 0.88rem; }
+.pg .modal-actions .btn-secondary { flex: none; width: auto; padding: 0 1.2rem; }
+@media (max-width: 860px) {
+  .pg .modal { align-items: end; padding: 0; }
+  .pg .modal-card {
+    max-width: none; max-height: 94svh; padding: 1.2rem 16px 0; border-radius: 22px 22px 0 0; border-bottom: 0;
+    animation: pgSheetUp 0.25s ease;
+  }
+  .pg .modal-actions { margin: 1rem -16px 0; padding: 0.7rem 16px calc(0.9rem + env(safe-area-inset-bottom, 0px)); }
+  .pg .modal-head h2 { font-size: 1.15rem; }
+  .pg #templateBox { padding: 0.9rem; font-size: 0.84rem; }
+}
+@keyframes pgSheetUp { from { transform: translateY(30px); opacity: 0; } to { transform: none; opacity: 1; } }

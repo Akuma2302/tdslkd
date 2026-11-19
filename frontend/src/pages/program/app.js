@@ -927,5 +927,8 @@ import { buildTemplate, CAWANGAN as CAWANGAN_INFO } from './template.js';
     };
   }
   const stepper = makeStepper();
+  // While the template pop-up is open, the step bar and the bottom tabs step aside (they sat on top of it).
+  new MutationObserver(() => document.body.classList.toggle('pg-modal-open', !modal.hidden))
+    .observe(modal, { attributes: true, attributeFilter: ['hidden'] });
   if (window.YoshShell) window.YoshShell.setTitle('Hantar program');
 })();
