@@ -823,9 +823,65 @@ function kronologiSheet(ss, create) {
   sh.getRange("D:D").setWrap(true).setVerticalAlignment("top");
   return sh;
 }
+// Progress semasa is saved automatically a few seconds after typing stops, so one update can arrive as several
+// saves ("1. …", then "1. …\n2.", then the finished text). Saves of the same school within KRONOLOGI_MERGE of
+// the last one update that entry instead of adding new ones: one entry per update, with the final text.
+var KRONOLOGI_MERGE = 30 * 60 * 1000;
 function kronologiAdd(ss, school, note, at) {
   var sh = kronologiSheet(ss, true);
+  var last = sh.getLastRow();
+  if (last >= 2) {
+    var from = Math.max(2, last - 49);   // the newest 50 entries are enough to find this school's latest one
+    var rows = sh.getRange(from, 1, last - from + 1, KRONOLOGI_HEAD.length).getValues();
+    for (var i = rows.length - 1; i >= 0; i--) {
+      if (text(rows[i][1]) !== school) continue;
+      var dicatat = rows[i][4];
+      if (dicatat instanceof Date && at - dicatat >= 0 && at - dicatat < KRONOLOGI_MERGE) {
+        var r = from + i;
+        // Masa follows the latest save unless the admin has set it by hand (then it differs from Dicatat)
+        var masaUntouched = rows[i][2] instanceof Date && Math.abs(rows[i][2] - dicatat) < 60000;
+        sh.getRange(r, 4, 1, 2).setValues([[safe(note), at]]);
+        if (masaUntouched) sh.getRange(r, 3).setValue(at);
+        return;
+      }
+      break;   // only this school's latest entry can be merged into
+    }
+  }
   sh.appendRow([Utilities.getUuid().slice(0, 8), school, at, safe(note), at]);
+}
+/**
+ * Run once from the editor: merges entries already logged the old way (one school, saves less than
+ * KRONOLOGI_MERGE apart) into one entry with the last text, in every cawangan. Logs what it removed.
+ */
+function kronologiTidy() {
+  var map = sheetMap(), removed = 0;
+  CAWANGAN.forEach(function (c) {
+    if (!map[c]) return;
+    var sh = kronologiSheet(SpreadsheetApp.openById(map[c]), false);
+    if (!sh || sh.getLastRow() < 3) return;
+    var n = sh.getLastRow() - 1;
+    var rows = sh.getRange(2, 1, n, KRONOLOGI_HEAD.length).getValues();
+    var keep = {}, drop = [];   // keep: school → index of its entry being built
+    rows.forEach(function (r, i) {
+      var s = text(r[1]), d = r[4];
+      var k = keep[s];
+      if (k != null && d instanceof Date && rows[k][4] instanceof Date && d - rows[k][4] >= 0 && d - rows[k][4] < KRONOLOGI_MERGE) {
+        var untouched = rows[k][2] instanceof Date && Math.abs(rows[k][2] - rows[k][4]) < 60000;
+        rows[k][3] = r[3]; rows[k][4] = d;
+        if (untouched) rows[k][2] = d;
+        drop.push(i);
+        return;
+      }
+      keep[s] = i;
+    });
+    if (!drop.length) return;
+    sh.getRange(2, 1, n, KRONOLOGI_HEAD.length).setValues(rows);
+    for (var j = drop.length - 1; j >= 0; j--) sh.deleteRow(drop[j] + 2);
+    removed += drop.length;
+    console.log(c + ": " + drop.length + " entri digabungkan");
+  });
+  console.log("kronologiTidy: " + removed + " entri digabungkan");
+  return removed;
 }
 /** Admin: every entry of every cawangan (or one), newest Masa first: [{ id, cawangan, sekolah, masa, text, dicatat }] */
 function readKronologi(cawangan) {
