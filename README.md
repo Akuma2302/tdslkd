@@ -62,7 +62,8 @@ tdslkd/
 │   └── apps-script/             Google Apps Script (deploy dalam editor Apps Script, bukan git push)
 │       ├── legality/            Legality.gs + README (API Legality: setup, kod akses, sheet cawangan, Program)
 │       └── murabbi/             Code.gs + README
-├── database/                    Google Sheets yang digunakan (sheet, tab, cache) + seeds/senarai-murabbi.csv
+├── database/                    Google Sheets: README (sheet, tab, cache), schema.md (lajur setiap tab),
+│                                migrations/ (perubahan susunan sheet), seeds/senarai-murabbi.csv
 ├── docs/                        cara deploy, peraturan UI
 ├── tools/                       stamp-assets.mjs (versi fail setiap deploy), import_murabbi.py
 ├── dev-server.mjs               pelayan ujian tempatan (halaman + fungsi Telegram)

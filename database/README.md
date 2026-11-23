@@ -4,6 +4,10 @@ Sistem ini tiada pangkalan data SQL. Semua data disimpan dalam **Google Sheets**
 Apps Script `backend/apps-script/legality/Legality.gs` (API Legality). ID setiap sheet disimpan dalam kod atau dalam
 **Script Properties** projek Apps Script, bukan dalam fail ini.
 
+- **`schema.md`**: lajur setiap tab (ganti `schema.sql`).
+- **`migrations/`**: catatan setiap perubahan susunan sheet dan fungsi yang menjalankannya.
+- **`seeds/`**: data permulaan.
+
 ## Sheet dan tab
 
 | Sheet | Tab | Isi | Ditulis oleh |
