@@ -464,7 +464,8 @@
     var out = [];
     rows.forEach(function (x) {
       (x.s.crm || []).forEach(function (r) {
-        out.push({ cawangan: x.cawangan, sekolah: x.s.name, entiti: r[0], nama: r[1], tel: r[2], pic: r[3], ada: r[4] === 1,
+        // CRM aktif = name filled in (the portal no longer has a separate Ada tick)
+        out.push({ cawangan: x.cawangan, sekolah: x.s.name, entiti: r[0], nama: r[1], tel: r[2], pic: r[3], ada: !!String(r[1] || "").trim(),
                    kat: r[5], level: crmLevelFromBits(r[11], r[7]), nota: r[9], video: r[10], checks: r[11] || "", perm: r[12] || "" });
       });
     });
@@ -522,7 +523,7 @@
 
     // 1. Kad ringkasan
     grid.appendChild(stat("Orang CRM", String(n), rows.length + " sekolah", true));
-    grid.appendChild(stat("CRM aktif", aktif + " · " + pct(aktif, n) + "%", "Ditanda Ada"));
+    grid.appendChild(stat("CRM aktif", aktif + " · " + pct(aktif, n) + "%", "Nama cikgu diisi"));
     grid.appendChild(stat("Sekolah tanpa CRM", String(noCrm), noCrm ? "Belum ada seorang pun" : "Semua sekolah ada CRM"));
     grid.appendChild(stat("Purata", rows.length ? (Math.round(n / rows.length * 10) / 10).toString() : "0", "orang setiap sekolah"));
 
@@ -554,7 +555,8 @@
       if (branch === ALL) c0.appendChild(el("small", null, x.cawangan));
       r.appendChild(c0);
       r.appendChild(el("td", "num" + (x.s.people ? "" : " muted"), String(x.s.people)));
-      r.appendChild(el("td", "num" + (x.s.aktif ? "" : " muted"), String(x.s.aktif)));
+      var akt = list.filter(function (p) { return p.ada && p.sekolah === x.s.name && p.cawangan === x.cawangan; }).length;
+      r.appendChild(el("td", "num" + (akt ? "" : " muted"), String(akt)));
       var lv = {};
       list.forEach(function (p) { if (p.sekolah === x.s.name && p.cawangan === x.cawangan && p.level) lv[p.level] = (lv[p.level] || 0) + 1; });
       var top = Object.keys(lv).sort(function (a, b) { return lv[b] - lv[a] || (a < b ? -1 : 1); })[0];
@@ -812,7 +814,7 @@
     var rows = schoolsFor(branch);
     var n = rows.length;
     var people = sum(rows.map(function (x) { return x.s.people; }));
-    var aktif = sum(rows.map(function (x) { return x.s.aktif; }));
+    var aktif = crmPeople(rows).filter(function (p) { return p.ada; }).length;   // CRM aktif = name filled in
 
     var sub = currentSub();
     body.appendChild(subTabs(sub, rows, branch, function () { view(body, branch); }));
@@ -830,7 +832,7 @@
     var top = levels.length ? Math.max.apply(null, levels) : 0;
     var avg = n ? Math.round(sum(levels) / n * 10) / 10 : 0;
     grid.appendChild(stat("Sekolah", String(n), branch === ALL ? "Dalam " + d.cawangan.filter(function (c) { return c.schools.length; }).length + " cawangan" : "Cawangan " + branch, true));
-    grid.appendChild(stat("Orang CRM", String(people), aktif + " ditanda Ada (CRM aktif)"));
+    grid.appendChild(stat("Orang CRM", String(people), aktif + " aktif (nama diisi)"));
     grid.appendChild(stat("Purata fasa", String(avg), "Fasa tertinggi: " + top + (top && phases[top - 1] ? " · " + phases[top - 1].name : "")));
     grid.appendChild(stat("Masih Fasa 0", counts[0] + "/" + n, pct(counts[0], n) + "% sekolah belum lengkapkan Fasa 1"));
 

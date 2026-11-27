@@ -677,7 +677,7 @@
     rowsOf("crm").forEach(function (r) {
       if (!filled(r.v[C.nama]) && r.v[C.ada] !== true) return;
       people++;
-      if (r.v[C.ada] === true) aktif++;
+      if (filled(r.v[C.nama])) aktif++;   // CRM aktif = name filled in (no separate Ada tick any more)
     });
     return { people: people, aktif: aktif };
   }
@@ -909,7 +909,7 @@
     // the save is on its way. The Simpan button still works too.
     var autoT = 0, auto = false;
     function typingHere() {
-      if (document.querySelector("dialog.ym")) return true;   // a pop-up editor (CRM person…) is still open
+      if (document.querySelector("dialog.ym[open]")) return true;   // a pop-up editor (CRM person…) is still open
       var a = document.activeElement;
       return a && card.contains(a) && /^(INPUT|TEXTAREA)$/.test(a.tagName) && a.type !== "checkbox";
     }
@@ -1686,7 +1686,7 @@
       function personCard(row) {
         var wrap = el("div", "lg-person-row");
         wrap.dataset.search = [row.w[C.nama], row.w[C.entiti], row.w[C.pic], crmLevelValue(row)].join(" ").toLowerCase();
-        wrap.dataset.ada = row.w[C.ada] === true ? "1" : "0";
+        wrap.dataset.ada = filled(row.w[C.nama]) ? "1" : "0";
         wrap.dataset.isnew = row.r == null ? "1" : "0";
         wrap.appendChild(personButton(row));
         var wa = waLink(row.w[C.tel]);
@@ -1727,12 +1727,15 @@
         inner.appendChild(el("h3", "ym-sec", "Maklumat"));
         var basic = el("div", "lg-fields");
         basic.appendChild(textField("Entiti", row, C.entiti, { list: listId }, ch));
-        basic.appendChild(textField("Nama", row, C.nama, {}, ch));
+        // CRM aktif (the Ada / Tiada column) follows the name: filled in = aktif. No tick to remember.
+        function syncAda() { row.w[C.ada] = filled(row.w[C.nama]); }
+        var before = { ada: row.w[C.ada], level: row.w[C.level] };   // to save what opening corrected
+        syncAda();
+        basic.appendChild(textField("Nama", row, C.nama, {}, function () { syncAda(); ch(); }));
         basic.appendChild(textField("Nombor telefon", row, C.tel, { type: "tel" }, ch));
         basic.appendChild(textField("PIC CRM", row, C.pic, {}, ch));
         basic.appendChild(textField("Permanfaatan", row, C.perm, { wide: true }, ch));
         inner.appendChild(basic);
-        inner.appendChild(checkField("Ada / Tiada (CRM aktif)", row, C.ada, ch, "is-solo"));
 
         // Phase and Plan Tarikh Kelas Tambahan are no longer asked (their sheet columns are left as they are).
         inner.appendChild(el("h3", "ym-sec", "KPI CRM"));
@@ -1825,6 +1828,8 @@
           actions: [{ label: "Simpan CRM", primary: true, onClick: function (m) { m.close(); saveNow(); } }],
           onClose: redraw
         });
+        // Opening put CRM aktif / Level in line with the name and ticks: mark it, so it is saved too
+        if (row.r != null && (row.w[C.ada] !== before.ada || row.w[C.level] !== before.level)) ch();
       }
     },
 
