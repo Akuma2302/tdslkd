@@ -26,7 +26,7 @@
       menu: [
         { id: "legality", label: "Database Legality", href: "/legality/database", hint: "CRM, KPI dan progress sekolah ikut cawangan" },
         { id: "program", label: "Program Sekolah", href: "/legality/program", hint: "Hantar maklumat program ke group Telegram cawangan" },
-        { id: "legality-panduan", label: "Panduan Legality", href: "/legality/panduan", soon: true, hint: "Langkah dan SOP urusan legality sekolah" }
+        { id: "legality-panduan", label: "Panduan Legality", href: "/legality/panduan", hint: "Level CRM cikgu dan fasa sekolah" }
       ]
     },
     {
@@ -158,7 +158,7 @@
     { id: "lagi", label: "Lagi", icon: "lagi", pages: ["pentajmikan", "pembinaan", "legality-panduan"] }
   ];
   var MORE = [
-    { label: "Panduan Legality", href: "/legality/panduan", soon: true, icon: "panduan" },
+    { label: "Panduan Legality", href: "/legality/panduan", icon: "panduan" },
     { label: "Pentajmikan", href: "/pentajmikan", soon: true, icon: "panduan" },
     { label: "Pembinaan", href: "/pembinaan", soon: true, icon: "panduan" }
   ];
