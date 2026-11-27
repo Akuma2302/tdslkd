@@ -46,12 +46,12 @@ Satu tab mengandungi beberapa bahagian, disusun menegak. Setiap bahagian bermula
 | F | Permanfaatan | teks |
 | G | PIC CRM | teks |
 | H | Kategori cikgu (KPI) | senarai |
-| I | Phase | senarai |
-| J | Level CRM | senarai |
-| K | Tarikh | tarikh |
+| I | Phase — tidak ditanya lagi sejak 006 (nilai lama dibiarkan) | senarai |
+| J | Level CRM — **dikira dari checklist** (L1–L5, atau BLACKLIST ditanda sendiri), lihat 006 | senarai |
+| K | Plan tarikh kelas tambahan — tidak ditanya lagi sejak 006 | tarikh |
 | L | Nota | teks |
 | M | Video | teks |
-| N..AD | Checklist hubungan (17 tick, tajuk dalam baris 2) | tick |
+| N..AD | Checklist hubungan (17 tick, tajuk dalam baris 2). Mengikut urutan: L1 = 1–2, L2 = 3–5, L3 = 6–10, L4 = 11–12, L5 = 13–17 | tick |
 
 ### `Progress` *(dibuat sendiri)*
 

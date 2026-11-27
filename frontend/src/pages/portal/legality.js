@@ -21,6 +21,37 @@
   };
   // CRM value positions.
   var C = { entiti: 0, ada: 1, nama: 2, tel: 3, perm: 4, pic: 5, kat: 6, phase: 7, level: 8, tarikh: 9, nota: 10, video: 11, check: 12 };
+  // Level CRM comes from the checklist (TDS Tengah "Checklist & Level"): the 17 ticks in order belong to
+  // L1 = 1–2, L2 = 3–5, L3 = 6–10, L4 = 11–12, L5 = 13–17. A person is at level N once every tick of L1..N is
+  // done. BLACKLIST is set by hand and is never replaced. Same rule in features/legality/legality-admin.js.
+  var CRM_LEVELS = [
+    { n: 1, name: "Cikgu kenal kita", count: 2 },
+    { n: 2, name: "Cikgu mula faham objektif kita", count: 3 },
+    { n: 3, name: "Cikgu sokong program dan selesa berinteraksi", count: 5 },
+    { n: 4, name: "Cikgu mula promosi program kita", count: 2 },
+    { n: 5, name: "Cikgu bantu buka peluang baru", count: 5 }
+  ];
+  function crmLevelOf(ticks) {
+    var i = 0, level = 0;
+    for (var k = 0; k < CRM_LEVELS.length; k++) {
+      var L = CRM_LEVELS[k], all = true;
+      for (var j = 0; j < L.count; j++) if (ticks[i + j] !== true) all = false;
+      i += L.count;
+      if (!all) break;
+      level = L.n;
+    }
+    return level;
+  }
+  // The value written to the Level CRM column ("L2"), or "" before L1; BLACKLIST stays.
+  function crmLevelValue(row) {
+    if (/blacklist/i.test(row.w[C.level] || "")) return row.w[C.level];
+    var n = crmLevelOf(row.w.slice(C.check));
+    if (!n) return "";
+    // use the sheet's own wording for that level ("L2", "Level 2"…) so its dropdown accepts it
+    var opts = (state.school && state.school.kpi && state.school.kpi.level) || [];
+    var re = new RegExp("^\\s*(l|level)\\s*" + n + "\\b", "i");
+    return opts.filter(function (o) { return re.test(o); })[0] || "L" + n;
+  }
   var SECTION_INFO = [
     { key: "crm", title: "CRM Sekolah", short: "CRM" },
     { key: "alumni", title: "Alumni Sekolah", short: "Alumni" },
@@ -1638,7 +1669,7 @@
         return {
           name: row.w[C.nama] || (row.r == null ? "Orang baru" : "Belum diisi"),
           empty: !row.w[C.nama],
-          meta: [row.w[C.entiti], row.w[C.phase]].filter(String).join(" · "),
+          meta: [row.w[C.entiti], crmLevelValue(row)].filter(String).join(" · "),
           done: n
         };
       }
@@ -1654,7 +1685,7 @@
       // One line per person in the list; tapping it opens the popup with all the details.
       function personCard(row) {
         var wrap = el("div", "lg-person-row");
-        wrap.dataset.search = [row.w[C.nama], row.w[C.entiti], row.w[C.pic], row.w[C.phase]].join(" ").toLowerCase();
+        wrap.dataset.search = [row.w[C.nama], row.w[C.entiti], row.w[C.pic], crmLevelValue(row)].join(" ").toLowerCase();
         wrap.dataset.ada = row.w[C.ada] === true ? "1" : "0";
         wrap.dataset.isnew = row.r == null ? "1" : "0";
         wrap.appendChild(personButton(row));
@@ -1703,20 +1734,80 @@
         inner.appendChild(basic);
         inner.appendChild(checkField("Ada / Tiada (CRM aktif)", row, C.ada, ch, "is-solo"));
 
+        // Phase and Plan Tarikh Kelas Tambahan are no longer asked (their sheet columns are left as they are).
         inner.appendChild(el("h3", "ym-sec", "KPI CRM"));
         var k = el("div", "lg-fields");
         k.appendChild(selectField(kpi.headers[0] || "Kategori Cikgu", row, C.kat, kpi.kategori, ch));
-        k.appendChild(selectField(kpi.headers[1] || "Phase", row, C.phase, kpi.phase, ch));
-        k.appendChild(selectField(kpi.headers[2] || "Level CRM", row, C.level, kpi.level, ch));
-        k.appendChild(textField(kpi.headers[3] || "Plan Tarikh Kelas Tambahan", row, C.tarikh, { type: "date" }, ch));
         k.appendChild(textField(kpi.headers[4] || "Nota", row, C.nota, {}, ch));
-        k.appendChild(textField(kpi.headers[5] || "Collect Video Feedback", row, C.video, {}, ch));
+        k.appendChild(textField(kpi.headers[5] || "Collect Video Feedback", row, C.video, { wide: true }, ch));
         inner.appendChild(k);
 
+        // Level CRM: worked out from the checklist below, never typed in
+        var levelBox = el("div", "lg-crmlevel");
+        inner.appendChild(levelBox);
+        var black = el("label", "lg-check lg-crmlevel-black");
+        var blackCb = el("input"); blackCb.type = "checkbox";
+        black.appendChild(blackCb);
+        black.appendChild(el("span", null, "BLACKLIST (tanda sendiri)"));
+        blackCb.addEventListener("change", function () {
+          row.w[C.level] = blackCb.checked ? "BLACKLIST" : "";
+          syncLevel();
+          ch();
+        });
+        // Writes the level for the ticks into the row, and shows it with how far each level is
+        function syncLevel() {
+          var isBlack = /blacklist/i.test(row.w[C.level] || "");
+          blackCb.checked = isBlack;
+          if (!isBlack) row.w[C.level] = crmLevelValue(row);
+          var ticks = row.w.slice(C.check), n = crmLevelOf(ticks);
+          levelBox.textContent = "";
+          var top = el("div", "lg-crmlevel-top");
+          top.appendChild(el("span", "lg-crmlevel-label", kpi.headers[2] || "Level CRM"));
+          top.appendChild(el("strong", "lg-crmlevel-val" + (isBlack ? " is-black" : n ? "" : " is-none"),
+            isBlack ? "BLACKLIST" : n ? "L" + n + " · " + CRM_LEVELS[n - 1].name : "Belum L1"));
+          levelBox.appendChild(top);
+          var bar = el("div", "lg-crmlevel-steps");
+          CRM_LEVELS.forEach(function (L) { bar.appendChild(el("i", L.n <= n ? "is-done" : L.n === n + 1 ? "is-next" : "")); });
+          levelBox.appendChild(bar);
+          levelBox.appendChild(el("p", "lg-crmlevel-hint", isBlack ? "Level dikunci sebagai BLACKLIST."
+            : "Dikira automatik: tick semua checklist satu level untuk naik ke level seterusnya."));
+          levelBox.appendChild(black);
+          // per-level counters on the group headings
+          var i = 0;
+          CRM_LEVELS.forEach(function (L) {
+            var got = ticks.slice(i, i + L.count).filter(function (v) { return v === true; }).length;
+            i += L.count;
+            var h = inner.querySelector('[data-crm-level="' + L.n + '"] .lg-crmlevel-n');
+            if (h) h.textContent = got + "/" + L.count;
+            var g = inner.querySelector('[data-crm-level="' + L.n + '"]');
+            if (g) g.classList.toggle("is-done", got === L.count);
+          });
+        }
+
         inner.appendChild(el("h3", "ym-sec", "Checklist hubungan"));
-        var list = el("div", "lg-checklist");
-        checks.forEach(function (label, j) { list.appendChild(checkField(label, row, C.check + j, ch)); });
-        inner.appendChild(list);
+        // Ticks grouped by the level they belong to
+        var at = 0;
+        CRM_LEVELS.forEach(function (L) {
+          var g = el("div", "lg-crmgroup");
+          g.dataset.crmLevel = L.n;
+          var gh = el("div", "lg-crmgroup-head");
+          gh.appendChild(el("span", "lg-crmgroup-l", "L" + L.n));
+          gh.appendChild(el("span", "lg-crmgroup-name", L.name));
+          gh.appendChild(el("span", "lg-crmlevel-n"));
+          g.appendChild(gh);
+          var list = el("div", "lg-checklist");
+          for (var j = 0; j < L.count && at < checks.length; j++, at++) {
+            list.appendChild(checkField(checks[at], row, C.check + at, function () { syncLevel(); ch(); }));
+          }
+          g.appendChild(list);
+          inner.appendChild(g);
+        });
+        if (at < checks.length) {   // a sheet with more ticks than the levels know about: show them too
+          var rest = el("div", "lg-checklist");
+          for (; at < checks.length; at++) rest.appendChild(checkField(checks[at], row, C.check + at, function () { syncLevel(); ch(); }));
+          inner.appendChild(rest);
+        }
+        syncLevel();
 
         if (row.r == null) {
           inner.appendChild(button("link-btn lg-remove", "Buang orang baru ini", function () {

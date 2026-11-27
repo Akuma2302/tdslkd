@@ -365,7 +365,6 @@
         out.push(Object.assign({ group: "pic", text: "PIC Legality belum ditetapkan" }, base));
       if (s.crm) {
         var fu = crmFollowUps(crmPeople([x]));
-        if (fu.kelas.length) out.push(Object.assign({ group: "crm", crm: true, text: fu.kelas.length + " kelas tambahan dalam 7 hari akan datang" }, base));
         if (fu.nopic.length) out.push(Object.assign({ group: "crm", crm: true, text: fu.nopic.length + " orang CRM belum ada PIC CRM" }, base));
       }
     });
@@ -416,7 +415,7 @@
           var cb = el("button", "lgd-act-go", "Lihat CRM");
           cb.type = "button";
           cb.addEventListener("click", function () {
-            crmF = { q: it.sekolah, phase: "", kat: "", level: "", aktif: "" };
+            crmF = { q: it.sekolah, kat: "", level: "", aktif: "" };
             setSub("crm");
             changed();
           });
@@ -445,13 +444,28 @@
   }
 
   // ---------- CRM ----------
+  // Level CRM from the checklist, same rule as pages/portal/legality.js: the 17 ticks in order belong to
+  // L1 = 1–2, L2 = 3–5, L3 = 6–10, L4 = 11–12, L5 = 13–17; level N once every tick of L1..N is done.
+  // BLACKLIST (set by hand) is kept.
+  var CRM_LEVEL_COUNTS = [2, 3, 5, 2, 5];
+  function crmLevelFromBits(bits, stored) {
+    if (/blacklist/i.test(stored || "")) return "BLACKLIST";
+    var i = 0, level = 0;
+    for (var k = 0; k < CRM_LEVEL_COUNTS.length; k++) {
+      var part = String(bits || "").substr(i, CRM_LEVEL_COUNTS[k]);
+      i += CRM_LEVEL_COUNTS[k];
+      if (part.length < CRM_LEVEL_COUNTS[k] || /[^1]/.test(part)) break;
+      level = k + 1;
+    }
+    return level ? "L" + level : "";
+  }
   // Every CRM person of the schools in view, from the summary (compact rows, see summary() in Legality.gs).
   function crmPeople(rows) {
     var out = [];
     rows.forEach(function (x) {
       (x.s.crm || []).forEach(function (r) {
         out.push({ cawangan: x.cawangan, sekolah: x.s.name, entiti: r[0], nama: r[1], tel: r[2], pic: r[3], ada: r[4] === 1,
-                   kat: r[5], phase: r[6], level: r[7], tarikh: r[8], nota: r[9], video: r[10], checks: r[11] || "", perm: r[12] || "" });
+                   kat: r[5], level: crmLevelFromBits(r[11], r[7]), nota: r[9], video: r[10], checks: r[11] || "", perm: r[12] || "" });
       });
     });
     return out;
@@ -467,13 +481,10 @@
     if (d.charAt(0) === "0") d = "6" + d;
     return "https://wa.me/" + d;
   }
-  function isEarlyPhase(ph) { return /^P\s*[01]\b/i.test(ph || ""); }
   function crmFollowUps(list) {
-    var now = today();
     return {
-      kelas: list.filter(function (p) { return /^\d{4}-\d{2}-\d{2}$/.test(p.tarikh) && p.tarikh >= now && dayDiff(now, p.tarikh) <= 7; }),
       nopic: list.filter(function (p) { return !p.pic; }),
-      awal: list.filter(function (p) { return !p.phase || isEarlyPhase(p.phase); }),
+      awal: list.filter(function (p) { return !p.level; }),
       video: list.filter(function (p) { return p.ada && !p.video; })
     };
   }
@@ -501,7 +512,7 @@
     return a;
   }
 
-  var crmF = { q: "", phase: "", kat: "", level: "", aktif: "" };
+  var crmF = { q: "", kat: "", level: "", aktif: "" };
   function crmTab(grid, rows, branch) {
     var list = crmPeople(rows);
     var n = list.length, aktif = list.filter(function (p) { return p.ada; }).length;
@@ -515,14 +526,14 @@
     grid.appendChild(stat("Sekolah tanpa CRM", String(noCrm), noCrm ? "Belum ada seorang pun" : "Semua sekolah ada CRM"));
     grid.appendChild(stat("Purata", rows.length ? (Math.round(n / rows.length * 10) / 10).toString() : "0", "orang setiap sekolah"));
 
-    // 2. Phase CRM  3. Kategori & Level
-    var ph = widget("w-2", "Phase CRM", n + " orang");
-    ph.appendChild(barsOf(countBy(list, "phase"), n));
+    // 2. Level CRM (from the checklist)  3. Kategori
+    var lvlCount = countBy(list, "level");
+    if (lvlCount["Belum ditetapkan"]) { lvlCount["Belum L1"] = lvlCount["Belum ditetapkan"]; delete lvlCount["Belum ditetapkan"]; }
+    var ph = widget("w-2", head.kpi[2] || "Level CRM", "ikut checklist · " + n + " orang");
+    ph.appendChild(barsOf(lvlCount, n));
     grid.appendChild(ph);
     var kl = widget("w-2", head.kpi[0] || "Kategori Cikgu", "");
     kl.appendChild(barsOf(countBy(list, "kat"), n));
-    kl.appendChild(el("h3", "lgd-crm-sub", head.kpi[2] || "Level CRM"));
-    kl.appendChild(barsOf(countBy(list, "level"), n));
     grid.appendChild(kl);
 
     // Jumlah CRM per PIC CRM ("Akmal/Munir" counts for both), busiest first, with the schools they cover
@@ -533,7 +544,7 @@
     var wrap = el("div", "tbl-wrap");
     var t = el("table", "mtable lgd-crm-table");
     var hr = el("tr");
-    [["Sekolah"], ["Orang", "num"], ["Aktif", "num"], ["Phase paling ramai"], ["Checklist hubungan", "num"]].forEach(function (h) { hr.appendChild(el("th", h[1] || null, h[0])); });
+    [["Sekolah"], ["Orang", "num"], ["Aktif", "num"], ["Level paling ramai"], ["Checklist hubungan", "num"]].forEach(function (h) { hr.appendChild(el("th", h[1] || null, h[0])); });
     var th = el("thead"); th.appendChild(hr); t.appendChild(th);
     var tb = el("tbody");
     rows.slice().sort(function (a, b) { return b.s.people - a.s.people || (a.s.name < b.s.name ? -1 : 1); }).forEach(function (x) {
@@ -544,8 +555,10 @@
       r.appendChild(c0);
       r.appendChild(el("td", "num" + (x.s.people ? "" : " muted"), String(x.s.people)));
       r.appendChild(el("td", "num" + (x.s.aktif ? "" : " muted"), String(x.s.aktif)));
-      var top = Object.keys(x.s.phase || {}).sort(function (a, b) { return x.s.phase[b] - x.s.phase[a]; })[0];
-      r.appendChild(el("td", top ? null : "muted", top ? top + " (" + x.s.phase[top] + ")" : "—"));
+      var lv = {};
+      list.forEach(function (p) { if (p.sekolah === x.s.name && p.cawangan === x.cawangan && p.level) lv[p.level] = (lv[p.level] || 0) + 1; });
+      var top = Object.keys(lv).sort(function (a, b) { return lv[b] - lv[a] || (a < b ? -1 : 1); })[0];
+      r.appendChild(el("td", top ? null : "muted", top ? top + " (" + lv[top] + ")" : "—"));
       var max = x.s.people * nChecks;
       var cell = el("td", "num");
       if (max) {
@@ -592,7 +605,7 @@
     var w = widget("w-4 lgd-crm-pic", "CRM mengikut PIC", rows.length + " PIC");
     var max = rows.length ? rows[0].n : none.length;   // bars relative to the busiest PIC (the no-PIC bar may fill up)
     var box = el("div", "hbars lgd-crm-picbars");
-    // Each PIC row opens the list of their CRM people: name, jawatan (Entiti), level, phase, school.
+    // Each PIC row opens the list of their CRM people: name, jawatan (Entiti), level (from the checklist), school.
     function item(label, n, extra, people, cls) {
       var d = el("details", "lgd-pic-item" + (cls ? " " + cls : ""));
       if (openPics[label]) d.open = true;   // stays open when fresh data redraws the page
@@ -610,8 +623,7 @@
         who.appendChild(el("small", null, (p.entiti || "Jawatan tidak diisi") + " · " + p.sekolah));
         r.appendChild(who);
         var tags = el("span", "lgd-crm-tags");
-        tags.appendChild(el("span", "lgd-crm-tag" + (p.level ? " is-check" : ""), p.level || "Level —"));
-        if (p.phase) tags.appendChild(el("span", "lgd-crm-tag" + (isEarlyPhase(p.phase) ? " is-early" : ""), p.phase.split(":")[0]));
+        tags.appendChild(el("span", "lgd-crm-tag" + (p.level ? " is-check" : ""), p.level || "Belum L1"));
         tags.appendChild(el("span", "lgd-crm-tag " + (p.ada ? "is-on" : "is-off"), p.ada ? "Aktif" : "Tidak aktif"));
         r.appendChild(tags);
         t.appendChild(r);
@@ -649,9 +661,8 @@
     var fu = crmFollowUps(list);
     var w = widget("w-4 lgd-crm-fu", "Perlu follow-up CRM", "");
     var groups = [
-      { key: "kelas", label: "Kelas tambahan 7 hari akan datang", open: true, extra: function (p) { return "📅 " + fmtDate(p.tarikh); } },
       { key: "nopic", label: "Belum ada PIC CRM" },
-      { key: "awal", label: "Masih P0 / P1 atau phase belum ditetapkan", extra: function (p) { return p.phase || "—"; } },
+      { key: "awal", label: "Belum capai L1 (checklist L1 belum lengkap)", extra: function (p) { return done(p.checks) + " tick"; } },
       { key: "video", label: "Aktif tetapi video feedback belum dikumpul" }
     ];
     var any = false;
@@ -691,7 +702,6 @@
       tools.appendChild(s);
     }
     function uniq(key) { var o = {}; list.forEach(function (p) { if (p[key]) o[p[key]] = 1; }); return Object.keys(o).sort(); }
-    filterSelect("phase", "Semua phase", uniq("phase"));
     filterSelect("kat", "Semua kategori", uniq("kat"));
     filterSelect("level", "Semua level", uniq("level"));
     var ak = el("select", "borang-input lgd-prog-filter");
@@ -716,7 +726,7 @@
       s.appendChild(who);
       var tags = el("span", "lgd-crm-tags");
       tags.appendChild(el("span", "lgd-crm-tag " + (p.ada ? "is-on" : "is-off"), p.ada ? "Aktif" : "Tidak aktif"));
-      if (p.phase) tags.appendChild(el("span", "lgd-crm-tag" + (isEarlyPhase(p.phase) ? " is-early" : ""), p.phase.split(":")[0]));
+      tags.appendChild(el("span", "lgd-crm-tag" + (p.level ? " is-check" : ""), p.level || "Belum L1"));
       var k = done(p.checks);
       tags.appendChild(el("span", "lgd-crm-tag is-check", k + "/" + nChecks));
       s.appendChild(tags);
@@ -728,9 +738,7 @@
       row("Telefon", p.tel);
       row("PIC CRM", p.pic);
       row(head.kpi[0] || "Kategori Cikgu", p.kat);
-      row(head.kpi[1] || "Phase", p.phase);
-      row(head.kpi[2] || "Level CRM", p.level);
-      row(head.kpi[3] || "Plan Tarikh Kelas Tambahan", /^\d{4}-\d{2}-\d{2}$/.test(p.tarikh) ? fmtDate(p.tarikh) : p.tarikh);
+      row(head.kpi[2] || "Level CRM", p.level || "Belum L1");
       row(head.kpi[4] || "Nota", p.nota);
       row(head.kpi[5] || "Collect Video Feedback", p.video);
       row("Permanfaatan", p.perm);
@@ -756,7 +764,6 @@
       box.textContent = "";
       var q = crmF.q.trim().toLowerCase();
       var rows = list.filter(function (p) {
-        if (crmF.phase && p.phase !== crmF.phase) return false;
         if (crmF.kat && p.kat !== crmF.kat) return false;
         if (crmF.level && p.level !== crmF.level) return false;
         if (crmF.aktif && String(p.ada ? 1 : 0) !== crmF.aktif) return false;

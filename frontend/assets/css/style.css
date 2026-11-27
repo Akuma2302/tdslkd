@@ -2235,3 +2235,24 @@ select.yc-hidden { display: none !important; }
 .hm-filter-n { min-width: 1.4rem; padding: 0 0.35rem; border-radius: 999px; background: rgba(255, 255, 255, 0.1); font-size: 0.72rem; font-weight: 800; text-align: center; }
 .hm-filter-chip.is-on .hm-filter-n { background: rgba(0, 0, 0, 0.15); }
 .hm-month { margin-top: 1.1rem; }
+
+/* CRM pop-up: Level CRM worked out from the checklist, ticks grouped by level (pages/portal/legality.js) */
+.lg-crmlevel { margin-top: 1rem; padding: 0.9rem 1rem; border: 1px solid rgba(255, 195, 0, 0.35); border-radius: 14px; background: rgba(255, 195, 0, 0.06); }
+.lg-crmlevel-top { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; }
+.lg-crmlevel-label { color: var(--muted); font-size: 0.78rem; font-weight: 700; }
+.lg-crmlevel-val { color: var(--accent); font-family: var(--display); font-weight: 800; font-size: 1.05rem; }
+.lg-crmlevel-val.is-none { color: var(--muted); }
+.lg-crmlevel-val.is-black { color: #ff8c8c; }
+.lg-crmlevel-steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin: 0.6rem 0 0.5rem; }
+.lg-crmlevel-steps i { height: 6px; border-radius: 4px; background: rgba(255, 255, 255, 0.1); }
+.lg-crmlevel-steps i.is-done { background: var(--accent); }
+.lg-crmlevel-steps i.is-next { background: rgba(255, 195, 0, 0.35); }
+.lg-crmlevel-hint { margin: 0 0 0.5rem; color: var(--muted); font-size: 0.78rem; }
+.lg-crmlevel-black { font-size: 0.82rem; color: var(--muted); }
+.lg-crmgroup { margin-top: 0.7rem; padding: 0.7rem 0.8rem; border: 1px solid var(--line); border-radius: 14px; }
+.lg-crmgroup.is-done { border-color: rgba(52, 211, 113, 0.45); background: rgba(52, 211, 113, 0.05); }
+.lg-crmgroup-head { display: flex; align-items: center; gap: 0.55rem; margin-bottom: 0.5rem; }
+.lg-crmgroup-l { flex: none; display: grid; place-items: center; min-width: 2.2rem; height: 1.7rem; border-radius: 8px; background: rgba(255, 195, 0, 0.14); color: var(--accent); font-family: var(--display); font-weight: 900; font-size: 0.8rem; }
+.lg-crmgroup.is-done .lg-crmgroup-l { background: #3f8f1a; color: #fff; }
+.lg-crmgroup-name { flex: 1; min-width: 0; font-weight: 700; font-size: 0.88rem; }
+.lg-crmlevel-n { flex: none; color: var(--muted); font-size: 0.78rem; font-weight: 700; font-variant-numeric: tabular-nums; }

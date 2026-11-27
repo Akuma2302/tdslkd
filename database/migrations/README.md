@@ -11,5 +11,6 @@ kebanyakannya ada versi `…Preview` yang hanya menulis log tanpa mengubah sheet
 | [003](003-kronologi-tab.md) | 2026-11 (v7) | Tab `Kronologi` baru | `kronologiBackfill` | Dijalankan |
 | [004](004-fasa-legality.md) | 2026-11-18 (v9–v12) | Tab `Fasa Legality`: 10 fasa / 27 tindakan, ganti 6 milestone | `fasaSheetCurrent` (automatik) | Automatik |
 | [005](005-kronologi-merge.md) | 2026-11-23 (v18) | Simpanan Kronologi dalam 30 minit digabungkan | `kronologiTidy` | **Belum dijalankan** |
+| [006](006-crm-level-from-checklist.md) | 2026-11-28 | Level CRM dikira dari checklist; Phase dan Plan Tarikh Kelas Tambahan dibuang dari borang | tiada (portal) | Automatik |
 
 Tambah perubahan baru di hujung jadual, dengan nombor seterusnya.
