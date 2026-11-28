@@ -13,5 +13,6 @@ kebanyakannya ada versi `…Preview` yang hanya menulis log tanpa mengubah sheet
 | [005](005-kronologi-merge.md) | 2026-11-23 (v18) | Simpanan Kronologi dalam 30 minit digabungkan | `kronologiTidy` | **Belum dijalankan** |
 | [006](006-crm-level-from-checklist.md) | 2026-11-28 | Level CRM dikira dari checklist; Phase dan Plan Tarikh Kelas Tambahan dibuang dari borang | tiada (portal) | Automatik |
 | [007](007-crm-checklist-20.md) | 2026-11-28 (v20) | Checklist CRM 17 → 20 tick (N..AD → N..AG), ikut template SEKOLAH_PIC | `crm20Check` / `crm20Migrate` | Dijalankan 2026-11-28 (46 tab) |
+| [008](008-crm-tarikh-lahir.md) | 2026-11-28 (v21) | Lajur AH = Tarikh Lahir cikgu dalam CRM | `crmBirthdayAdd` | **Belum dijalankan** |
 
 Tambah perubahan baru di hujung jadual, dengan nombor seterusnya.

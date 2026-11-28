@@ -11,7 +11,7 @@
 
   // Column order of each section, matching SECTIONS in backend/apps-script/legality/Legality.gs.
   var COLS = {
-    crm: [2, 3, 4, 5, 6, 7].concat(seq(8, 30)),
+    crm: [2, 3, 4, 5, 6, 7].concat(seq(8, 33), [34]),   // B..G, H..AG (KPI + 20 ticks), AH Tarikh Lahir
     alumni: [2],
     program: [1, 2, 3, 4, 7],
     analisa: [1],
@@ -20,7 +20,9 @@
     peluang: [1, 2, 3]
   };
   // CRM value positions.
-  var C = { entiti: 0, ada: 1, nama: 2, tel: 3, perm: 4, pic: 5, kat: 6, phase: 7, level: 8, tarikh: 9, nota: 10, video: 11, check: 12 };
+  // check..lahir-1 = the 20 checklist ticks (N..AG), lahir = Tarikh Lahir (AH, migration 008).
+  var C = { entiti: 0, ada: 1, nama: 2, tel: 3, perm: 4, pic: 5, kat: 6, phase: 7, level: 8, tarikh: 9, nota: 10, video: 11, check: 12, lahir: 32 };
+  function ticksOf(row) { return row.w.slice(C.check, C.lahir); }
   // Level CRM comes from the checklist ("[TEMPLATE] SEKOLAH_PIC", migration 007): the 20 ticks in order belong to
   // L1 = 1–4, L2 = 5–7, L3 = 8–12, L4 = 13–16, L5 = 17–20. A person is at level N once every tick of L1..N is
   // done. BLACKLIST is set by hand and is never replaced. Same rule in features/legality/legality-admin.js.
@@ -88,7 +90,7 @@
   // The value written to the Level CRM column ("L2"), or "" before L1; BLACKLIST stays.
   function crmLevelValue(row) {
     if (/blacklist/i.test(row.w[C.level] || "")) return row.w[C.level];
-    var n = crmLevelOf(row.w.slice(C.check));
+    var n = crmLevelOf(ticksOf(row));
     if (!n) return "";
     // use the sheet's own wording for that level ("L2", "Level 2"…) so its dropdown accepts it
     var opts = (state.school && state.school.kpi && state.school.kpi.level) || [];
@@ -1501,7 +1503,7 @@
 
   function blankRow(key) {
     var w = COLS[key].map(function (c, i) {
-      if (key === "crm" && (i === C.ada || i >= C.check)) return false;
+      if (key === "crm" && (i === C.ada || (i >= C.check && i < C.lahir))) return false;
       if (key === "program" && i === 4) return false;
       return "";
     });
@@ -1706,7 +1708,7 @@
       body.appendChild(add);
 
       function summaryOf(row) {
-        var n = row.w.slice(C.check).filter(function (v) { return v === true; }).length;
+        var n = ticksOf(row).filter(function (v) { return v === true; }).length;
         return {
           name: row.w[C.nama] || (row.r == null ? "Orang baru" : "Belum diisi"),
           empty: !row.w[C.nama],
@@ -1774,6 +1776,9 @@
         syncAda();
         basic.appendChild(textField("Nama", row, C.nama, {}, function () { syncAda(); ch(); }));
         basic.appendChild(textField("Nombor telefon", row, C.tel, { type: "tel" }, ch));
+        // Tarikh Lahir (AH) only once the server sends that column (Apps Script v21 and migration 008)
+        var srv = (state.school && state.school.sections && state.school.sections.crm && state.school.sections.crm.rows) || [];
+        if (srv.some(function (x) { return x.v && x.v.length > C.lahir; })) basic.appendChild(textField("Tarikh lahir", row, C.lahir, { type: "date" }, ch));
         basic.appendChild(textField("PIC CRM", row, C.pic, {}, ch));
         basic.appendChild(textField("Permanfaatan", row, C.perm, { wide: true }, ch));
         inner.appendChild(basic);
@@ -1803,7 +1808,7 @@
           var isBlack = /blacklist/i.test(row.w[C.level] || "");
           blackCb.checked = isBlack;
           if (!isBlack) row.w[C.level] = crmLevelValue(row);
-          var ticks = row.w.slice(C.check), n = crmLevelOf(ticks);
+          var ticks = ticksOf(row), n = crmLevelOf(ticks);
           levelBox.textContent = "";
           var top = el("div", "lg-crmlevel-top");
           top.appendChild(el("span", "lg-crmlevel-label", kpi.headers[2] || "Level CRM"));

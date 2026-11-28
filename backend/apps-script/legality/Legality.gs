@@ -16,12 +16,12 @@ var TEMPLATE = "Nama Sekolah *Duplicate";
 var LIST_TAB = "Senarai Sekolah";
 
 // Column numbers in a school tab.
-// N..AG = 20 checklist ticks since migration 007 (was N..AD, 17 ticks).
-var COL = { A: 1, B: 2, C: 3, D: 4, E: 5, F: 6, G: 7, KPI: 8, KPI_N: 26, KPI_DATE: 11, KPI_CHECK: 14, LAST: 33 };
+// N..AG = 20 checklist ticks since migration 007 (was N..AD, 17 ticks); AH = Tarikh Lahir since 008.
+var COL = { A: 1, B: 2, C: 3, D: 4, E: 5, F: 6, G: 7, KPI: 8, KPI_N: 26, KPI_DATE: 11, KPI_CHECK: 14, CHECK_LAST: 33, BIRTH: 34, LAST: 34 };
 
 // Editable columns per section, in the order sent to the form.
 var SECTIONS = {
-  crm:      { cols: [2, 3, 4, 5, 6, 7].concat(range_(8, 33)) },   // B..AG
+  crm:      { cols: [2, 3, 4, 5, 6, 7].concat(range_(8, 33), [34]) },   // B..AG, AH (Tarikh Lahir)
   alumni:   { cols: [2] },                                          // B (merged B:G)
   program:  { cols: [1, 2, 3, 4, 7] },                              // Nama, Tarikh, Niche, Penglibatan, Reporting
   analisa:  { cols: [1] },                                          // A (merged A:G)
@@ -30,7 +30,7 @@ var SECTIONS = {
   peluang:  { cols: [1, 2, 3] }                                     // Peluang, Tarikh, Permanfaatan
 };
 var CHECKBOX_COLS = { crm: [3].concat(range_(14, 33)), program: [7] };
-var DATE_COLS = { crm: [11], planning: [2] };
+var DATE_COLS = { crm: [11, 34], planning: [2] };
 
 // Fasa Legality: 10 phases, each with its actions (tindakan). A school is at the highest Fasa N with at least
 // one action ticked (Fasa 0 = no ticks); the PIC need not finish every action of a fasa (rule since 2026-11-28). Ticks live in the "Fasa Legality" tab of each cawangan sheet.
@@ -1093,7 +1093,7 @@ function saveAlumni(body) {
 //  - each school tab is read once (one getValues, markers found from that same block);
 //  - the result is cached for 6 hours and returned at once; after any save it is only marked out of date
 //    ("stale": true) and the admin page fetches a fresh copy in the background.
-var SUMMARY_KEY = "summary10", SUMMARY_STALE = "summaryStale";   // summary10: CRM checklist N..AG (20 ticks); summary9: fasa with BnW split
+var SUMMARY_KEY = "summary11", SUMMARY_STALE = "summaryStale";   // summary11: + Tarikh lahir (AH); summary10: CRM checklist N..AG (20 ticks); summary9: fasa with BnW split
 // The flag holds the time of the last save, so a summary that was already being built before that save does not clear it.
 function markSummaryStale() { CacheService.getScriptCache().put(SUMMARY_STALE, String(Date.now()), 21600); }
 
@@ -1164,22 +1164,22 @@ function summary(fresh) {
       var m = summaryMarkers(a);
       if (!m) return;
       var people = 0, aktif = 0, phase = {}, kategori = {}, checks = 0, crm = [];
-      if (!crmHead) crmHead = { kpi: a[1].slice(COL.KPI - 1, COL.KPI_CHECK - 1).map(text), checks: a[1].slice(COL.KPI_CHECK - 1, COL.LAST).map(text) };
+      if (!crmHead) crmHead = { kpi: a[1].slice(COL.KPI - 1, COL.KPI_CHECK - 1).map(text), checks: a[1].slice(COL.KPI_CHECK - 1, COL.CHECK_LAST).map(text) };
       a.slice(2, m.crmEnd).forEach(function (r) {
         var named = text(r[3]) !== "";
         if (!named && r[2] !== true) return;
         people++;
         if (r[2] === true) aktif++;
-        // One person, compact: [Entiti, Nama, Telefon, PIC CRM, Ada 1/0, Kategori, Phase, Level, Tarikh kelas, Nota, Video, "checklist bits", Permanfaatan]
+        // One person, compact: [Entiti, Nama, Telefon, PIC CRM, Ada 1/0, Kategori, Phase, Level, Tarikh kelas, Nota, Video, "checklist bits", Permanfaatan, Tarikh lahir]
         crm.push([text(r[1]), text(r[3]), text(r[4]), text(r[6]), r[2] === true ? 1 : 0, text(r[7]), text(r[8]), text(r[9]),
                   r[10] instanceof Date ? iso(r[10]) : text(r[10]), summaryText(r[11]).slice(0, 300), text(r[12]),
-                  r.slice(COL.KPI_CHECK - 1, COL.LAST).map(function (v) { return v === true ? "1" : "0"; }).join(""),
-                  summaryText(r[5]).slice(0, 200)]);
+                  r.slice(COL.KPI_CHECK - 1, COL.CHECK_LAST).map(function (v) { return v === true ? "1" : "0"; }).join(""),
+                  summaryText(r[5]).slice(0, 200), r[COL.BIRTH - 1] instanceof Date ? iso(r[COL.BIRTH - 1]) : text(r[COL.BIRTH - 1])]);
         var ph = text(r[COL.KPI]);       // I = Phase
         var kt = text(r[COL.KPI - 1]);   // H = Kategori
         if (ph) phase[ph] = (phase[ph] || 0) + 1;
         if (kt) kategori[kt] = (kategori[kt] || 0) + 1;
-        for (var c2 = COL.KPI_CHECK - 1; c2 < COL.LAST; c2++) if (r[c2] === true) checks++;
+        for (var c2 = COL.KPI_CHECK - 1; c2 < COL.CHECK_LAST; c2++) if (r[c2] === true) checks++;
       });
       var programs = 0;
       if (m.program && m.analisa) {
@@ -2764,7 +2764,7 @@ function insertRow(sh, key) {
     sh.getRange(last + 1, 2, 1, COL.LAST - 1).copyTo(sh.getRange(at, 2, 1, COL.LAST - 1), SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
     sh.getRange(last + 1, 2, 1, COL.LAST - 1).copyTo(sh.getRange(at, 2, 1, COL.LAST - 1), SpreadsheetApp.CopyPasteType.PASTE_DATA_VALIDATION, false);
     sh.getRange(at, 3).setValue(false);
-    sh.getRange(at, COL.KPI_CHECK, 1, COL.LAST - COL.KPI_CHECK + 1).setValue(false);
+    sh.getRange(at, COL.KPI_CHECK, 1, COL.CHECK_LAST - COL.KPI_CHECK + 1).setValue(false);
   } else {
     sh.insertRowsAfter(last, 1);
     at = last + 1;
@@ -3109,6 +3109,39 @@ function crm20Migrate() {
       log.push(c + " / " + n + ": siap (" + rows.length + " orang)");
     });
     log.push(c + " / tab CRM: " + crmSummaryTab20_(ss));
+  });
+  SpreadsheetApp.flush();
+  bumpData();
+  markSummaryStale();
+  Logger.log(log.join("\n"));
+  return log;
+}
+
+// ---------- CRM: Tarikh Lahir column (migration 008, 2026-11-28) ----------
+// Inserts one column after AG (the last checklist tick) in every school tab and the template: AH = "Tarikh Lahir",
+// date cells with the look of K (Plan Tarikh, a date column). What was to the right (the spacer and the
+// "MOM Mingguan" block) moves one column right. Tabs that already have it, or are not on the 20-tick layout, are
+// skipped. Run once from the editor, then deploy (COL.BIRTH = 34).
+function crmBirthdayAdd() {
+  var map = sheetMap(), log = [];
+  Object.keys(map).forEach(function (c) {
+    var ss = SpreadsheetApp.openById(map[c]);
+    crmTabs_(ss).forEach(function (n) {
+      var sh = ss.getSheetByName(n), st;
+      if (crmNorm_(sh.getRange(2, COL.BIRTH).getDisplayValue()) === "tarikh lahir") { log.push(c + " / " + n + ": sudah ada"); return; }
+      try { st = crmTabState_(sh); } catch (e) { log.push(c + " / " + n + ": dilangkau (" + (e.message || e) + ")"); return; }
+      if (st.layout !== "20") { log.push(c + " / " + n + ": dilangkau (susunan " + st.layout + ")"); return; }
+      var end = st.crmEnd;
+      sh.insertColumnsAfter(CRM_NEW_LAST, 1);
+      var k = sh.getRange(2, COL.KPI_DATE, end - 1, 1), ah = sh.getRange(2, COL.BIRTH, end - 1, 1);
+      k.copyTo(ah, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+      k.copyTo(ah, SpreadsheetApp.CopyPasteType.PASTE_DATA_VALIDATION, false);
+      sh.getRange(1, CRM_NEW_LAST).copyTo(sh.getRange(1, COL.BIRTH), SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+      sh.setColumnWidth(COL.BIRTH, Math.max(sh.getColumnWidth(COL.KPI_DATE), 110));
+      sh.getRange(2, COL.BIRTH).setValue("Tarikh Lahir");
+      if (end > 2) sh.getRange(3, COL.BIRTH, end - 2, 1).setNumberFormat("d/m/yyyy");
+      log.push(c + " / " + n + ": siap");
+    });
   });
   SpreadsheetApp.flush();
   bumpData();
