@@ -1538,6 +1538,15 @@
   // ---------- Small field builders ----------
 
   var uid = 0;
+  // "1980-05-12", "12/5/1980", "12-05-1980", "12.5.1980" → "1980-05-12"; anything else → ""
+  function isoDate(s) {
+    s = String(s || "").trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    var m = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/);
+    if (!m || +m[2] < 1 || +m[2] > 12 || +m[1] < 1 || +m[1] > 31) return "";
+    return m[3] + "-" + ("0" + m[2]).slice(-2) + "-" + ("0" + m[1]).slice(-2);
+  }
+
   function textField(label, row, i, opts, onChange) {
     opts = opts || {};
     var box = el("div", "lg-field" + (opts.wide ? " is-wide" : ""));
@@ -1550,11 +1559,18 @@
       input = el("input", "borang-input");
       input.type = opts.type || "text";
       // A date typed by hand in the sheet ("20 Nov") would show as blank in a date box: keep it as text.
-      if (input.type === "date" && row.w[i] && !/^\d{4}-\d{2}-\d{2}$/.test(row.w[i])) input.type = "text";
+      // forceDate (Tarikh lahir): always the calendar; "12/5/1980" is read as a date, anything else is shown
+      // in the tooltip and stays in the sheet until a date is picked.
+      if (input.type === "date" && !opts.forceDate && row.w[i] && !/^\d{4}-\d{2}-\d{2}$/.test(row.w[i])) input.type = "text";
     }
     if (opts.list) input.setAttribute("list", opts.list);
     input.id = id;
     input.value = row.w[i] == null ? "" : row.w[i];
+    if (opts.forceDate) {
+      var raw = String(row.w[i] == null ? "" : row.w[i]).trim(), iso = isoDate(raw);
+      input.value = iso;
+      if (raw && !iso) input.title = "Dalam sheet: " + raw + ". Pilih tarikh untuk menggantikannya.";
+    }
     if (row.lock[i]) { input.disabled = true; input.title = "Sel ini sebahagian sel bercantum dalam sheet."; }
     input.addEventListener("input", function () { row.w[i] = input.value; onChange(); });
     box.appendChild(lab);
@@ -1778,7 +1794,7 @@
         basic.appendChild(textField("Nombor telefon", row, C.tel, { type: "tel" }, ch));
         // Tarikh Lahir (AH) only once the server sends that column (Apps Script v21 and migration 008)
         var srv = (state.school && state.school.sections && state.school.sections.crm && state.school.sections.crm.rows) || [];
-        if (srv.some(function (x) { return x.v && x.v.length > C.lahir; })) basic.appendChild(textField("Tarikh lahir", row, C.lahir, { type: "date" }, ch));
+        if (srv.some(function (x) { return x.v && x.v.length > C.lahir; })) basic.appendChild(textField("Tarikh lahir", row, C.lahir, { type: "date", forceDate: true }, ch));
         basic.appendChild(textField("PIC CRM", row, C.pic, {}, ch));
         basic.appendChild(textField("Permanfaatan", row, C.perm, { wide: true }, ch));
         inner.appendChild(basic);
