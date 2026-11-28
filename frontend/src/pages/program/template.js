@@ -12,7 +12,7 @@ export const CAWANGAN = {
   'MEA':          {},
 };
 
-export const JENIS_PROGRAM = ['Kepimpinan', 'Kerohanian', 'Akademik', 'Lain-lain'];
+export const JENIS_PROGRAM = ['Kepimpinan', 'Kerohanian', 'Akademik', 'Bisnes', 'Kesukarelawanan', 'Outbound', 'Lain-lain'];
 export const TINGKATAN = ['T1', 'T2', 'T3', 'T4', 'T5'];
 
 function formatDate(value) {
