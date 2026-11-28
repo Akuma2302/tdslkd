@@ -525,13 +525,12 @@
       if (d.progress) PANES.minggu.appendChild(noteCard(d.progress.note || { text: "", updated: "" }));
       if (d.weekly) PANES.minggu.appendChild(weeklyCard(d.weekly));
       if (d.fasa) PANES.minggu.appendChild(fasaCard(d.fasa));
-      PANES.minggu.appendChild(sectionCard(sectionInfo("planning")));
 
       PANES.cikgu.appendChild(picCard(d.pic || []));
       PANES.cikgu.appendChild(sectionCard(sectionInfo("crm")));
       PANES.cikgu.appendChild(sectionCard(sectionInfo("alumni")));
 
-      ["analisa", "program", "modul", "peluang"].forEach(function (k) { PANES.rancangan.appendChild(sectionCard(sectionInfo(k))); });
+      ["planning", "analisa", "program", "modul", "peluang"].forEach(function (k) { PANES.rancangan.appendChild(sectionCard(sectionInfo(k))); });
 
       // Parts the Legality bot checks (it tags the PIC when they are empty or out of date)
       ["semasa", "planning", "peluang"].forEach(function (k) {
@@ -556,9 +555,9 @@
 
   // ---------- School page tabs ----------
   var SC_TABS = [
-    { id: "minggu", label: "Minggu ini", icon: "minggu", keys: ["ringkasan", "semasa", "mingguan", "progress", "planning"] },
+    { id: "minggu", label: "Minggu ini", icon: "minggu", keys: ["ringkasan", "semasa", "mingguan", "progress"] },
     { id: "cikgu", label: "Cikgu", icon: "cikgu", keys: ["pic", "crm", "alumni"] },
-    { id: "rancangan", label: "Rancangan", icon: "rancangan", keys: ["analisa", "program", "modul", "peluang"] }
+    { id: "rancangan", label: "Rancangan", icon: "rancangan", keys: ["planning", "analisa", "program", "modul", "peluang"] }
   ];
   var PANES = {};
   state.tab = "minggu";
