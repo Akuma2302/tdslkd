@@ -3132,7 +3132,11 @@ function crmBirthdayAdd() {
       try { st = crmTabState_(sh); } catch (e) { log.push(c + " / " + n + ": dilangkau (" + (e.message || e) + ")"); return; }
       if (st.layout !== "20") { log.push(c + " / " + n + ": dilangkau (susunan " + st.layout + ")"); return; }
       var end = st.crmEnd;
-      sh.insertColumnsAfter(CRM_NEW_LAST, 1);
+      // Where is "MOM Mingguan" (row 1)? AI = column not inserted yet; AJ = inserted by a run that stopped
+      // half way (only the title and format are missing). Anything else: leave the tab alone.
+      var mom = crmNorm_(sh.getRange(1, COL.BIRTH + 2).getDisplayValue()), momBefore = crmNorm_(sh.getRange(1, COL.BIRTH + 1).getDisplayValue());
+      if (momBefore.indexOf("mom mingguan") === 0) sh.insertColumnsAfter(CRM_NEW_LAST, 1);
+      else if (mom.indexOf("mom mingguan") !== 0) { log.push(c + " / " + n + ": dilangkau (MOM Mingguan tidak di AI/AJ)"); return; }
       var k = sh.getRange(2, COL.KPI_DATE, end - 1, 1), ah = sh.getRange(2, COL.BIRTH, end - 1, 1);
       k.copyTo(ah, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
       k.copyTo(ah, SpreadsheetApp.CopyPasteType.PASTE_DATA_VALIDATION, false);
