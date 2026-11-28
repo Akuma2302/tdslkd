@@ -20,7 +20,9 @@ silaturahim, projek kampus, pertemuan bulanan.
 
 **Fungsi:** `crm20Check` (log sahaja: susunan setiap tab, sama ada AE..AG kosong, formula tab lain yang baca
 lajur AD) → `crm20Migrate`. Sebelum menulis, tick lama disalin ke tab tersembunyi `_crm17_backup`
-(Tab · Baris · 17 tick sebagai "1/0" · masa). Tab yang bukan susunan 17 lama, atau ada isi di AE..AG, dilangkau
+(Tab · Baris · 17 tick sebagai "1/0" · masa). Tiga lajur baru **dimasukkan** selepas AD (bukan ditulis ganti):
+bahagian "MOM Mingguan" yang dulu di AF..AG dalam setiap tab beralih 3 lajur ke kanan. Tab `CRM` (TENGAH) dikemas
+kini: formula A2 baca B3:AG, dan tajuk checklist baris 1 jadi 20 item. Tab yang bukan susunan 17 lama dilangkau
 dan disenaraikan dalam log.
 
 Portal memaparkan "Cara capai Ln" (tindakan PIC dari template yang sama) di bawah setiap level dalam pop-up CRM

@@ -2998,11 +2998,15 @@ function crmTabState_(sh) {
   var head = sh.getRange(2, CRM_CHECK_FIRST, 1, CRM_NEW_LAST - CRM_CHECK_FIRST + 1).getDisplayValues()[0].map(crmNorm_);
   var oldOk = CRM_OLD.every(function (l, i) { return head[i] === crmNorm_(l); });
   var newOk = CRM_NEW.every(function (l, i) { return head[i] === crmNorm_(l[0]); });
-  var extra = sh.getRange(1, CRM_OLD_LAST + 1, end, CRM_NEW_LAST - CRM_OLD_LAST).getDisplayValues()
-    .some(function (r) { return r.some(function (v) { return text(v) !== ""; }); });
+  var ext = sh.getRange(1, CRM_OLD_LAST + 1, end, CRM_NEW_LAST - CRM_OLD_LAST), extF = ext.getFormulas(), sample = [];
+  ext.getDisplayValues().forEach(function (r, i) { r.forEach(function (v, j) {
+    if ((text(v) !== "" || extF[i][j]) && sample.length < 6)
+      sample.push(sh.getRange(i + 1, CRM_OLD_LAST + 1 + j).getA1Notation() + "=" + (extF[i][j] || text(v)).slice(0, 60));
+  }); });
+  var extra = sample.length > 0;
   var merges = sh.getRange(1, CRM_OLD_LAST, end, 2).getMergedRanges()
     .filter(function (mr) { return mr.getLastColumn() > CRM_OLD_LAST; }).map(function (mr) { return mr.getA1Notation(); });
-  return { layout: newOk ? "20" : oldOk ? "17" : "lain", crmEnd: end, aeagUsed: extra, mergesPastAD: merges,
+  return { layout: newOk ? "20" : oldOk ? "17" : "lain", crmEnd: end, aeagUsed: extra, aeagSample: sample, mergesPastAD: merges,
            head: oldOk || newOk ? null : head.slice(0, 17) };
 }
 function crmTabs_(ss) {
@@ -3024,7 +3028,7 @@ function crm20Check() {
       if (tabs[sh.getName()] || sh.getLastRow() < 1 || sh.getLastColumn() < 1) return;
       var f = sh.getRange(1, 1, Math.min(sh.getLastRow(), 60), Math.min(sh.getLastColumn(), 40)).getFormulas();
       f.forEach(function (r, i) { r.forEach(function (v, j) {
-        if (v && /AD\b|AD\d|:AD/i.test(v) && formulas.length < 10) formulas.push(sh.getName() + "!" + sh.getRange(i + 1, j + 1).getA1Notation() + " " + v.slice(0, 160));
+        if (v && /AD\b|AD\d|:AD|MAKEARRAY/i.test(v) && formulas.length < 10) formulas.push(sh.getName() + "!" + sh.getRange(i + 1, j + 1).getA1Notation() + " " + v);
       }); });
     });
     var count = { "17": 0, "20": 0, lain: 0, error: 0 };
@@ -3035,8 +3039,28 @@ function crm20Check() {
   return out;
 }
 
-// Rewrites every 17-tick school tab to the 20-tick layout. Tabs that are already 20, or not the expected
-// 17-tick layout, or have something in AE..AG, are left alone and listed in the log.
+// The read-only "CRM" summary tab (formula in A2 that stacks B3:AD of every school tab): read B3:AG instead,
+// and row 1 titles of the checklist (columns M..AC there = N..AD of a school tab) become the 20 new ones.
+function crmSummaryTab20_(ss) {
+  var sh = ss.getSheetByName("CRM");
+  if (!sh) return "tiada";
+  var cell = sh.getRange("A2"), f = cell.getFormula();
+  if (!f || f.indexOf("!B3:AD") < 0) return f.indexOf("!B3:AG") > -1 ? "sudah B3:AG" : "formula lain, tidak diubah";
+  var nf = f.replace("!B3:AD", "!B3:AG").replace("MAKEARRAY(1, 30,", "MAKEARRAY(1, 33,").replace("COLUMNS(hit_) < 29", "COLUMNS(hit_) < 32");
+  var first = 13;   // output: Sekolah, B, D..M (C left out), then the checklist from column 13
+  var head = sh.getRange(1, first, 1, 17).getDisplayValues()[0].map(crmNorm_);
+  var titlesOk = CRM_OLD.every(function (l, i) { return head[i] === crmNorm_(l); });
+  sh.insertColumnsAfter(first + 16, 3);
+  sh.getRange(1, first + 16, sh.getMaxRows(), 1).copyTo(sh.getRange(1, first + 17, sh.getMaxRows(), 3), SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+  for (var k = 1; k <= 3; k++) sh.setColumnWidth(first + 16 + k, sh.getColumnWidth(first + 16));
+  if (titlesOk) sh.getRange(1, first, 1, 20).setValues([CRM_NEW.map(function (x) { return x[0]; })]);
+  cell.setFormula(nf);
+  return "formula B3:AG" + (titlesOk ? ", tajuk dikemas kini" : ", tajuk baris 1 tidak sepadan (tidak diubah)");
+}
+
+// Rewrites every 17-tick school tab to the 20-tick layout: inserts 3 columns after AD, copies its look,
+// writes the new titles and carries the old ticks over. Tabs already on 20, or not the expected 17-tick
+// layout, are left alone and listed in the log.
 function crm20Migrate() {
   var map = sheetMap(), log = [];
   Object.keys(map).forEach(function (c) {
@@ -3051,7 +3075,7 @@ function crm20Migrate() {
       var sh = ss.getSheetByName(n), st;
       try { st = crmTabState_(sh); } catch (e) { log.push(c + " / " + n + ": dilangkau (" + (e.message || e) + ")"); return; }
       if (st.layout !== "17") { log.push(c + " / " + n + ": dilangkau (susunan " + st.layout + ")"); return; }
-      if (st.aeagUsed || st.mergesPastAD.length) { log.push(c + " / " + n + ": dilangkau (AE..AG tidak kosong / sel gabung)"); return; }
+      if (st.mergesPastAD.length) { log.push(c + " / " + n + ": dilangkau (sel gabung merentas AD/AE)"); return; }
       var end = st.crmEnd, nRows = end - 2, w = CRM_NEW_LAST - CRM_CHECK_FIRST + 1;
       var old = sh.getRange(3, CRM_CHECK_FIRST, nRows, 17).getValues();
       // backup
@@ -3061,7 +3085,9 @@ function crm20Migrate() {
           rows.push([n, i + 3, r.map(function (v) { return v === true ? "1" : v === false ? "0" : "-"; }).join(""), stamp]);
       });
       if (rows.length) bk.getRange(bk.getLastRow() + 1, 1, rows.length, 4).setValues(rows);
-      // look of AD → AE..AG (rows 1..end of CRM), column width too
+      // three new columns after AD (what was to the right, e.g. the "MOM Mingguan" block in AF, moves 3 right),
+      // with the look of AD (rows 1..end of CRM) and its width
+      sh.insertColumnsAfter(CRM_OLD_LAST, CRM_NEW_LAST - CRM_OLD_LAST);
       var ad = sh.getRange(1, CRM_OLD_LAST, end, 1), ae = sh.getRange(1, CRM_OLD_LAST + 1, end, 3);
       ad.copyTo(ae, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
       ad.copyTo(ae, SpreadsheetApp.CopyPasteType.PASTE_DATA_VALIDATION, false);
@@ -3082,6 +3108,7 @@ function crm20Migrate() {
       sh.getRange(3, CRM_CHECK_FIRST, nRows, w).setValues(out);
       log.push(c + " / " + n + ": siap (" + rows.length + " orang)");
     });
+    log.push(c + " / tab CRM: " + crmSummaryTab20_(ss));
   });
   SpreadsheetApp.flush();
   bumpData();
