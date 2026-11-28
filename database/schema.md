@@ -27,7 +27,7 @@ Satu tab mengandungi beberapa bahagian, disusun menegak. Setiap bahagian bermula
 
 | Bahagian | Tajuk dalam lajur A | Lajur yang disunting |
 |---|---|---|
-| CRM cikgu | baris 3 hingga sebelum "Alumni Sekolah" | B..AD (lihat di bawah) |
+| CRM cikgu | baris 3 hingga sebelum "Alumni Sekolah" | B..AG (lihat di bawah) |
 | Alumni | `Alumni Sekolah` | B (sel gabung B:G): senarai "1. Nama (SPM 2020)" |
 | Program lepas | `Program Yang Telah Berjalan` | A Nama · B Tarikh · C Niche · D Penglibatan · G Reporting (tick) |
 | Analisa | `Analisa Situasi Semasa` | A (sel gabung A:G) |
@@ -51,7 +51,7 @@ Satu tab mengandungi beberapa bahagian, disusun menegak. Setiap bahagian bermula
 | K | Plan tarikh kelas tambahan — tidak ditanya lagi sejak 006 | tarikh |
 | L | Nota | teks |
 | M | Video | teks |
-| N..AD | Checklist hubungan (17 tick, tajuk dalam baris 2). Mengikut urutan: L1 = 1–2, L2 = 3–5, L3 = 6–10, L4 = 11–12, L5 = 13–17 | tick |
+| N..AG | Checklist hubungan (20 tick sejak [007](migrations/007-crm-checklist-20.md), tajuk dalam baris 2). Mengikut urutan: L1 = 1–4, L2 = 5–7, L3 = 8–12, L4 = 13–16, L5 = 17–20 | tick |
 
 ### `Progress` *(dibuat sendiri)*
 

@@ -16,11 +16,12 @@ var TEMPLATE = "Nama Sekolah *Duplicate";
 var LIST_TAB = "Senarai Sekolah";
 
 // Column numbers in a school tab.
-var COL = { A: 1, B: 2, C: 3, D: 4, E: 5, F: 6, G: 7, KPI: 8, KPI_N: 23, KPI_DATE: 11, KPI_CHECK: 14, LAST: 30 };
+// N..AG = 20 checklist ticks since migration 007 (was N..AD, 17 ticks).
+var COL = { A: 1, B: 2, C: 3, D: 4, E: 5, F: 6, G: 7, KPI: 8, KPI_N: 26, KPI_DATE: 11, KPI_CHECK: 14, LAST: 33 };
 
 // Editable columns per section, in the order sent to the form.
 var SECTIONS = {
-  crm:      { cols: [2, 3, 4, 5, 6, 7].concat(range_(8, 30)) },   // B..AD
+  crm:      { cols: [2, 3, 4, 5, 6, 7].concat(range_(8, 33)) },   // B..AG
   alumni:   { cols: [2] },                                          // B (merged B:G)
   program:  { cols: [1, 2, 3, 4, 7] },                              // Nama, Tarikh, Niche, Penglibatan, Reporting
   analisa:  { cols: [1] },                                          // A (merged A:G)
@@ -28,7 +29,7 @@ var SECTIONS = {
   modul:    { cols: [1, 2, 3, 4] },                                 // Nama, Tarikh, Niche, Short brief
   peluang:  { cols: [1, 2, 3] }                                     // Peluang, Tarikh, Permanfaatan
 };
-var CHECKBOX_COLS = { crm: [3].concat(range_(14, 30)), program: [7] };
+var CHECKBOX_COLS = { crm: [3].concat(range_(14, 33)), program: [7] };
 var DATE_COLS = { crm: [11], planning: [2] };
 
 // Fasa Legality: 10 phases, each with its actions (tindakan). A school is at the highest Fasa N with at least
@@ -1092,7 +1093,7 @@ function saveAlumni(body) {
 //  - each school tab is read once (one getValues, markers found from that same block);
 //  - the result is cached for 6 hours and returned at once; after any save it is only marked out of date
 //    ("stale": true) and the admin page fetches a fresh copy in the background.
-var SUMMARY_KEY = "summary9", SUMMARY_STALE = "summaryStale";   // summary9: fasa with BnW split, Fasa 6 = 1 action (27)
+var SUMMARY_KEY = "summary10", SUMMARY_STALE = "summaryStale";   // summary10: CRM checklist N..AG (20 ticks); summary9: fasa with BnW split
 // The flag holds the time of the last save, so a summary that was already being built before that save does not clear it.
 function markSummaryStale() { CacheService.getScriptCache().put(SUMMARY_STALE, String(Date.now()), 21600); }
 
@@ -2938,4 +2939,153 @@ function showCawanganSheets() {
   Logger.log(CAWANGAN.map(function (c) {
     return c + ": " + (map[c] ? "https://docs.google.com/spreadsheets/d/" + map[c] : "(belum ada)");
   }).join("\n"));
+}
+
+// ---------- CRM checklist: 17 ticks → 20 ticks (migration 007, 2026-11-28) ----------
+// The new list follows the "[TEMPLATE] SEKOLAH_PIC" sheet: L1 = 4, L2 = 3, L3 = 5, L4 = 4, L5 = 4 (columns N..AG).
+// crm20Check() only reports; crm20Migrate() rewrites row 2 of every school tab (and the template), adds the
+// three columns AE..AG with the look of AD, and carries each old tick to the new item with the same meaning.
+// The old ticks are first copied to a hidden "_crm17_backup" tab in each cawangan sheet.
+var CRM_OLD = [
+  "Sudah ada nombor telefon cikgu/admin untuk di CRM",
+  "Sudah mula untuk CRM melalui PM atau berjumpa",
+  "Sudah ada pertemuan santai/rasmi",
+  "Senang untuk berurusan (respon ws kurang 1 hari)",
+  "Cikgu/Admin hanya merespon pada waktu pejabat/hari minggu",
+  "Mula update berkenaan kampus kepada kita",
+  "Mula berkongsi berkenaan keluarga/keadaan sekeliling dia",
+  "Boleh dihubungi walaupun di luar waktu pejabat atau pada hujung minggu",
+  "Tiada masalah untuk pertemuan seterusnya",
+  "Mula beri hadiah/cenderamata kepada pihak kita",
+  "Tiada masalah nak angkat call jika nak berurusan/tanya sesuatu",
+  "Mudah untuk ziarah silaturahim",
+  "Bersetuju untuk berkolaborasi untuk program/projek YOSH/MyFundAction secara bersurat (hitam putih)",
+  "Memberikan projek kampus untuk ikhwah akhwat terlibat",
+  "Dapat pertemuan secara bulanan",
+  "Mula meminta pendapat daripada kita",
+  "Boleh ziarah santai (eg: ziarah rumah, makan-makan bersama)"
+];
+// [label, index in CRM_OLD whose tick carries over, or -1 = new item, starts empty]
+var CRM_NEW = [
+  ["Sudah ada nombor telefon untuk di CRM", 0],
+  ["Sudah mula untuk CRM (PM/Call)", 1],
+  ["Memperkenalkan wajihah amal kepada cikgu", -1],
+  ["Sudah add friend cikgu di Facebook", -1],
+  ["Boleh berurusan (cikgu respon mesej dalam 24 jam)", 3],
+  ["Boleh mendapatkan respon pada working hours / weekdays", 4],
+  ["Sudah ada pertemuan santai/rasmi (F2F) 2x", 2],
+  ["Dapat kenal lebih dekat family background (CRM informal)", 6],
+  ["Dapat tahu berkenaan masalah atau isu semasa sekolah/pelajar melalui cikgu", 5],
+  ["Tiada masalah untuk setup pertemuan bila-bila masa", 8],
+  ["Mula beri hadiah/cenderamata kepada pihak kita", 9],
+  ["Cikgu mula minta pendapat daripada kita", 15],
+  ["Post poster program di sosmed (FB, WhatsApp, story dll.)", -1],
+  ["Cikgu buat dan kongsi video testimoni feedback tentang kita", -1],
+  ["Cikgu cerita tentang kita pada guru-guru lain", -1],
+  ["Cikgu beri galakan kepada guru untuk hadir program", -1],
+  ["Offer program/projek pada YOSH MyFundAction (hitam putih)", 12],
+  ["Cikgu memperkenalkan kita secara rasmi kepada PIBG / KISB / Alumni Muafakat", -1],
+  ["Jemputan ke program rasmi sekolah (Raya, ambil result SPM, hari bertemu pelanggan)", -1],
+  ["Dijemput datang ke rumah cikgu (cth: ziarah rumah, makan bersama)", 16]
+];
+var CRM_CHECK_FIRST = 14, CRM_OLD_LAST = 30, CRM_NEW_LAST = 33;   // N, AD, AG
+function crmNorm_(s) { return text(s).toLowerCase().replace(/\s+/g, " "); }
+
+// One school-format tab: which layout it has, and whether AE..AG (rows 1..end of CRM) are free.
+function crmTabState_(sh) {
+  var m = markers(sh);
+  var end = m.crmEnd;
+  var head = sh.getRange(2, CRM_CHECK_FIRST, 1, CRM_NEW_LAST - CRM_CHECK_FIRST + 1).getDisplayValues()[0].map(crmNorm_);
+  var oldOk = CRM_OLD.every(function (l, i) { return head[i] === crmNorm_(l); });
+  var newOk = CRM_NEW.every(function (l, i) { return head[i] === crmNorm_(l[0]); });
+  var extra = sh.getRange(1, CRM_OLD_LAST + 1, end, CRM_NEW_LAST - CRM_OLD_LAST).getDisplayValues()
+    .some(function (r) { return r.some(function (v) { return text(v) !== ""; }); });
+  var merges = sh.getRange(1, CRM_OLD_LAST, end, 2).getMergedRanges()
+    .filter(function (mr) { return mr.getLastColumn() > CRM_OLD_LAST; }).map(function (mr) { return mr.getA1Notation(); });
+  return { layout: newOk ? "20" : oldOk ? "17" : "lain", crmEnd: end, aeagUsed: extra, mergesPastAD: merges,
+           head: oldOk || newOk ? null : head.slice(0, 17) };
+}
+function crmTabs_(ss) {
+  var names = schoolNames(ss);
+  if (ss.getSheetByName(TEMPLATE) && names.indexOf(TEMPLATE) < 0) names.push(TEMPLATE);
+  return names;
+}
+
+// Read-only report (Logger): run from the editor before crm20Migrate().
+function crm20Check() {
+  var map = sheetMap(), out = {};
+  Object.keys(map).forEach(function (c) {
+    var ss = SpreadsheetApp.openById(map[c]), tabs = {}, formulas = [];
+    crmTabs_(ss).forEach(function (n) {
+      try { tabs[n] = crmTabState_(ss.getSheetByName(n)); } catch (e) { tabs[n] = { error: String(e.message || e) }; }
+    });
+    // formulas in other tabs that read the school tabs' checklist columns
+    ss.getSheets().forEach(function (sh) {
+      if (tabs[sh.getName()] || sh.getLastRow() < 1 || sh.getLastColumn() < 1) return;
+      var f = sh.getRange(1, 1, Math.min(sh.getLastRow(), 60), Math.min(sh.getLastColumn(), 40)).getFormulas();
+      f.forEach(function (r, i) { r.forEach(function (v, j) {
+        if (v && /AD\b|AD\d|:AD/i.test(v) && formulas.length < 10) formulas.push(sh.getName() + "!" + sh.getRange(i + 1, j + 1).getA1Notation() + " " + v.slice(0, 160));
+      }); });
+    });
+    var count = { "17": 0, "20": 0, lain: 0, error: 0 };
+    Object.keys(tabs).forEach(function (n) { count[tabs[n].error ? "error" : tabs[n].layout]++; });
+    out[c] = { count: count, tabs: tabs, formulas: formulas };
+  });
+  Logger.log(JSON.stringify(out, null, 1));
+  return out;
+}
+
+// Rewrites every 17-tick school tab to the 20-tick layout. Tabs that are already 20, or not the expected
+// 17-tick layout, or have something in AE..AG, are left alone and listed in the log.
+function crm20Migrate() {
+  var map = sheetMap(), log = [];
+  Object.keys(map).forEach(function (c) {
+    var ss = SpreadsheetApp.openById(map[c]);
+    var bk = ss.getSheetByName("_crm17_backup");
+    if (!bk) {
+      bk = ss.insertSheet("_crm17_backup");
+      bk.getRange(1, 1, 1, 4).setValues([["Tab", "Baris", "17 tick lama (N..AD)", "Disalin"]]);
+      bk.hideSheet();
+    }
+    crmTabs_(ss).forEach(function (n) {
+      var sh = ss.getSheetByName(n), st;
+      try { st = crmTabState_(sh); } catch (e) { log.push(c + " / " + n + ": dilangkau (" + (e.message || e) + ")"); return; }
+      if (st.layout !== "17") { log.push(c + " / " + n + ": dilangkau (susunan " + st.layout + ")"); return; }
+      if (st.aeagUsed || st.mergesPastAD.length) { log.push(c + " / " + n + ": dilangkau (AE..AG tidak kosong / sel gabung)"); return; }
+      var end = st.crmEnd, nRows = end - 2, w = CRM_NEW_LAST - CRM_CHECK_FIRST + 1;
+      var old = sh.getRange(3, CRM_CHECK_FIRST, nRows, 17).getValues();
+      // backup
+      var stamp = new Date(), rows = [];
+      old.forEach(function (r, i) {
+        if (r.some(function (v) { return typeof v === "boolean"; }))
+          rows.push([n, i + 3, r.map(function (v) { return v === true ? "1" : v === false ? "0" : "-"; }).join(""), stamp]);
+      });
+      if (rows.length) bk.getRange(bk.getLastRow() + 1, 1, rows.length, 4).setValues(rows);
+      // look of AD → AE..AG (rows 1..end of CRM), column width too
+      var ad = sh.getRange(1, CRM_OLD_LAST, end, 1), ae = sh.getRange(1, CRM_OLD_LAST + 1, end, 3);
+      ad.copyTo(ae, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+      ad.copyTo(ae, SpreadsheetApp.CopyPasteType.PASTE_DATA_VALIDATION, false);
+      for (var k = 1; k <= 3; k++) sh.setColumnWidth(CRM_OLD_LAST + k, sh.getColumnWidth(CRM_OLD_LAST));
+      // headings above the checklist that end at AD (e.g. "KPI CRM" in row 1) now end at AG
+      sh.getRange(1, COL.KPI, 2, CRM_OLD_LAST - COL.KPI + 1).getMergedRanges().forEach(function (mr) {
+        if (mr.getLastColumn() !== CRM_OLD_LAST || mr.getRow() > 2) return;
+        var r0 = mr.getRow(), c0 = mr.getColumn(), h = mr.getNumRows();
+        mr.breakApart();
+        sh.getRange(r0, c0, h, CRM_NEW_LAST - c0 + 1).merge();
+      });
+      // row 2 titles, then the ticks
+      sh.getRange(2, CRM_CHECK_FIRST, 1, w).setValues([CRM_NEW.map(function (x) { return x[0]; })]);
+      var out = old.map(function (r) {
+        var person = r.some(function (v) { return typeof v === "boolean"; });
+        return CRM_NEW.map(function (x) { return person ? (x[1] >= 0 ? r[x[1]] === true : false) : ""; });
+      });
+      sh.getRange(3, CRM_CHECK_FIRST, nRows, w).setValues(out);
+      log.push(c + " / " + n + ": siap (" + rows.length + " orang)");
+    });
+  });
+  SpreadsheetApp.flush();
+  bumpData();
+  markSummaryStale();
+  Logger.log(log.join("\n"));
+  return log;
 }

@@ -21,20 +21,63 @@
   };
   // CRM value positions.
   var C = { entiti: 0, ada: 1, nama: 2, tel: 3, perm: 4, pic: 5, kat: 6, phase: 7, level: 8, tarikh: 9, nota: 10, video: 11, check: 12 };
-  // Level CRM comes from the checklist (TDS Tengah "Checklist & Level"): the 17 ticks in order belong to
-  // L1 = 1–2, L2 = 3–5, L3 = 6–10, L4 = 11–12, L5 = 13–17. A person is at level N once every tick of L1..N is
+  // Level CRM comes from the checklist ("[TEMPLATE] SEKOLAH_PIC", migration 007): the 20 ticks in order belong to
+  // L1 = 1–4, L2 = 5–7, L3 = 8–12, L4 = 13–16, L5 = 17–20. A person is at level N once every tick of L1..N is
   // done. BLACKLIST is set by hand and is never replaced. Same rule in features/legality/legality-admin.js.
-  var CRM_LEVELS = [
+  // A sheet not yet moved to 20 ticks keeps the old 17 (2, 3, 5, 2, 5).
+  var CRM_LEVELS_20 = [
+    { n: 1, name: "Cikgu kenal kita", count: 4 },
+    { n: 2, name: "Cikgu mula faham objektif yang kita bawakan", count: 3 },
+    { n: 3, name: "Cikgu sokong program & selesa berinteraksi dengan kita", count: 5 },
+    { n: 4, name: "Cikgu mula promosi program kita", count: 4 },
+    { n: 5, name: "Cikgu bantu membuka peluang-peluang baru untuk kita", count: 4 }
+  ];
+  var CRM_LEVELS_17 = [
     { n: 1, name: "Cikgu kenal kita", count: 2 },
     { n: 2, name: "Cikgu mula faham objektif kita", count: 3 },
     { n: 3, name: "Cikgu sokong program dan selesa berinteraksi", count: 5 },
     { n: 4, name: "Cikgu mula promosi program kita", count: 2 },
     { n: 5, name: "Cikgu bantu buka peluang baru", count: 5 }
   ];
+  // "Cara" (what the PIC does) from the same template: L1 per item, L2–L5 for the whole level.
+  var CRM_HOW = {
+    1: [
+      ["Sudah ada nombor telefon", ["Calling pejabat untuk dapatkan nombor/email; pastikan reconfirm tentang program sekolah",
+        "Dapatkan nombor daripada alumni/kenalan/mad’u sekolah tersebut dan save nombor terus",
+        "Buat analisa personaliti (Choleric, Melancholic, Sanguine / Phlegmatic) dan sesuaikan PM mengikut personaliti"]],
+      ["Sudah mula CRM (PM/Call)", ["PM, position-kan diri sebagai wakil Yosh (nama, course, universiti, dapat contact dari mana)",
+        "Tanya khabar cikgu", "Beritahu tujuan PM",
+        "Call dan maklumkan guru untuk kunjungan hormat: maklumkan pelaksanaan program kepimpinan dan akademik",
+        "Email sekolah dan follow up tarikh meeting", "Keluarkan template untuk tarikh meeting",
+        "Confirm dengan pihak sekolah tentang tarikh meeting (sekurang-kurangnya sehari sebelum)"]],
+      ["Memperkenalkan wajihah amal", ["Jumpa cikgu dan bawa buah tangan (merchandise), cth. sejadah",
+        "Kenalkan diri: course apa, belajar di mana, pencapaian (background)", "Borak tentang minat cikgu/sekolah (situasi semasa)",
+        "Ceritakan program kita bersifat Youth Development “From Youth to Youth”: bimbing pelajar untuk kembali berbakti kepada masyarakat, terutamanya sekolah (Yosh & MyFundAction)",
+        "Pastikan cikgu save nombor sebelum balik"]],
+      ["Sudah add Facebook", ["Dapatkan Facebook cikgu dan add friend", "Buat virality di socmed & tag cikgu dan sekolah"]]
+    ],
+    2: ["Reply status/comment di posting cikgu", "Hantar quotes atau video TikTok/FB (motivasi / ilmu yang menarik)",
+        "Hantar report program kepada cikgu secara informal (gambar, output, mohon doa)",
+        "Maklum kepada cikgu yang di-CRM untuk kita beramah mesra dengan admin sekolah", "Bawa PGGP bantu tsiqohkan"],
+    3: ["Bertanya soalan personal/keluarga secara offline (background family)", "Borak berkenaan pelajar & update cerita mad’u pada cikgu",
+        "Hantar report program kepada cikgu secara informal (gambar, output, mohon doa)", "Beri hadiah semasa ziarah",
+        "Ceritakan projek dakwah (QC4U, FSP, AGM)", "Dapatkan feedback cikgu & komen program"],
+    4: ["Share impact program sekolah di status/posting FB", "Rakam feedback guru program sewaktu program",
+        "Ceritakan program mega TDS untuk libatkan guru lain (cth. seminar SPM & LYF)", "Share video feedback program YOSH Junior (compile)"],
+    5: ["Ceritakan projek dakwah (QC4U, FSP, AGM)", "Borak dan bertanya dengan sekolah tentang PIBG/Muafakat",
+        "CRM cikgu seminggu sekali bersama cikgu program dan admin", "Wish hari perayaan"]
+  };
+  // The checklist titles of the open school (row 2 of its tab), without empty columns at the end.
+  function crmChecks() {
+    var h = ((state.school && state.school.kpi && state.school.kpi.headers) || []).slice(C.check - 6);
+    while (h.length && !String(h[h.length - 1] || "").trim()) h.pop();
+    return h;
+  }
+  function crmLevels() { return crmChecks().length === 17 ? CRM_LEVELS_17 : CRM_LEVELS_20; }
   function crmLevelOf(ticks) {
-    var i = 0, level = 0;
-    for (var k = 0; k < CRM_LEVELS.length; k++) {
-      var L = CRM_LEVELS[k], all = true;
+    var i = 0, level = 0, LV = crmLevels();
+    for (var k = 0; k < LV.length; k++) {
+      var L = LV[k], all = true;
       for (var j = 0; j < L.count; j++) if (ticks[i + j] !== true) all = false;
       i += L.count;
       if (!all) break;
@@ -1594,7 +1637,7 @@
         kpi.entiti.forEach(function (o) { dl.appendChild(new Option(o)); });
         document.body.appendChild(dl);
       }
-      var checks = kpi.headers.slice(C.check - 6);
+      var checks = crmChecks();
 
       // Slots that are completely blank are hidden; "Tambah orang" fills them.
       var visible = model.rows.filter(function (row) {
@@ -1765,17 +1808,17 @@
           var top = el("div", "lg-crmlevel-top");
           top.appendChild(el("span", "lg-crmlevel-label", kpi.headers[2] || "Level CRM"));
           top.appendChild(el("strong", "lg-crmlevel-val" + (isBlack ? " is-black" : n ? "" : " is-none"),
-            isBlack ? "BLACKLIST" : n ? "L" + n + " · " + CRM_LEVELS[n - 1].name : "Belum L1"));
+            isBlack ? "BLACKLIST" : n ? "L" + n + " · " + crmLevels()[n - 1].name : "Belum L1"));
           levelBox.appendChild(top);
           var bar = el("div", "lg-crmlevel-steps");
-          CRM_LEVELS.forEach(function (L) { bar.appendChild(el("i", L.n <= n ? "is-done" : L.n === n + 1 ? "is-next" : "")); });
+          crmLevels().forEach(function (L) { bar.appendChild(el("i", L.n <= n ? "is-done" : L.n === n + 1 ? "is-next" : "")); });
           levelBox.appendChild(bar);
           levelBox.appendChild(el("p", "lg-crmlevel-hint", isBlack ? "Level dikunci sebagai BLACKLIST."
             : "Dikira automatik: tick semua checklist satu level untuk naik ke level seterusnya."));
           levelBox.appendChild(black);
           // per-level counters on the group headings
           var i = 0;
-          CRM_LEVELS.forEach(function (L) {
+          crmLevels().forEach(function (L) {
             var got = ticks.slice(i, i + L.count).filter(function (v) { return v === true; }).length;
             i += L.count;
             var h = inner.querySelector('[data-crm-level="' + L.n + '"] .lg-crmlevel-n');
@@ -1788,7 +1831,7 @@
         inner.appendChild(el("h3", "ym-sec", "Checklist hubungan"));
         // Ticks grouped by the level they belong to
         var at = 0;
-        CRM_LEVELS.forEach(function (L) {
+        crmLevels().forEach(function (L) {
           var g = el("div", "lg-crmgroup");
           g.dataset.crmLevel = L.n;
           var gh = el("div", "lg-crmgroup-head");
@@ -1801,6 +1844,24 @@
             list.appendChild(checkField(checks[at], row, C.check + at, function () { syncLevel(); ch(); }));
           }
           g.appendChild(list);
+          var how = checks.length === 17 ? null : CRM_HOW[L.n];
+          if (how) {
+            var det = el("details", "lg-crmhow");
+            det.appendChild(el("summary", null, "Cara capai L" + L.n));
+            if (L.n === 1) {
+              how.forEach(function (part) {
+                det.appendChild(el("p", "lg-crmhow-item", part[0]));
+                var ol = el("ol");
+                part[1].forEach(function (t) { ol.appendChild(el("li", null, t)); });
+                det.appendChild(ol);
+              });
+            } else {
+              var ol = el("ol");
+              how.forEach(function (t) { ol.appendChild(el("li", null, t)); });
+              det.appendChild(ol);
+            }
+            g.appendChild(det);
+          }
           inner.appendChild(g);
         });
         if (at < checks.length) {   // a sheet with more ticks than the levels know about: show them too

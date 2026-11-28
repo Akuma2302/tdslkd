@@ -444,17 +444,17 @@
   }
 
   // ---------- CRM ----------
-  // Level CRM from the checklist, same rule as pages/portal/legality.js: the 17 ticks in order belong to
-  // L1 = 1–2, L2 = 3–5, L3 = 6–10, L4 = 11–12, L5 = 13–17; level N once every tick of L1..N is done.
-  // BLACKLIST (set by hand) is kept.
-  var CRM_LEVEL_COUNTS = [2, 3, 5, 2, 5];
-  function crmLevelFromBits(bits, stored) {
+  // Level CRM from the checklist, same rule as pages/portal/legality.js: the 20 ticks in order belong to
+  // L1 = 1–4, L2 = 5–7, L3 = 8–12, L4 = 13–16, L5 = 17–20 (a sheet still on the old 17: 2, 3, 5, 2, 5);
+  // level N once every tick of L1..N is done. BLACKLIST (set by hand) is kept.
+  var CRM_LEVEL_COUNTS = [4, 3, 5, 4, 4], CRM_LEVEL_COUNTS_17 = [2, 3, 5, 2, 5];
+  function crmLevelFromBits(bits, stored, nChecks) {
     if (/blacklist/i.test(stored || "")) return "BLACKLIST";
-    var i = 0, level = 0;
-    for (var k = 0; k < CRM_LEVEL_COUNTS.length; k++) {
-      var part = String(bits || "").substr(i, CRM_LEVEL_COUNTS[k]);
-      i += CRM_LEVEL_COUNTS[k];
-      if (part.length < CRM_LEVEL_COUNTS[k] || /[^1]/.test(part)) break;
+    var i = 0, level = 0, LC = nChecks === 17 ? CRM_LEVEL_COUNTS_17 : CRM_LEVEL_COUNTS;
+    for (var k = 0; k < LC.length; k++) {
+      var part = String(bits || "").substr(i, LC[k]);
+      i += LC[k];
+      if (part.length < LC[k] || /[^1]/.test(part)) break;
       level = k + 1;
     }
     return level ? "L" + level : "";
@@ -463,17 +463,20 @@
   function crmPeople(rows) {
     var out = [];
     rows.forEach(function (x) {
+      var nChecks = crmHead(x.cawangan).checks.length;
       (x.s.crm || []).forEach(function (r) {
         // CRM aktif = name filled in (the portal no longer has a separate Ada tick)
         out.push({ cawangan: x.cawangan, sekolah: x.s.name, entiti: r[0], nama: r[1], tel: r[2], pic: r[3], ada: !!String(r[1] || "").trim(),
-                   kat: r[5], level: crmLevelFromBits(r[11], r[7]), nota: r[9], video: r[10], checks: r[11] || "", perm: r[12] || "" });
+                   kat: r[5], level: crmLevelFromBits(r[11], r[7], nChecks), nota: r[9], video: r[10], checks: r[11] || "", perm: r[12] || "" });
       });
     });
     return out;
   }
   function crmHead(branch) {
     var c = state.data.cawangan.filter(function (c) { return (branch === ALL || c.id === branch) && c.crmHead; })[0];
-    return (c && c.crmHead) || { kpi: [], checks: [] };
+    var h = (c && c.crmHead) || { kpi: [], checks: [] }, checks = (h.checks || []).slice();
+    while (checks.length && !String(checks[checks.length - 1] || "").trim()) checks.pop();   // empty columns at the end
+    return { kpi: h.kpi || [], checks: checks };
   }
   function done(bits) { return (bits.match(/1/g) || []).length; }
   function waLink(tel) {
@@ -519,7 +522,7 @@
     var n = list.length, aktif = list.filter(function (p) { return p.ada; }).length;
     var noCrm = rows.filter(function (x) { return !x.s.people; }).length;
     var head = crmHead(branch);
-    var nChecks = head.checks.length || 17;
+    var nChecks = head.checks.length || 20;
 
     // 1. Kad ringkasan
     grid.appendChild(stat("Orang CRM", String(n), rows.length + " sekolah", true));
@@ -717,7 +720,7 @@
     w.appendChild(tools);
     var box = el("div", "lgd-crm-list");
     w.appendChild(box);
-    var nChecks = head.checks.length || 17, LIMIT = 50, shown = LIMIT;
+    var nChecks = head.checks.length || 20, LIMIT = 50, shown = LIMIT;
 
     function card(p) {
       var d = el("details", "lgd-crm-person");
