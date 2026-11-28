@@ -31,8 +31,8 @@ var SECTIONS = {
 var CHECKBOX_COLS = { crm: [3].concat(range_(14, 30)), program: [7] };
 var DATE_COLS = { crm: [11], planning: [2] };
 
-// Fasa Legality: 10 phases, each with its actions (tindakan). A school is at Fasa N once every action of
-// Fasa 1..N is ticked (Fasa 0 = none complete). Ticks live in the "Fasa Legality" tab of each cawangan sheet.
+// Fasa Legality: 10 phases, each with its actions (tindakan). A school is at the highest Fasa N with at least
+// one action ticked (Fasa 0 = no ticks); the PIC need not finish every action of a fasa (rule since 2026-11-28). Ticks live in the "Fasa Legality" tab of each cawangan sheet.
 // This replaced the old 6-step checklist (still in the Progress tab, unused) and started from empty on 2026-11-18.
 var FASA_TAB = "Fasa Legality";
 var FASA = [
@@ -54,10 +54,9 @@ var FASA_ALIAS = { "persetujuan melalui draf bnw": ["Persetujuan melalui draf Bn
 function fasaLevel(vals) {
   var i = 0, level = 0;
   for (var k = 0; k < FASA.length; k++) {
-    var all = FASA[k].items.every(function (_, j) { return vals[i + j] === true; });
+    var any = FASA[k].items.some(function (_, j) { return vals[i + j] === true; });   // one tick is enough
     i += FASA[k].items.length;
-    if (!all) break;
-    level = FASA[k].n;
+    if (any) level = FASA[k].n;
   }
   return level;
 }

@@ -786,17 +786,16 @@
     return w;
   }
 
-  // Fasa level of a school: Fasa N once every action of Fasa 1..N is ticked (same rule as fasaLevel in Legality.gs).
+  // Fasa level of a school: the highest fasa with at least one action ticked (same rule as fasaLevel in Legality.gs).
   function fasaPhases() { return (state.data && state.data.fasa) || []; }
   function fasaLevelOf(vals) {
     var phases = fasaPhases(), i = 0, level = 0;
     vals = vals || [];
     for (var k = 0; k < phases.length; k++) {
       var f = phases[k];
-      var all = f.items.every(function (_, j) { return vals[i + j] === true; });
+      var any = f.items.some(function (_, j) { return vals[i + j] === true; });
       i += f.items.length;
-      if (!all) break;
-      level = f.n;
+      if (any) level = f.n;
     }
     return level;
   }

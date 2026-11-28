@@ -75,8 +75,8 @@ Baris 1: nama fasa (gabung merentas tindakannya). Baris 2: tindakan. Data dari b
 | B..AB | 27 tindakan (tick), mengikut `FASA` dalam kod: 10 fasa, Initial contact → Advocate |
 | AC | Dikemas kini |
 
-Lajur dibaca ikut **tajuk baris 2**, bukan kedudukan. Fasa sekolah = fasa tertinggi yang semua tindakannya
-(dan fasa sebelumnya) ditick.
+Lajur dibaca ikut **tajuk baris 2**, bukan kedudukan. Fasa sekolah = fasa tertinggi yang ada
+sekurang-kurangnya satu tindakan ditick (sejak 28 Nov 2026; tidak perlu lengkapkan semua tindakan dalam fasa itu).
 
 ### `PIC Legality` *(dibuat sendiri)*
 

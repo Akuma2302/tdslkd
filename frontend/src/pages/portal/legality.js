@@ -1308,20 +1308,19 @@
     return card;
   }
 
-  // Fasa level: Fasa N once every action of Fasa 1..N is ticked (same rule as fasaLevel in Legality.gs).
+  // Fasa level: the highest fasa with at least one action ticked; the PIC need not finish every action (same rule as fasaLevel in Legality.gs).
   function fasaLevel(phases, vals) {
     var i = 0, level = 0;
     for (var k = 0; k < phases.length; k++) {
       var f = phases[k];
-      var all = f.items.every(function (_, j) { return vals[i + j] === true; });
+      var any = f.items.some(function (_, j) { return vals[i + j] === true; });
       i += f.items.length;
-      if (!all) break;
-      level = f.n;
+      if (any) level = f.n;
     }
     return level;
   }
 
-  // Checklist Fasa Legality: 10 fasa, each with its actions. Ticking every action of a fasa moves the school up.
+  // Checklist Fasa Legality: 10 fasa, each with its actions. One tick in a fasa moves the school up to it.
   function fasaCard(fz) {
     var phases = fz.phases;
     var card = el("section", "borang-card lg-section");
@@ -1332,7 +1331,7 @@
     badge.hidden = true;
     head.appendChild(badge);
     card.appendChild(head);
-    card.appendChild(el("p", "lg-lead", "Tandakan tindakan yang sudah dibuat. Bila semua tindakan dalam satu fasa ditanda, sekolah naik ke fasa itu secara automatik."));
+    card.appendChild(el("p", "lg-lead", "Tandakan tindakan yang sudah dibuat. Sebaik sahaja satu tindakan dalam sesuatu fasa ditanda, sekolah naik ke fasa itu secara automatik."));
 
     var orig = fz.values.slice(), work = fz.values.slice();
     var now = el("div", "lg-fasa-now");
